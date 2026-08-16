@@ -1,0 +1,27 @@
+target/
+build/
+*.war
+*.class
+
+# IDE
+.idea/
+*.iml
+.vscode/
+nbproject/
+.settings/
+.classpath
+.project
+
+# OS
+.DS_Store
+
+# Local config chứa credential
+src/main/resources/db.local.properties
+
+# Kiểm thử: phụ thuộc và tệp sinh ra, không đưa vào kho
+test/node_modules/
+test/package.json
+test/package-lock.json
+test/classes/
+tomcat-cp.txt
+test/cp.txt

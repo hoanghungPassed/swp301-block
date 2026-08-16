@@ -1,0 +1,32 @@
+<%--
+  Một ô chỉ tiêu trên bảng điều khiển. Tách ra thành tệp riêng vì hai ô "Tháng này" và
+  "Hôm nay" giống hệt nhau về cách hiển thị và chỉ khác dữ liệu đưa vào — chép hai lần thì
+  sửa cách hiện phần trăm phải nhớ sửa cả hai chỗ.
+
+  Nhận vào hai biến đặt sẵn bằng c:set ngay trước khi chèn: cur (RevenueTarget hoặc rỗng)
+  và curLabel (nhãn hiện lên đầu ô).
+--%>
+<div class="kpi ${empty cur ? '' : (cur.reached ? 'good' : (cur.achievedPercent >= 70 ? 'warn' : 'bad'))}">
+  <div class="label"><c:out value="${curLabel}"/></div>
+  <c:choose>
+    <c:when test="${empty cur}">
+      <div class="value">—</div>
+      <div class="sub">Chưa đặt chỉ tiêu cho kỳ này.</div>
+    </c:when>
+    <c:otherwise>
+      <div class="value">${cur.achievedPercent}%</div>
+      <%-- Chỉ chiều rộng nằm trong style: đó là số liệu, không phải kiểu hiển thị. Chặn ở 100
+           để thanh vượt chỉ tiêu không tràn ra ngoài khung, còn con số thật vẫn hiện đầy đủ. --%>
+      <div class="progress" role="img" aria-label="Đã đạt ${cur.achievedPercent}% chỉ tiêu">
+        <div class="progress-bar" style="width:${cur.achievedPercent > 100 ? 100 : cur.achievedPercent}%;"></div>
+      </div>
+      <div class="sub">
+        ${ff:money(cur.achieved)} / ${ff:money(cur.targetAmount)}
+        <c:choose>
+          <c:when test="${cur.reached}"> — đã đạt</c:when>
+          <c:otherwise> — còn thiếu ${ff:money(cur.remaining)}</c:otherwise>
+        </c:choose>
+      </div>
+    </c:otherwise>
+  </c:choose>
+</div>

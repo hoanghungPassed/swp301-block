@@ -1,0 +1,127 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<taglib xmlns="http://xmlns.jcp.org/xml/ns/javaee"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://xmlns.jcp.org/xml/ns/javaee
+                            http://xmlns.jcp.org/xml/ns/javaee/web-jsptaglibrary_2_3.xsd"
+        version="2.1">
+
+    <description>
+        Hàm hiển thị dùng chung cho toàn bộ trang JSP.
+        Giải hai việc thẻ JSTL sẵn có không làm được: định dạng LocalDateTime,
+        và dịch mã trạng thái sang tiếng Việt ở một chỗ duy nhất.
+    </description>
+    <tlib-version>1.0</tlib-version>
+    <short-name>ff</short-name>
+    <uri>http://fastfood.com/functions</uri>
+
+    <function>
+        <name>dateTime</name>
+        <function-class>com.fastfood.common.util.ViewFunctions</function-class>
+        <function-signature>java.lang.String dateTime(java.time.LocalDateTime)</function-signature>
+    </function>
+    <function>
+        <name>time</name>
+        <function-class>com.fastfood.common.util.ViewFunctions</function-class>
+        <function-signature>java.lang.String time(java.time.LocalDateTime)</function-signature>
+    </function>
+    <function>
+        <name>date</name>
+        <function-class>com.fastfood.common.util.ViewFunctions</function-class>
+        <function-signature>java.lang.String date(java.time.LocalDateTime)</function-signature>
+    </function>
+    <function>
+        <name>money</name>
+        <function-class>com.fastfood.common.util.ViewFunctions</function-class>
+        <function-signature>java.lang.String money(java.math.BigDecimal)</function-signature>
+    </function>
+    <function>
+        <name>humanize</name>
+        <function-class>com.fastfood.common.util.ViewFunctions</function-class>
+        <function-signature>java.lang.String humanize(java.time.LocalDateTime)</function-signature>
+    </function>
+    <function>
+        <name>orderStatus</name>
+        <function-class>com.fastfood.common.util.ViewFunctions</function-class>
+        <function-signature>java.lang.String orderStatus(java.lang.String)</function-signature>
+    </function>
+    <function>
+        <name>orderStatusClass</name>
+        <function-class>com.fastfood.common.util.ViewFunctions</function-class>
+        <function-signature>java.lang.String orderStatusClass(java.lang.String)</function-signature>
+    </function>
+    <function>
+        <name>itemStatus</name>
+        <function-class>com.fastfood.common.util.ViewFunctions</function-class>
+        <function-signature>java.lang.String itemStatus(java.lang.String)</function-signature>
+    </function>
+    <function>
+        <name>itemStatusClass</name>
+        <function-class>com.fastfood.common.util.ViewFunctions</function-class>
+        <function-signature>java.lang.String itemStatusClass(java.lang.String)</function-signature>
+    </function>
+    <function>
+        <name>paymentStatus</name>
+        <function-class>com.fastfood.common.util.ViewFunctions</function-class>
+        <function-signature>java.lang.String paymentStatus(java.lang.String)</function-signature>
+    </function>
+    <function>
+        <name>paymentStatusClass</name>
+        <function-class>com.fastfood.common.util.ViewFunctions</function-class>
+        <function-signature>java.lang.String paymentStatusClass(java.lang.String)</function-signature>
+    </function>
+    <function>
+        <name>paymentMethod</name>
+        <function-class>com.fastfood.common.util.ViewFunctions</function-class>
+        <function-signature>java.lang.String paymentMethod(java.lang.String)</function-signature>
+    </function>
+    <function>
+        <name>orderSource</name>
+        <function-class>com.fastfood.common.util.ViewFunctions</function-class>
+        <function-signature>java.lang.String orderSource(java.lang.String)</function-signature>
+    </function>
+    <function>
+        <name>releaseState</name>
+        <function-class>com.fastfood.common.util.ViewFunctions</function-class>
+        <function-signature>java.lang.String releaseState(java.lang.String)</function-signature>
+    </function>
+    <function>
+        <name>issueType</name>
+        <function-class>com.fastfood.common.util.ViewFunctions</function-class>
+        <function-signature>java.lang.String issueType(java.lang.String)</function-signature>
+    </function>
+    <function>
+        <name>issueStatus</name>
+        <function-class>com.fastfood.common.util.ViewFunctions</function-class>
+        <function-signature>java.lang.String issueStatus(java.lang.String)</function-signature>
+    </function>
+    <function>
+        <name>issueStatusTag</name>
+        <function-class>com.fastfood.common.util.ViewFunctions</function-class>
+        <function-signature>java.lang.String issueStatusTag(java.lang.String)</function-signature>
+    </function>
+    <function>
+        <name>notificationEvent</name>
+        <function-class>com.fastfood.common.util.ViewFunctions</function-class>
+        <function-signature>java.lang.String notificationEvent(java.lang.String)</function-signature>
+    </function>
+    <function>
+        <name>notificationIcon</name>
+        <function-class>com.fastfood.common.util.ViewFunctions</function-class>
+        <function-signature>java.lang.String notificationIcon(java.lang.String)</function-signature>
+    </function>
+    <function>
+        <name>notificationEventClass</name>
+        <function-class>com.fastfood.common.util.ViewFunctions</function-class>
+        <function-signature>java.lang.String notificationEventClass(java.lang.String)</function-signature>
+    </function>
+    <function>
+        <name>auditAction</name>
+        <function-class>com.fastfood.common.util.ViewFunctions</function-class>
+        <function-signature>java.lang.String auditAction(java.lang.String)</function-signature>
+    </function>
+    <function>
+        <name>roleName</name>
+        <function-class>com.fastfood.common.util.ViewFunctions</function-class>
+        <function-signature>java.lang.String roleName(java.lang.String)</function-signature>
+    </function>
+</taglib>

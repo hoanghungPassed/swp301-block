@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Cấu hình riêng của Tomcat cho ứng dụng này.
+
+  ===== Vì sao có tệp này =====
+  Hai thuộc tính an toàn của cookie phiên không khai báo được trong web.xml:
+
+  SameSite  — đặc tả Servlet 4.0 ra đời trước khi thuộc tính này tồn tại, nên không có thẻ nào
+              cho nó. Đặt "lax" nghĩa là trình duyệt KHÔNG gửi kèm cookie phiên khi yêu cầu do
+              một trang khác phát ra bằng biểu mẫu hay JavaScript. Đây là lớp phòng thủ thứ hai
+              cho cùng vấn đề mà CsrfFilter giải: thứ nhất là mã trong biểu mẫu, thứ hai là
+              trình duyệt tự không gửi cookie. Chỉ dựa vào lớp thứ hai thì không đủ — trình
+              duyệt cũ không hiểu thuộc tính này và bỏ qua nó hoàn toàn.
+
+              Không dùng "strict": ở mức đó, người dùng bấm vào liên kết dẫn tới cửa hàng từ
+              một trang khác sẽ tới nơi trong trạng thái chưa đăng nhập, dù phiên vẫn còn.
+
+  Secure    — cookie chỉ đi trên https. CỐ Ý ĐỂ TẮT ở đây, và đây là một đánh đổi có ý thức:
+              dự án chạy demo trên http://localhost, bật Secure thì trình duyệt vứt cookie
+              phiên đi và không ai đăng nhập được. Khi triển khai thật sau một tên miền https,
+              thêm secure="true" vào thẻ CookieProcessor bên dưới.
+-->
+<Context>
+
+    <!--
+      Gói là org.apache.tomcat.util.http, KHÔNG phải org.apache.catalina.util. Sai gói ở đây
+      không làm hỏng riêng thuộc tính cookie: Tomcat không dựng nổi CookieProcessor thì đánh
+      dấu luôn cả context là hỏng, và toàn bộ ứng dụng trả về 404. Lỗi chỉ hiện trong
+      catalina.out chứ trang web không nói gì, nên rất dễ tưởng là lỗi triển khai.
+    -->
+    <CookieProcessor
+            className="org.apache.tomcat.util.http.Rfc6265CookieProcessor"
+            sameSiteCookies="lax" />
+
+</Context>

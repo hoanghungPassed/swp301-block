@@ -1,0 +1,91 @@
+<%@ page pageEncoding="UTF-8" %>
+<%--
+  Thanh chuyển trang dùng chung. Trang gọi đặt sẵn hai thứ trong request:
+
+    pageData     đối tượng Page do tầng dịch vụ trả về (bắt buộc)
+    filterQuery  chuỗi tham số lọc hiện tại, đã bỏ 'page' — do servlet dựng bằng
+                 WebUtil.queryStringWithout(req, "page")
+
+  Liên kết dùng đường dẫn tương đối "?..." nên tự trỏ về đúng trang đang mở, không cần
+  khai báo địa chỉ đích cho từng nơi gọi.
+
+  Dòng "đang xem 21–40 trong 214" luôn hiện, kể cả khi chỉ có một trang: đó chính là điều
+  mà cách cắt cứng bằng SELECT TOP không nói ra, khiến người xem tưởng mình đang nhìn
+  toàn bộ dữ liệu.
+--%>
+<c:if test="${not empty pageData}">
+  <%-- Dấu & nối tham số phải thoát thành &amp; khi nằm trong thuộc tính href: để thô thì
+       một tham số tên là "copy" hay "reg" sẽ bị trình duyệt đọc thành thực thể HTML
+       (&copy; &reg;) và bộ lọc mất luôn khi bấm sang trang khác. --%>
+  <c:set var="q" value="${empty filterQuery ? '' : filterQuery.concat('&')}" />
+
+  <nav class="pager" aria-label="Chuyển trang">
+    <p class="pager-count">
+      <c:choose>
+        <c:when test="${pageData.totalItems == 0}">Không có bản ghi nào.</c:when>
+        <c:otherwise>
+          Đang xem <strong>${pageData.firstIndex}–${pageData.lastIndex}</strong>
+          trong <strong>${pageData.totalItems}</strong> bản ghi
+          <c:if test="${pageData.paged}">
+            · trang ${pageData.pageNo}/${pageData.totalPages}
+          </c:if>
+        </c:otherwise>
+      </c:choose>
+    </p>
+
+    <c:if test="${pageData.paged}">
+      <%-- Chỉ hiện vài số quanh trang hiện tại. Nhật ký vài nghìn bản ghi mà liệt kê hết
+           số trang thì thanh này dài hơn cả bảng dữ liệu. --%>
+      <c:set var="from" value="${pageData.pageNo - 2 < 1 ? 1 : pageData.pageNo - 2}" />
+      <c:set var="to" value="${pageData.pageNo + 2 > pageData.totalPages
+                               ? pageData.totalPages : pageData.pageNo + 2}" />
+
+      <div class="pager-links">
+        <c:choose>
+          <c:when test="${pageData.first}">
+            <span class="pager-link disabled" aria-hidden="true">← Trước</span>
+          </c:when>
+          <c:otherwise>
+            <a class="pager-link" rel="prev"
+               href="?${fn:escapeXml(q)}page=${pageData.prevPage}">← Trước</a>
+          </c:otherwise>
+        </c:choose>
+
+        <c:if test="${from > 1}">
+          <a class="pager-link" href="?${fn:escapeXml(q)}page=1" aria-label="Trang 1">1</a>
+          <c:if test="${from > 2}"><span class="pager-gap" aria-hidden="true">…</span></c:if>
+        </c:if>
+
+        <c:forEach var="i" begin="${from}" end="${to}">
+          <c:choose>
+            <c:when test="${i == pageData.pageNo}">
+              <span class="pager-link current" aria-current="page"
+                    aria-label="Trang ${i}, trang hiện tại">${i}</span>
+            </c:when>
+            <c:otherwise>
+              <a class="pager-link" href="?${fn:escapeXml(q)}page=${i}" aria-label="Trang ${i}">${i}</a>
+            </c:otherwise>
+          </c:choose>
+        </c:forEach>
+
+        <c:if test="${to < pageData.totalPages}">
+          <c:if test="${to < pageData.totalPages - 1}">
+            <span class="pager-gap" aria-hidden="true">…</span>
+          </c:if>
+          <a class="pager-link" href="?${fn:escapeXml(q)}page=${pageData.totalPages}"
+             aria-label="Trang ${pageData.totalPages}">${pageData.totalPages}</a>
+        </c:if>
+
+        <c:choose>
+          <c:when test="${pageData.last}">
+            <span class="pager-link disabled" aria-hidden="true">Sau →</span>
+          </c:when>
+          <c:otherwise>
+            <a class="pager-link" rel="next"
+               href="?${fn:escapeXml(q)}page=${pageData.nextPage}">Sau →</a>
+          </c:otherwise>
+        </c:choose>
+      </div>
+    </c:if>
+  </nav>
+</c:if>

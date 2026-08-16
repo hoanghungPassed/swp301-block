@@ -1,0 +1,47 @@
+<%@ page pageEncoding="UTF-8" %>
+<%--
+  Nửa đầu của khung trang dùng chung. Trang gọi đặt trước các biến:
+
+    pageTitle   tiêu đề hiện trên thanh trình duyệt (bắt buộc)
+    nav         mục điều hướng đang mở, để tô sáng đúng chỗ
+    mainClass   lớp cho thẻ <main>; bỏ trống thì dùng "container"
+
+  Vì sao dùng <%@ include %> (ghép lúc dịch) chứ không phải <jsp:include> (ghép lúc chạy):
+  ghép lúc chạy tạo một PageContext riêng cho tệp được ghép, nên nó KHÔNG đọc được biến ở
+  phạm vi trang của trang gọi. Đó chính là lý do trước đây mọi trang đều hiện tiêu đề
+  "Fast Food · Fast Food" và mục điều hướng không bao giờ sáng lên — pageTitle và nav
+  đặt ở phạm vi trang nhưng lại được đọc từ bên trong một tệp ghép lúc chạy.
+  Ghép lúc dịch thì cả trang chỉ có một PageContext duy nhất nên biến nhìn thấy được.
+--%>
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<%@ include file="/WEB-INF/views/layout/head.jspf" %>
+</head>
+<body>
+<a class="skip-link" href="#main">Tới nội dung chính</a>
+<%@ include file="/WEB-INF/views/layout/header.jspf" %>
+<main id="main" class="${empty mainClass ? 'container' : mainClass}">
+<%--
+  Dải nhắc "chưa xác thực email". Nằm ở khung dùng chung nên có mặt trên mọi trang, chứ không
+  chỉ ở giỏ hàng: khách chỉ gặp chốt chặn lúc bấm Đặt hàng, mà lúc đó họ đã chọn xong món và
+  chọn xong giờ hẹn — biết sớm hơn thì việc cần làm cũng nhẹ hơn.
+
+  Chỉ hiện cho tài khoản khách. Nhân viên do quản trị viên tạo nên cờ luôn bật; ràng buộc
+  vai trò ở đây là để phòng trường hợp một tài khoản nội bộ cũ sót cờ tắt, khi ấy dải nhắc sẽ
+  mời họ làm một việc không liên quan gì tới bốn màn hình nội bộ.
+
+  Nút gửi lại là biểu mẫu POST kèm mã chống giả mạo: để ở GET thì một thẻ <img> trên trang bất
+  kỳ cũng bắt hệ thống gửi thư được. returnTo giữ người dùng ở nguyên trang đang xem.
+--%>
+<c:if test="${not empty me and me.roleName eq 'CUSTOMER' and not me.emailVerified}">
+  <div class="alert alert-warn verify-banner" role="status">
+    <span>Địa chỉ <strong><c:out value="${me.email}"/></strong> chưa được xác thực nên chưa đặt được
+      đơn online. Vui lòng mở thư chúng tôi đã gửi và bấm liên kết trong đó.</span>
+    <form method="post" action="${ctx}/verify-email">
+      <input type="hidden" name="_csrf" value="${csrfToken}">
+      <input type="hidden" name="returnTo" value="${empty currentPath ? '/menu' : currentPath}">
+      <button type="submit" class="btn btn-sm">Gửi lại thư xác thực</button>
+    </form>
+  </div>
+</c:if>

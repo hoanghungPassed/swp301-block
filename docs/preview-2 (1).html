@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+
+<html lang="vi">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Phân tích hệ thống đầy đủ V6 – Fast Food Pre-order Pickup &amp; POS</title>
+<style>
+:root{--bg:#f4f6f8;--paper:#fff;--ink:#18202a;--muted:#667085;--line:#e4e7ec;--soft:#f8fafc;--blue:#175cd3;--green:#067647;--amber:#b54708;--red:#b42318;--violet:#6941c6}
+*{box-sizing:border-box;margin:0;padding:0}html{scroll-behavior:smooth}
+body{font-family:Inter,'Segoe UI',Arial,sans-serif;color:var(--ink);background:var(--bg);line-height:1.6;font-size:14px;padding:28px}
+.page{max-width:1180px;margin:auto;background:var(--paper);border:1px solid var(--line);border-radius:16px;box-shadow:0 4px 18px rgba(16,24,40,.05);overflow:hidden}
+.hero{padding:32px 36px 26px;border-bottom:1px solid var(--line);background:linear-gradient(180deg,#fff,#fbfcfe)}
+.eyebrow{font-size:11px;text-transform:uppercase;letter-spacing:.12em;color:var(--muted);font-weight:700}.hero h1{font-size:30px;line-height:1.25;margin:6px 0 8px}.hero p{color:var(--muted);max-width:900px}.tags{margin-top:16px;display:flex;gap:7px;flex-wrap:wrap}.tag{font-size:12px;padding:4px 9px;border:1px solid var(--line);border-radius:999px;background:#fff;color:#475467}
+.content{padding:12px 36px 40px}.toc{margin:20px 0;padding:18px 20px;background:var(--soft);border:1px solid var(--line);border-radius:12px}.toc h3{font-size:14px;margin-bottom:8px}.toc-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:5px 18px}.toc a{color:#344054;text-decoration:none;font-size:13px}.toc a:hover{text-decoration:underline}
+section{padding-top:26px}section h2{font-size:20px;margin-bottom:10px;padding-bottom:7px;border-bottom:1px solid var(--line)}section h3{font-size:15px;margin:16px 0 6px}p{margin:7px 0}.lead{font-size:15px}.muted{color:var(--muted)}
+.callout{margin:12px 0;padding:12px 14px;border-radius:9px;border:1px solid}
+.note{margin:10px 0;padding:10px 13px;border-left:3px solid var(--blue);background:var(--soft);color:#475467;font-size:13px;border-radius:0 6px 6px 0}
+td.note{border-left:0;border-radius:0;background:var(--soft)}
+.mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12.5px;color:#344054}.core{background:#eff8ff;border-color:#b2ddff}.proposal{background:#f0fdf4;border-color:#bbefc8}.warning{background:#fffaeb;border-color:#fedf89}.openq{background:#fff1f3;border-color:#feccd6}.callout strong{display:inline-block;margin-right:4px}
+.legend{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}.legend span{font-size:12px;padding:5px 9px;border-radius:7px;border:1px solid}.legend .l1{background:#eff8ff;border-color:#b2ddff}.legend .l2{background:#f0fdf4;border-color:#bbefc8}.legend .l3{background:#fffaeb;border-color:#fedf89}
+table{width:100%;border-collapse:separate;border-spacing:0;margin:10px 0 16px;border:1px solid var(--line);border-radius:10px;overflow:hidden}th{background:#f9fafb;color:#475467;font-size:11px;text-transform:uppercase;letter-spacing:.05em;text-align:left;padding:10px 12px;border-bottom:1px solid var(--line)}td{padding:10px 12px;border-bottom:1px solid #eef0f2;vertical-align:top}tr:last-child td{border-bottom:0}.center{text-align:center}.small{font-size:12px}.nowrap{white-space:nowrap}
+ul,ol{padding-left:20px;margin:7px 0}li{margin:3px 0}.badge{display:inline-block;font-size:11px;font-weight:700;padding:3px 8px;border-radius:999px;white-space:nowrap}.b-customer{background:#dbeafe;color:#1e40af}.b-staff{background:#dcfce7;color:#166534}.b-kitchen{background:#fef3c7;color:#92400e}.b-admin{background:#fee2e2;color:#991b1b}.b-ext{background:#ede9fe;color:#5b21b6}.b-hw{background:#f1f5f9;color:#334155}.b-status{background:#f2f4f7;color:#344054}.crud{display:inline-block;min-width:22px;text-align:center;font-size:10px;font-weight:800;padding:2px 6px;border-radius:5px;margin:1px}.crud-c{background:#ecfdf3;color:#027a48}.crud-r{background:#eff8ff;color:#175cd3}.crud-u{background:#fffaeb;color:#b54708}.crud-d{background:#fef3f2;color:#b42318}.screen-id{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:11px;color:#475467}.role-head{margin-top:22px;padding:12px 14px;border:1px solid var(--line);border-radius:10px;background:#fcfcfd}
+.flow{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;background:#101828;color:#f8fafc;padding:15px 17px;border-radius:10px;white-space:pre-wrap;margin:10px 0;font-size:13px;overflow:auto}.flow.light{background:#f8fafc;color:#344054;border:1px solid var(--line)}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}.card{border:1px solid var(--line);border-radius:10px;padding:14px;background:#fff}.card h3{margin-top:0}.kpi{font-weight:700;color:#101828}
+.footer{padding:18px 36px 28px;color:var(--muted);font-size:12px;border-top:1px solid var(--line);background:#fcfcfd}
+@media(max-width:820px){body{padding:10px}.hero,.content{padding-left:18px;padding-right:18px}.toc-grid,.grid2{grid-template-columns:1fr}.hero h1{font-size:24px}table{font-size:12px}}
+@media print{body{padding:0;background:#fff}.page{border:none;box-shadow:none}.toc{display:none}section{page-break-inside:auto}.card,.callout,table{page-break-inside:avoid}}
+</style>
+</head>
+<body>
+<div class="page">
+<header class="hero">
+<div class="eyebrow">System Analysis · Requirements Baseline · Version 6</div>
+<h1>Hệ thống bán &amp; quản lý đồ ăn nhanh – V6</h1>
+<p class="lead">V6 khóa lại mô hình Ordering theo hai kênh rõ ràng: ONLINE_PREORDER là đặt trước từ xa, bắt buộc chọn giờ đến lấy tại cửa hàng và thanh toán online trước; POS là khách walk-in đặt trực tiếp tại quầy. MVP không có giao hàng/shipper. Online Pre-order được điều phối theo pickup_time, kitchen_release_at, KDS và Pickup Code/QR để giảm thời gian chờ nhưng tránh chế biến quá sớm.</p>
+<div class="tags"><span class="tag">Ordering</span><span class="tag">Payment</span><span class="tag">Order Management</span><span class="tag">Kitchen / KDS</span><span class="tag">Notification</span><span class="tag">Admin</span><span class="tag">Reporting</span></div>
+<div class="legend"><span class="l1"><strong>Yêu cầu cốt lõi</strong> – chức năng bắt buộc của MVP</span><span class="l2"><strong>Quyết định V6</strong> – đã khóa để triển khai nhất quán</span><span class="l3"><strong>Future/Out of scope</strong> – Delivery/Shipper và mở rộng khác không thuộc MVP</span></div>
+</header>
+<div class="content">
+<nav class="toc">
+<h3>Mục lục</h3>
+<div class="toc-grid">
+<a href="#s1">1. Tổng quan dự án</a><a href="#s2">2. Bài toán &amp; mục tiêu</a><a href="#s3">3. Phạm vi hệ thống</a>
+<a href="#s4">4. Actor &amp; trách nhiệm</a><a href="#s5">5. Module chức năng</a><a href="#s6">6. Luồng nghiệp vụ tổng thể</a>
+<a href="#s7">7. Luồng trạng thái</a><a href="#s8">8. Phân quyền</a><a href="#s9">9. Business Rules</a>
+<a href="#s10">10. Data/Entity</a><a href="#s11">11. Màn hình/role + Operations</a><a href="#s12">12. External &amp; Hardware</a>
+<a href="#s13">13. Báo cáo</a><a href="#s14">14. Use Case Catalogue</a><a href="#s15">15. Trường hợp ngoại lệ</a>
+<a href="#s16">16. NFR measurable</a><a href="#s17">17. Ngoài phạm vi</a><a href="#s18">18. Quyết định đã khóa V6</a>
+</div>
+</nav>
+<section id="s1">
+<h2>1. Tổng quan dự án</h2>
+<p>Dự án xây dựng một <strong>Fast Food Pre-order Pickup &amp; Operations Management System</strong>. Hệ thống hỗ trợ hai kênh mua khác nhau về nghiệp vụ nhưng dùng chung Payment, Order Management, Kitchen/KDS và Reporting.</p>
+<div class="grid2">
+<div class="card"><h3>ONLINE_PREORDER – Scheduled Store Pickup</h3><p>Customer đăng nhập, đặt món từ xa, <strong>chọn giờ đến cửa hàng lấy món</strong>, thanh toán online trước. Hệ thống giữ lịch, release món sang KDS gần giờ hẹn, thông báo khi READY và Cashier xác minh Pickup Code/QR trước khi handoff.</p></div>
+<div class="card"><h3>POS – Walk-in Immediate Order</h3><p>Customer đã có mặt tại cửa hàng. Cashier tạo Order trên POS, thu tiền Cash hoặc Online/QR tại quầy, Order được đưa vào KDS ngay và khách chờ nhận trực tiếp.</p></div>
+</div>
+<div class="proposal"><strong>Quyết định V6:</strong> MVP <strong>không hỗ trợ Delivery/Shipper</strong>. “Online” trong tài liệu luôn có nghĩa là <strong>Online Pre-order / Scheduled Store Pickup</strong>, không phải giao tận nơi.</div>
+</section>
+<section id="s2">
+<h2>2. Bài toán nghiệp vụ &amp; mục tiêu</h2>
+<div class="grid2">
+<div class="card"><h3>Bài toán phía Customer</h3><ul>
+<li>Khách walk-in không muốn quy trình tại quầy phức tạp: POS phải hỗ trợ đặt và thanh toán nhanh.</li>
+<li>Khách ở xa muốn <strong>đặt trước cho một thời điểm cụ thể</strong> để khi đến cửa hàng giảm thời gian chờ.</li>
+<li>Online Pre-order phải cho biết pickup time, tiến độ chuẩn bị, trạng thái READY và cách nhận món an toàn.</li>
+<li>Customer cần xem lịch sử và chỉ truy cập Order/Payment của chính mình.</li>
+</ul></div>
+<div class="card"><h3>Bài toán phía cửa hàng</h3><ul>
+<li>Không được đưa Scheduled Pre-order vào bếp quá sớm làm giảm chất lượng món.</li>
+<li>Đơn đã thanh toán phải được release đúng thời điểm, không duplicate khi scheduler/callback chạy lại.</li>
+<li>KDS phải thống nhất tiến độ theo OrderItem; Cashier không can thiệp trạng thái chế biến.</li>
+<li>Online Pickup cần xác minh đúng người nhận bằng Pickup Code/QR trước khi handoff.</li>
+</ul></div>
+</div>
+<h3>Mục tiêu chính</h3>
+<ol>
+<li>Hỗ trợ hai kênh Order rõ ràng: <strong>ONLINE_PREORDER</strong> và <strong>POS</strong>.</li>
+<li>Giảm thời gian chờ của khách Online bằng Scheduled Pickup nhưng tránh chế biến quá sớm.</li>
+<li>Bắt buộc Online Pre-order thanh toán online trước khi Order được CONFIRMED.</li>
+<li>Điều phối KDS bằng <code>pickup_time</code> và <code>kitchen_release_at</code>.</li>
+<li>Tách Order / OrderItem / Payment / Pickup verification để trách nhiệm actor rõ ràng.</li>
+<li>Cung cấp audit và reporting có thể đo chất lượng vận hành, gồm cả tỷ lệ READY đúng giờ.</li>
+</ol>
+</section>
+<section id="s3">
+<h2>3. Phạm vi hệ thống – MVP đã khóa</h2>
+<div class="flow light">ONLINE_PREORDER: Login → Choose Pickup Time → Online Pay → Scheduled KDS Release → Prepare → READY → Verify Pickup Code/QR → Handoff
+POS:             Walk-in → Cashier POS → Pay at Counter → Immediate KDS → Prepare → READY → Handoff</div>
+<table><thead><tr><th>Phạm vi</th><th>Nội dung V6</th></tr></thead><tbody>
+<tr><td><strong>Online Pre-order</strong></td><td>Login, Menu/Cart, chọn pickup_time, checkout, online payment only, tracking, READY notification, Pickup Code/QR, order history.</td></tr>
+<tr><td><strong>Counter / POS</strong></td><td>Cashier tạo POS Order cho khách walk-in; Cash hoặc Online/QR tại quầy; release KDS ngay; receipt và handoff.</td></tr>
+<tr><td><strong>Scheduling</strong></td><td>Online Order PAID → system auto CONFIRMED; tính kitchen_release_at; scheduled job release OrderItem sang KDS đúng thời điểm.</td></tr>
+<tr><td><strong>Kitchen / KDS</strong></td><td>Claim OrderItem, WAITING → PREPARING → READY; Order PREPARING/READY do backend aggregate.</td></tr>
+<tr><td><strong>Pickup / Handoff</strong></td><td>Online phải verify Order READY + Payment PAID + Pickup Code/QR hợp lệ. POS handoff trực tiếp.</td></tr>
+<tr><td><strong>Administration</strong></td><td>Product/Category/User/Role, report, transaction, audit; Admin không vận hành Order thông thường.</td></tr>
+<tr><td><strong>Integration</strong></td><td>Payment Gateway sandbox/adapter; Email/mock Notification; POS/KDS client; receipt/PDF optional.</td></tr>
+</tbody></table>
+<div class="warning"><strong>Out of scope:</strong> không có địa chỉ giao hàng, delivery fee, shipper assignment, tracking giao hàng, OUT_FOR_DELIVERY hay DELIVERED.</div>
+</section>
+<section id="s4">
+<h2>4. Actor và trách nhiệm chi tiết</h2>
+<table><thead><tr><th>Actor</th><th>Mục tiêu</th><th>Được làm</th><th>Không phụ trách</th></tr></thead><tbody>
+<tr><td><span class="badge b-customer">Customer</span></td><td>Pre-order từ xa và đến lấy đúng giờ.</td><td><ul><li>Login trước Online Pre-order.</li><li>Menu/Cart.</li><li>Chọn pickup_time hợp lệ.</li><li>Thanh toán online bắt buộc.</li><li>Theo dõi scheduled/processing/READY.</li><li>Nhận Pickup Code/QR và READY notification.</li><li>Request cancel khi bếp chưa bắt đầu làm (BR-12).</li></ul></td><td>Không Pay at Counter cho Online Pre-order; không yêu cầu ship; không sửa status/total; không truy cập Order người khác.</td></tr>
+<tr><td><span class="badge b-staff">Staff / Cashier</span></td><td>Vận hành POS và Pickup Counter.</td><td><ul><li>Tạo POS Order cho walk-in.</li><li>Thu Cash hoặc xử lý Online/QR tại quầy.</li><li>Confirm POS Order sau payment hợp lệ.</li><li>Xem Scheduled Pickup Queue.</li><li>Verify Pickup Code/QR cho Online READY Order.</li><li>Handoff và COMPLETED.</li></ul></td><td>Không cần manual confirm Online Pre-order đã PAID; không set PREPARING/READY; không sửa financial truth.</td></tr>
+<tr><td><span class="badge b-kitchen">Kitchen Staff</span></td><td>Chế biến theo queue được system release.</td><td><ul><li>Chỉ thấy item đã được release tới KDS.</li><li>Claim item.</li><li>WAITING → PREPARING → READY.</li><li>KitchenIssue/Remake.</li></ul></td><td>Không biết/điều khiển payment; không thay pickup_time; không cancel/complete Order.</td></tr>
+<tr><td><span class="badge b-admin">Admin</span></td><td>Quản trị cấu hình và giám sát.</td><td><ul><li>Product/Category/User/Role.</li><li>Report/Audit/Transaction.</li><li>Thiết lập tham số vận hành như preparation lead time nếu hệ thống cho phép.</li><li>Refund workflow theo quyền.</li></ul></td><td>Không tham gia confirmation/handoff thông thường.</td></tr>
+<tr><td><span class="badge b-ext">System Scheduler</span></td><td>Release Scheduled Pre-order đúng giờ.</td><td><ul><li>Tính/đọc kitchen_release_at.</li><li>Release OrderItem sang KDS một lần.</li><li>Retry idempotently nếu job chạy lại.</li><li>Đánh dấu overdue pickup ở UI.</li></ul></td><td>Không thay đổi payment truth; không tự complete Order.</td></tr>
+</tbody></table>
+</section>
+<section id="s5">
+<h2>5. 7 module chức năng</h2>
+<table><thead><tr><th>#</th><th>Module</th><th>Chức năng V6</th><th>Output</th></tr></thead><tbody>
+<tr><td>1</td><td><strong>Authentication &amp; Authorization</strong></td><td>Login/logout, RBAC + ownership. Online Pre-order bắt buộc login; POS guest không cần account.</td><td>Session/JWT, Role Context.</td></tr>
+<tr><td>2</td><td><strong>Menu, Cart &amp; Pre-order</strong></td><td>Menu/Cart; chọn pickup_time; revalidate availability/price; tạo ONLINE_PREORDER hoặc POS Order.</td><td>Order ID, pickup_time, order_source.</td></tr>
+<tr><td>3</td><td><strong>Payment</strong></td><td>ONLINE_PREORDER chỉ ONLINE_GATEWAY; POS hỗ trợ CASH hoặc ONLINE_GATEWAY. 1 Order – N Payment attempt; full refund only; callback idempotent.</td><td>Payment Status, Transaction ID.</td></tr>
+<tr><td>4</td><td><strong>Order &amp; Pickup Management</strong></td><td>Auto-confirm Online sau PAID; manual/transactional confirm POS; cancel policy; tracking; Pickup Code/QR verification; handoff.</td><td>Order State, Pickup Queue.</td></tr>
+<tr><td>5</td><td><strong>Kitchen / KDS Scheduling</strong></td><td>Online scheduled release theo kitchen_release_at; POS release ngay; claim; WAITING → PREPARING → READY.</td><td>KDS Queue, Release Audit.</td></tr>
+<tr><td>6</td><td><strong>Notification</strong></td><td>ORDER_CONFIRMED và ORDER_READY; READY message chứa pickup_time và Pickup Code/QR/reference.</td><td>Notification Log.</td></tr>
+<tr><td>7</td><td><strong>Admin &amp; Reporting</strong></td><td>Management, revenue, best seller, order/payment status, Scheduled Pre-order volume, on-time-ready rate, audit.</td><td>Dashboard, KPI, Reports.</td></tr>
+</tbody></table>
+</section>
+<section id="s6">
+<h2>6. Luồng nghiệp vụ tổng thể – End-to-End</h2>
+<h3>6.1 ONLINE_PREORDER – Scheduled Store Pickup</h3>
+<ol>
+<li>Customer đăng nhập, xem Product available và quản lý Cart.</li>
+<li>Customer chọn <strong>pickup_time</strong>. MVP yêu cầu pickup_time tối thiểu <strong>30 phút</strong> sau thời điểm checkout.</li>
+<li>Trước payment, backend revalidate Product availability và unit price.</li>
+<li>Checkout tạo Order với <strong>order_source = ONLINE_PREORDER</strong>, Order = PENDING_PAYMENT; OrderItem được tạo nhưng chưa hiển thị trên KDS.</li>
+<li>Payment ONLINE_GATEWAY = PENDING. Gateway success hợp lệ → Payment = PAID.</li>
+<li>Sau PAID, System <strong>tự động</strong> chuyển Order → CONFIRMED, tạo Pickup Code/QR và tính <strong>kitchen_release_at = pickup_time − 20 phút</strong>.</li>
+<li>Trong thời gian chờ, Order giữ CONFIRMED nhưng chưa nằm trong KDS queue.</li>
+<li>Đến kitchen_release_at, Scheduler release OrderItem sang KDS và ghi released_to_kds_at. Job phải idempotent.</li>
+<li>Kitchen claim: WAITING → PREPARING; backend aggregate Order → PREPARING.</li>
+<li>Khi toàn bộ OrderItem READY, backend Order → READY và lưu ready_at.</li>
+<li>System gửi ORDER_READY kèm pickup_time và Pickup Code/QR/reference.</li>
+<li>Kitchen đưa từng món ra quầy; Cashier xác nhận đã cầm. Hai mốc riêng của hai người (BR-25).</li>
+<li>Customer đến cửa hàng. Cashier mở Pickup Queue và verify: Order = READY, Payment = PAID, code/QR hợp lệ, và <strong>quầy đã nhận đủ món</strong>.</li>
+<li>Cashier handoff món → Order = COMPLETED; lưu picked_up_at và handoff_by_user_id.</li>
+</ol>
+<h3>6.2 POS – Walk-in Immediate Order</h3>
+<ol>
+<li>Customer có mặt tại quầy; Cashier xây POS cart tạm.</li>
+<li>Cashier tạo <strong>order_source = POS</strong>; customer_id có thể NULL.</li>
+<li>POS hỗ trợ Cash hoặc thẻ/QR tại quầy; Payment phải PAID trước khi release KDS. Thu bằng thẻ/QR bắt buộc nhập mã giao dịch trên biên lai để còn đối soát (BR-22).</li>
+<li>Cashier/System xác nhận POS Order → CONFIRMED và release OrderItem sang KDS ngay.</li>
+<li>Kitchen PREPARING → READY, đưa món ra quầy; Cashier nhận món rồi handoff trực tiếp → COMPLETED. POS không cần Pickup Code/QR nhưng vẫn phải qua hai lần bàn giao (BR-25) — khách đứng ngay đó không có nghĩa món đã ra khỏi bếp.</li>
+</ol>
+<div class="flow">ONLINE_PREORDER
+LOGIN → CART → PICKUP TIME → ORDER(PENDING_PAYMENT) → ONLINE PAYMENT(PAID)
+                                              ↓
+                                    SYSTEM AUTO CONFIRM
+                                              ↓
+                         WAIT UNTIL kitchen_release_at
+                                              ↓
+POS WALK-IN → COUNTER PAYMENT → CONFIRMED → KDS RELEASE
+                                              ↓
+                               WAITING → PREPARING → READY
+                                              ↓
+                    KITCHEN → COUNTER  (handed_over_at)
+                    COUNTER RECEIVES   (received_at)
+                                              ↓
+ONLINE: VERIFY PICKUP CODE/QR ────────────────┤
+POS:    DIRECT COUNTER HANDOFF ───────────────┘
+                                              ↓
+                                         COMPLETED</div>
+<div class="warning"><strong>Payment expiry:</strong> ONLINE_PREORDER còn PENDING_PAYMENT mà không có Payment PAID trong 15 phút → EXPIRED; EXPIRED khác CANCELLED vì chưa hình thành một đơn đã thanh toán/được cửa hàng chấp nhận.</div>
+</section>
+<section id="s7">
+<h2>7. Mô hình trạng thái V6</h2>
+<h3>7.1 Order Status</h3>
+<div class="flow light">ONLINE_PREORDER:
+PENDING_PAYMENT → CONFIRMED → PREPARING → READY → COMPLETED
+      │               │
+      └→ EXPIRED      └→ CANCELLED (khi chưa OrderItem nào rời WAITING — BR-12)
+
+POS:
+CONFIRMED → PREPARING → READY → COMPLETED
+    └────→ CANCELLED (trước preparation theo rule)
+
+PREPARING và READY do backend aggregate từ OrderItem.</div>
+<table><thead><tr><th>Status</th><th>Ý nghĩa</th><th>Actor/Trigger</th></tr></thead><tbody>
+<tr><td><strong>PENDING_PAYMENT</strong></td><td>Chỉ dùng cho ONLINE_PREORDER: Order đã tạo nhưng chưa có Payment PAID.</td><td>System sau checkout.</td></tr>
+<tr><td><strong>CONFIRMED</strong></td><td>Order đã thanh toán/đủ điều kiện. Online có thể đang chờ kitchen_release_at; POS được release KDS ngay.</td><td>System auto-confirm Online sau PAID; Cashier/System confirm POS.</td></tr>
+<tr><td><strong>PREPARING</strong></td><td>Ít nhất một released OrderItem đang PREPARING.</td><td>System aggregate.</td></tr>
+<tr><td><strong>READY</strong></td><td>Tất cả OrderItem cần chế biến READY; lưu ready_at.</td><td>System aggregate.</td></tr>
+<tr><td><strong>COMPLETED</strong></td><td>Handoff thực tế hoàn tất. Online đã verify code/QR; POS handoff trực tiếp.</td><td>Cashier.</td></tr>
+<tr><td><strong>CANCELLED</strong></td><td>Order đã được chấp nhận nhưng bị hủy theo rule. Online normal cancel khi chưa OrderItem nào rời WAITING.</td><td>Customer request/Cashier/System validation.</td></tr>
+<tr><td><strong>EXPIRED</strong></td><td>Online checkout không thanh toán thành công trong payment window.</td><td>System timeout.</td></tr>
+</tbody></table>
+<h3>7.2 KDS Release State</h3>
+<div class="flow light">CONFIRMED + current_time &lt; kitchen_release_at → SCHEDULED / NOT RELEASED
+current_time ≥ kitchen_release_at → RELEASED_TO_KDS (idempotent)
+POS CONFIRMED → RELEASED_TO_KDS immediately</div>
+<p><strong>SCHEDULED/RELEASED_TO_KDS không phải Order Status.</strong> Hệ thống dùng <code>kitchen_release_at</code> và <code>released_to_kds_at</code> để tránh làm phình state machine.</p>
+<h3>7.3 OrderItem Status</h3>
+<div class="flow light">WAITING → PREPARING → READY</div>
+<ul><li>OrderItem có thể tồn tại WAITING nhưng KDS chỉ query các item của Order đã released_to_kds_at.</li><li>Một line item chỉ READY khi toàn bộ quantity hoàn tất.</li><li>KitchenIssue OPEN/RESOLVED chạy song song; remake không làm state nhảy ngược.</li><li><strong>Vị trí vật lý của món cũng chạy song song</strong>, không nằm trong item_status (BR-25):</li></ul>
+<div class="flow light">item_status : WAITING ────────────→ PREPARING ──────────→ READY ─────────────────────────→ READY
+vị trí món  : trong bếp                 trong bếp             trong bếp → trên quầy → tay Cashier
+cột đánh dấu:                                                 (handed_over_at)   (received_at)</div>
+<p class="note">Đọc theo chiều dọc: một món có thể ở <span class="mono">READY</span> mà vẫn còn nằm trong bếp. Đó chính là lý do <span class="mono">order_status = READY</span> không đủ để giao món cho khách.</p>
+<h3>7.4 Payment Status</h3>
+<table><thead><tr><th>Status</th><th>Ý nghĩa</th></tr></thead><tbody>
+<tr><td><strong>UNPAID</strong></td><td>Chỉ dùng cho POS Cash trước khi Cashier thu tiền.</td></tr>
+<tr><td><strong>PENDING</strong></td><td>Online gateway đang xử lý.</td></tr>
+<tr><td><strong>PAID</strong></td><td>Payment thành công hợp lệ.</td></tr>
+<tr><td><strong>FAILED</strong></td><td>Payment attempt thất bại; có thể retry khi Order chưa EXPIRED.</td></tr>
+<tr><td><strong>REFUNDED</strong></td><td>Full refund thành công; MVP không partial refund.</td></tr>
+</tbody></table>
+</section>
+<section id="s8">
+<h2>8. Ma trận phân quyền V6</h2>
+<table><thead><tr><th>Chức năng</th><th class="center">Customer</th><th class="center">Cashier</th><th class="center">Kitchen</th><th class="center">Admin/System</th></tr></thead><tbody>
+<tr><td>Xem menu</td><td class="center">✓</td><td class="center">✓</td><td class="center">✓</td><td class="center">✓</td></tr>
+<tr><td>Quản lý Cart Online</td><td class="center">✓</td><td class="center">—</td><td class="center">—</td><td class="center">—</td></tr>
+<tr><td>Chọn Scheduled pickup_time</td><td class="center">✓</td><td class="center">View</td><td class="center">View relevant</td><td class="center">Validate</td></tr>
+<tr><td>Tạo ONLINE_PREORDER</td><td class="center">✓</td><td class="center">—</td><td class="center">—</td><td class="center">—</td></tr>
+<tr><td>Tạo POS Order</td><td class="center">—</td><td class="center">✓</td><td class="center">—</td><td class="center">—</td></tr>
+<tr><td>Online payment cho Pre-order</td><td class="center">✓</td><td class="center">View</td><td class="center">—</td><td class="center">Gateway/System</td></tr>
+<tr><td>Thu Cash / counter online payment</td><td class="center">—</td><td class="center">✓</td><td class="center">—</td><td class="center">—</td></tr>
+<tr><td>Auto-confirm ONLINE_PREORDER sau PAID</td><td class="center">—</td><td class="center">View</td><td class="center">—</td><td class="center">System ✓</td></tr>
+<tr><td>Release Scheduled Order sang KDS</td><td class="center">—</td><td class="center">View</td><td class="center">Receive</td><td class="center">Scheduler ✓</td></tr>
+<tr><td>Request Cancel trước release</td><td class="center">Own Online Order</td><td class="center">—</td><td class="center">—</td><td class="center">Validate</td></tr>
+<tr><td>WAITING → PREPARING → READY</td><td class="center">—</td><td class="center">—</td><td class="center">✓</td><td class="center">Aggregate Order</td></tr>
+<tr><td>Bàn giao món ra quầy (BR-25)</td><td class="center">—</td><td class="center">View</td><td class="center">✓ người đã làm món</td><td class="center">—</td></tr>
+<tr><td>Nhận món tại quầy (BR-25)</td><td class="center">—</td><td class="center">✓ mọi Cashier</td><td class="center">View</td><td class="center">—</td></tr>
+<tr><td>Verify Pickup Code/QR</td><td class="center">Present Code</td><td class="center">✓</td><td class="center">—</td><td class="center">Validate</td></tr>
+<tr><td>READY → COMPLETED</td><td class="center">—</td><td class="center">✓</td><td class="center">—</td><td class="center">—</td></tr>
+<tr><td>Product/Category/User/Role</td><td class="center">—</td><td class="center">—</td><td class="center">—</td><td class="center">Admin ✓</td></tr>
+<tr><td>Dashboard / report / audit</td><td class="center">Own history</td><td class="center">Operational</td><td class="center">Kitchen</td><td class="center">Admin ✓</td></tr>
+</tbody></table>
+</section>
+<section id="s9">
+<h2>9. Business Rules – Baseline V6</h2>
+<table><thead><tr><th>ID</th><th>Quy tắc</th><th>Mục đích</th></tr></thead><tbody>
+<tr><td>BR-01</td><td>Chỉ Product active + available, thuộc Category active, mới được Order.</td><td>Menu consistency.</td></tr>
+<tr><td>BR-02</td><td>OrderItem lưu snapshot tên và unit_price tại checkout.</td><td>Historical integrity.</td></tr>
+<tr><td>BR-03</td><td>MVP chỉ có hai order_source: <strong>ONLINE_PREORDER</strong> và <strong>POS</strong>; không có DELIVERY.</td><td>Khóa phạm vi.</td></tr>
+<tr><td>BR-04</td><td>ONLINE_PREORDER bắt buộc Customer login, chọn pickup_time và thanh toán ONLINE_GATEWAY; không Pay at Counter.</td><td>Giảm no-show unpaid và làm rõ online flow.</td></tr>
+<tr><td>BR-05</td><td>pickup_time của Online phải cách thời điểm checkout tối thiểu 30 phút.</td><td>Đủ thời gian payment + scheduling + preparation.</td></tr>
+<tr><td>BR-06</td><td>Ngay trước khi mở payment, backend revalidate availability và price.</td><td>Tránh thanh toán cho menu stale.</td></tr>
+<tr><td>BR-07</td><td>Online Payment PAID → System auto CONFIRMED; Cashier không cần manual confirm.</td><td>Loại bottleneck.</td></tr>
+<tr><td>BR-08</td><td>kitchen_release_at = pickup_time − preparation lead time. Lead time là <strong>tham số cấu hình</strong>, mặc định 20 phút, đọc từ <span class="mono">app.properties</span> lúc khởi động. Không hard-code ở nhiều nơi.</td><td>Scheduled KDS release đơn giản, testable. Cấu hình được vì lead time thật khác nhau theo cửa hàng và theo giờ cao điểm — sửa một chỗ, không phải sửa code.</td></tr>
+<tr><td>BR-09</td><td>Scheduler chỉ release một Online Order sang KDS một lần; repeated job phải idempotent.</td><td>Không duplicate kitchen task.</td></tr>
+<tr><td>BR-10</td><td>POS Order sau Payment PAID được CONFIRMED và release KDS ngay.</td><td>Walk-in immediate flow.</td></tr>
+<tr><td>BR-11</td><td>Kitchen chỉ cập nhật OrderItem WAITING → PREPARING → READY; Order PREPARING/READY do backend aggregate.</td><td>Một nguồn trạng thái.</td></tr>
+<tr><td>BR-12</td><td>Online normal cancel cho phép khi Order còn CONFIRMED và <strong>chưa có OrderItem nào rời khỏi WAITING</strong>; nếu PAID thì full refund. Mốc chặn là <em>bếp đã bắt đầu làm hay chưa</em>, không phải <em>đơn đã xuống bếp hay chưa</em>.</td><td>Không hủy khi đã tốn nguyên liệu. Đơn xuống bếp trước giờ hẹn 20 phút và suốt khoảng đó có thể chưa ai nhận việc — từ chối hủy lúc ấy là bắt khách trả tiền cho một món chưa ai động tới. Kiểm tra chạy trong transaction có khóa dòng Order, cùng khóa mà thao tác claim của bếp dùng, nên hai bên không bao giờ chạy chồng lên nhau.</td></tr>
+<tr><td>BR-13</td><td>Online PENDING_PAYMENT không PAID trong 15 phút → EXPIRED.</td><td>Không để checkout treo.</td></tr>
+<tr><td>BR-14</td><td>Một Order có thể có nhiều Payment attempt; external_transaction_id unique và callback idempotent.</td><td>Retry + financial safety.</td></tr>
+<tr><td>BR-15</td><td>Online handoff chỉ khi Order READY, Payment PAID và Pickup Code/QR hợp lệ.</td><td>Đảm bảo đúng người/đúng đơn.</td></tr>
+<tr><td>BR-16</td><td>COMPLETED chỉ sau handoff thực tế; lưu picked_up_at và handoff_by_user_id.</td><td>Audit pickup.</td></tr>
+<tr><td>BR-17</td><td>READY quá pickup_time + 30 phút mà chưa handoff chỉ bị gắn UI flag OVERDUE; không auto cancel/refund/complete.</td><td>Xử lý no-show prepaid an toàn.</td></tr>
+<tr><td>BR-18</td><td>Một OrderItem chỉ READY khi toàn bộ quantity của line item hoàn tất.</td><td>Tránh partial-state mơ hồ.</td></tr>
+<tr><td>BR-19</td><td>KitchenIssue OPEN/RESOLVED chạy <strong>song song</strong> với item_status; không rollback state tùy ý và <strong>không chặn</strong> WAITING → PREPARING → READY. Riêng issue OUT_OF_STOCK còn tắt <span class="mono">Product.is_available</span> để khách sau không đặt trúng món vừa hết.</td><td>State machine ổn định. Đã cân nhắc phương án chặn markReady khi còn issue OPEN và <strong>bác bỏ</strong>: issue OUT_OF_STOCK sẽ khóa đơn vĩnh viễn vì bếp không bao giờ hoàn tất được, buộc Cashier phải hủy đơn mới thoát ra. Món hỏng phải làm lại vẫn ở PREPARING kèm một issue đang mở, và chỉ READY khi thật sự xong.</td></tr>
+<tr><td>BR-20</td><td>Không hard-delete Order, Payment, Transaction, AuditLog.</td><td>Auditability.</td></tr>
+<tr><td>BR-21</td><td>Customer chỉ truy cập Order/Payment thuộc ownership của mình. Order của người khác trả về "không tìm thấy" chứ không phải "không có quyền".</td><td>Security. Trả 404 thay vì 403 để người ngoài không dò được order_id nào có thật.</td></tr>
+<tr><td>BR-22</td><td>POS thu bằng thẻ/QR phải nhập <span class="mono">external_transaction_id</span> in trên biên lai máy thanh toán; hệ thống ghi một PaymentTransaction với gateway = <span class="mono">POS_TERMINAL</span>. POS thu tiền mặt thì không cần.</td><td>Financial truth. Tiền chạy qua máy ở quầy chứ không qua hệ thống, nên nếu không lưu mã biên lai thì bản ghi "đã thu" chỉ là lời khai của Cashier, và đối soát với sao kê không còn khóa nào để nối. UNIQUE trên cột này chặn luôn việc một lần quẹt thẻ bị lập thành hai đơn.</td></tr>
+<tr><td>BR-23</td><td>Admin reset password cho tài khoản khác thì tài khoản đó bị đánh dấu <span class="mono">must_change_password</span>, và chỉ vào được màn hình tài khoản cho tới khi tự đặt mật khẩu mới. Admin không reset password của chính mình qua đường này.</td><td>Mật khẩu do người khác đặt hộ là mật khẩu ít nhất hai người biết. Chặn ở filter chứ không ở từng màn hình — sót một màn hình là rào chắn mất tác dụng.</td></tr>
+<tr><td>BR-24</td><td>Cancel và Refund do nhân viên thực hiện đều <strong>bắt buộc nhập lý do</strong>, và lý do được ghi vào AuditLog.</td><td>Đây là hai thao tác duy nhất làm mất doanh thu đã ghi nhận, nên phải truy được ai quyết định và vì sao.</td></tr>
+<tr><td>BR-25</td><td>Món đi từ bếp ra khách qua <strong>hai lần bàn giao của hai người khác nhau</strong>: Kitchen đặt món lên quầy (<span class="mono">handed_over_at</span>, chỉ người đã làm món đó), rồi Cashier xác nhận đã cầm (<span class="mono">received_at</span>, bất kỳ Cashier nào). Handoff cho khách bị từ chối khi Order còn món chưa <span class="mono">received_at</span>. Hai mốc này là <strong>trục song song</strong> với item_status — món giữ nguyên READY suốt cả hai bước.</td><td>Order READY chỉ nghĩa là bếp đã nấu xong, không có nghĩa món đã ra tới quầy. Khoảng giữa hai mốc chính là lúc món nằm chờ trong bếp — trước đây không màn hình nào nhìn thấy nó, nên món để quên chỉ lộ ra khi khách hỏi. Ràng buộc trước handoff chặn việc giao thiếu món cho khách đã trả tiền. Không nhét thêm bậc vào WAITING → PREPARING → READY vì mọi chỗ đang đếm "món chưa xong" sẽ phải sửa lại trong khi nghĩa của chúng không hề đổi. Không ràng buộc "đúng Cashier nào" ở vế nhận vì quầy đổi ca giữa chừng.</td></tr>
+</tbody></table>
+</section>
+<section id="s10">
+<h2>10. Entity / Database cốt lõi V6</h2>
+<table><thead><tr><th>Entity</th><th>Field chính</th><th>Quan hệ &amp; mục đích</th></tr></thead><tbody>
+<tr><td><strong>Role</strong></td><td>role_id, name</td><td>1 Role – N User; MVP 1 User = 1 Role.</td></tr>
+<tr><td><strong>User</strong></td><td>user_id, full_name, email, phone, password_hash, role_id, status, created_at</td><td>Customer/Cashier/Kitchen/Admin.</td></tr>
+<tr><td><strong>Category</strong></td><td>category_id, name, status, display_order</td><td>1 Category – N Product.</td></tr>
+<tr><td><strong>Product</strong></td><td>product_id, category_id, name, description, price, image_url, is_available, status</td><td>Menu source.</td></tr>
+<tr><td><strong>Cart</strong></td><td>cart_id, user_id, updated_at</td><td>Chỉ Customer Online đã login.</td></tr>
+<tr><td><strong>CartItem</strong></td><td>cart_item_id, cart_id, product_id, quantity</td><td>Draft line trước checkout.</td></tr>
+<tr><td><strong>Order</strong></td><td>order_id, customer_id nullable, created_by_user_id, order_source {ONLINE_PREORDER,POS}, total_amount, order_status, <strong>pickup_time nullable</strong>, <strong>kitchen_release_at nullable</strong>, <strong>released_to_kds_at nullable</strong>, <strong>pickup_code nullable</strong>, ready_at nullable, picked_up_at nullable, handoff_by_user_id nullable, created_at, completed_at, cancelled_at, expired_at</td><td>Online bắt buộc pickup/scheduling fields; POS để NULL. pickup_code chỉ dùng Online.</td></tr>
+<tr><td><strong>OrderItem</strong></td><td>order_item_id, order_id, product_id, product_name_snapshot, unit_price, quantity, item_status, assigned_to_user_id nullable, started_at, ready_at, <strong>handed_over_at nullable</strong>, <strong>handed_over_by nullable</strong>, <strong>received_at nullable</strong>, <strong>received_by nullable</strong></td><td>KDS production task. Bốn field cuối là đường đi vật lý của món từ bếp ra quầy (BR-25), tách khỏi item_status; CHECK ở tầng DB chặn <span class="mono">received_at</span> khi chưa có <span class="mono">handed_over_at</span>.</td></tr>
+<tr><td><strong>Payment</strong></td><td>payment_id, order_id, method {ONLINE_GATEWAY,CASH}, amount, payment_status, attempt_no, paid_at, refunded_at</td><td>ONLINE_PREORDER chỉ ONLINE_GATEWAY; POS có cả hai.</td></tr>
+<tr><td><strong>Transaction</strong></td><td>transaction_id, payment_id, gateway, external_transaction_id UNIQUE, status, raw_reference, created_at</td><td>Gateway idempotency/audit.</td></tr>
+<tr><td><strong>Notification</strong></td><td>notification_id, user_id nullable, order_id, channel, event_type, status, sent_at</td><td>ORDER_CONFIRMED, ORDER_READY.</td></tr>
+<tr><td><strong>KitchenIssue</strong></td><td>issue_id, order_item_id, created_by, issue_type, description, status {OPEN,RESOLVED}, created_at, resolved_at</td><td>Issue/remake.</td></tr>
+<tr><td><strong>AuditLog</strong></td><td>audit_id, actor_id nullable, entity_type, entity_id, action, old_value, new_value, created_at</td><td>Payment, release KDS, item start/ready, verify pickup, handoff, cancel/refund, admin action.</td></tr>
+</tbody></table>
+<div class="flow light">Customer(User) 1 ── N Order.customer_id
+User 1 ── N Order.created_by_user_id
+Order 1 ── N OrderItem
+Order 1 ── N Payment
+Payment 1 ── N Transaction
+Order 1 ── N Notification
+Kitchen User 1 ── N OrderItem.assigned_to_user_id
+Kitchen User 1 ── N OrderItem.handed_over_by
+Cashier User 1 ── N OrderItem.received_by
+Cashier User 1 ── N Order.handoff_by_user_id
+OrderItem 1 ── N KitchenIssue</div>
+<div class="proposal"><strong>Không tạo DeliveryAddress/Shipment/Shipper entity</strong> vì Delivery không thuộc MVP. SCHEDULED/OVERDUE cũng không cần bảng riêng; được suy ra từ timestamps của Order.</div>
+</section>
+<section id="s11">
+<h2>11. Màn hình theo Role + Allowed Operations</h2>
+<p class="note">V4 đặt ràng buộc "đúng 5 màn hình mỗi role". V6 <strong>bỏ ràng buộc đó</strong>: số màn hình phải theo nghiệp vụ thật chứ không theo một con số định trước. Cắt cho đủ 5 sẽ phải gộp những việc không liên quan vào chung một màn hình, hoặc bỏ hẳn một việc có thật. Danh sách dưới đây khớp 1-1 với các servlet trong mã nguồn.</p>
+<div class="role-head"><h3><span class="badge b-customer">Customer</span> — 6 màn hình</h3></div>
+<table><thead><tr><th>ID / Màn hình</th><th>Allowed Operations</th><th>Entity</th><th>Chức năng</th></tr></thead><tbody>
+<tr><td><span class="screen-id">CUS-01</span><br/><strong>Menu &amp; Product Detail</strong></td><td>View / Search / Add</td><td>Product, Category</td><td>Xem menu available.</td></tr>
+<tr><td><span class="screen-id">CUS-02</span><br/><strong>Shopping Cart</strong></td><td>Add / Change Qty / Remove</td><td>Cart, CartItem</td><td>Quản lý Cart và revalidate trước checkout.</td></tr>
+<tr><td><span class="screen-id">CUS-03</span><br/><strong>Scheduled Pickup Checkout</strong></td><td>Choose Pickup Time / Create Pre-order / Online Pay / Retry</td><td>Order, OrderItem, Payment</td><td>Hiển thị pickup slot hợp lệ; Online payment only; không có Delivery address/Pay at Counter.</td></tr>
+<tr><td><span class="screen-id">CUS-04</span><br/><strong>Pickup Tracking &amp; QR</strong></td><td>Track / View Pickup Code / Request Cancel</td><td>Order, Payment</td><td>Hiển thị pickup_time, trạng thái, READY notification/code; cancel khi bếp chưa bắt đầu làm.</td></tr>
+<tr><td><span class="screen-id">CUS-05</span><br/><strong>Order History</strong><br/><span class="mono">/order/history</span></td><td>View</td><td>Order</td><td>Chỉ xem lịch sử Order của chính Customer (BR-21).</td></tr>
+<tr><td><span class="screen-id">CUS-06</span><br/><strong>Account Profile</strong><br/><span class="mono">/profile</span></td><td>View / Update Profile / Change Password</td><td>User</td><td>Khi Admin vừa reset password, đây là màn hình duy nhất còn vào được cho tới khi đổi mật khẩu mới (BR-23).</td></tr>
+</tbody></table>
+<div class="role-head"><h3><span class="badge b-staff">Cashier</span> — 5 màn hình</h3></div>
+<table><thead><tr><th>ID / Màn hình</th><th>Allowed Operations</th><th>Entity</th><th>Chức năng</th></tr></thead><tbody>
+<tr><td><span class="screen-id">STF-01</span><br/><strong>POS – Walk-in Order</strong><br/><span class="mono">/staff/pos</span></td><td>Build Cart / Create POS Order / Collect Payment</td><td>Order, OrderItem, Payment, Transaction</td><td>Cash hoặc thẻ/QR tại quầy; release KDS ngay sau payment. Thu bằng thẻ/QR bắt buộc nhập mã giao dịch trên biên lai (BR-22).</td></tr>
+<tr><td><span class="screen-id">STF-02</span><br/><strong>Order &amp; Pickup Dashboard</strong><br/><span class="mono">/staff/orders</span></td><td>View / Filter / Open / Search by Code</td><td>Order</td><td>Tabs: POS Active, Scheduled Pre-orders (CONFIRMED + PREPARING), READY Pickup, Overdue Pickup. Bốn tab phủ kín mọi Order chưa kết thúc. Ô tra Pickup Code nằm ngay đầu trang.</td></tr>
+<tr><td><span class="screen-id">STF-03</span><br/><strong>Order Detail &amp; Pickup Handoff</strong><br/><span class="mono">/staff/order/detail</span></td><td>View / Cancel allowed order / Verify Code / Complete / Full Refund / Print Receipt</td><td>Order, OrderItem, Payment</td><td>Online verify code/QR trước handoff; POS handoff trực tiếp. Cả hai kênh đều bị chặn khi còn món chưa nhận tại quầy (BR-25). Cancel và Refund đều bắt buộc nhập lý do. Hóa đơn là một khối ẩn trên màn hình, chỉ hiện khi in — không có entity Receipt riêng.</td></tr>
+<tr><td><span class="screen-id">STF-04</span><br/><strong>Quầy giao nhận</strong><br/><span class="mono">/staff/counter</span></td><td>Receive Item / View Issue / Open Order</td><td>OrderItem, KitchenIssue, Order</td><td>Nhận món bếp vừa đưa ra (BR-25) và xem sự cố bếp. Hai việc trả lời chung một câu hỏi: món của đơn này đang ở đâu. Sự cố chỉ đọc — xử lý bằng cancel/refund ở STF-03, <strong>không có đổi món</strong>.</td></tr>
+<tr><td><span class="screen-id">STF-05</span><br/><strong>History &amp; Audit</strong><br/><span class="mono">/staff/history</span></td><td>Search / View Audit</td><td>Order, AuditLog</td><td>Release, pickup verification, handoff, cancel/refund history.</td></tr>
+</tbody></table>
+<div class="role-head"><h3><span class="badge b-kitchen">Kitchen Staff</span> — 4 màn hình</h3></div>
+<table><thead><tr><th>ID / Màn hình</th><th>Allowed Operations</th><th>Entity</th><th>Chức năng</th></tr></thead><tbody>
+<tr><td><span class="screen-id">KIT-01</span><br/><strong>KDS – Queue &amp; My Tasks</strong><br/><span class="mono">/kitchen/queue</span></td><td>View / Claim / Start / Mark Ready / Hand Over</td><td>OrderItem</td><td>Ba khối trên một trang: việc của tôi, hàng chờ, và món đã xong chờ đưa ra quầy. Chỉ item đã released_to_kds; hiển thị pickup_time cho Online để ưu tiên đúng giờ. Nút bàn giao chỉ hiện cho người đã làm món đó (BR-25).</td></tr>
+<tr><td><span class="screen-id">KIT-02</span><br/><strong>Order Item Detail</strong><br/><span class="mono">/kitchen/item</span></td><td>View / Valid Transition</td><td>OrderItem, Product</td><td>Thông tin chế biến + target pickup time khi có.</td></tr>
+<tr><td><span class="screen-id">KIT-03</span><br/><strong>Kitchen Issue / Remake</strong><br/><span class="mono">/kitchen/issue</span></td><td>Create / Update / Resolve</td><td>KitchenIssue</td><td>OPEN/RESOLVED.</td></tr>
+<tr><td><span class="screen-id">KIT-04</span><br/><strong>Ready &amp; Kitchen History</strong><br/><span class="mono">/kitchen/history</span></td><td>View / Filter</td><td>OrderItem</td><td>History + on-time preparation context.</td></tr>
+</tbody></table>
+<div class="role-head"><h3><span class="badge b-admin">Admin</span> — 5 màn hình</h3></div>
+<table><thead><tr><th>ID / Màn hình</th><th>Allowed Operations</th><th>Entity</th><th>Chức năng</th></tr></thead><tbody>
+<tr><td><span class="screen-id">ADM-01</span><br/><strong>Admin Dashboard</strong></td><td>View / Filter</td><td>Order, Payment, Product</td><td>Revenue, order channels, on-time-ready rate, best seller.</td></tr>
+<tr><td><span class="screen-id">ADM-02</span><br/><strong>Product Management</strong></td><td>Create / Update / Disable</td><td>Product</td><td>Không hard-delete history.</td></tr>
+<tr><td><span class="screen-id">ADM-03</span><br/><strong>Category Management</strong></td><td>Create / Update / Disable</td><td>Category</td><td>Quản lý menu grouping.</td></tr>
+<tr><td><span class="screen-id">ADM-04</span><br/><strong>User &amp; Role Management</strong></td><td>Create / Update / Lock</td><td>User, Role</td><td>MVP 1 User = 1 Role.</td></tr>
+<tr><td><span class="screen-id">ADM-05</span><br/><strong>Order / Payment / Pickup Audit</strong></td><td>View / Export</td><td>Order, Payment, Transaction, AuditLog</td><td>Chỉ đọc. AuditLog không sửa/xóa được kể cả từ backend. Refund là thao tác của Cashier ở STF-03, không phải của Admin.</td></tr>
+</tbody></table>
+
+<div class="role-head"><h3>Endpoint <em>không phải</em> màn hình</h3></div>
+<p class="note">Ba nhóm dưới đây thường bị xếp nhầm vào danh sách màn hình. Chúng không có giao diện cho người dùng, nên không có "Allowed Operations" theo role, và test case cho chúng cũng khác hẳn.</p>
+<table><thead><tr><th>Loại</th><th>Endpoint</th><th>Bản chất</th><th>Yêu cầu riêng</th></tr></thead><tbody>
+<tr><td rowspan="2"><strong>Action endpoint</strong></td><td><span class="mono">POST /payment/start</span></td><td>Tạo Payment attempt rồi redirect sang gateway. Không render trang nào.</td><td>Chỉ chủ Order gọi được; Order phải còn PENDING_PAYMENT.</td></tr>
+<tr><td><span class="mono">/payment/gateway</span></td><td>Cổng thanh toán <strong>giả lập</strong> dùng cho demo. Không phải cổng production.</td><td>Phải ghi rõ "Demo/Test only" trên giao diện.</td></tr>
+<tr><td rowspan="2"><strong>Integration endpoint</strong></td><td><span class="mono">POST /payment/callback</span></td><td>Gateway gọi vào backend. Không có session đăng nhập.</td><td>Verify signature; chống callback trùng bằng UNIQUE <span class="mono">external_transaction_id</span>; trả HTTP 200 cả khi bỏ qua (NFR-06).</td></tr>
+<tr><td><span class="mono">GET /api/kds/queue</span><br/><span class="mono">GET /api/order/status</span></td><td>JSON cho trang tự cập nhật. KDS poll 2–5 giây, tracking poll 10 giây.</td><td>RBAC theo prefix; KDS chỉ trả dữ liệu bếp cần, không kèm profile khách hay chi tiết thanh toán.</td></tr>
+<tr><td><strong>Background service</strong></td><td><span class="mono">KitchenReleaseScheduler</span><br/><span class="mono">PaymentExpiryScheduler</span></td><td>Chạy nền theo chu kỳ 30 giây, không có actor người dùng.</td><td>Idempotent (NFR-05); AuditLog ghi với <span class="mono">actor_id = NULL</span>.</td></tr>
+</tbody></table>
+<p class="note">Polling là lựa chọn có ý thức, không phải thiếu sót: nó chạy được trên Servlet thuần và không cần hạ tầng thêm. Đánh đổi là độ trễ tối đa bằng đúng chu kỳ poll. WebSocket/SSE là Future Enhancement.</p>
+
+<div class="role-head"><h3>Màn hình V6.0 đã gộp lại</h3></div>
+<p class="note">Bỏ ràng buộc "5 màn hình mỗi role" cắt được cả hai chiều. Năm trang dưới đây từng đứng riêng trong V6.0 nhưng <strong>không tự mình làm xong việc gì</strong> — người dùng luôn phải đi tiếp sang trang khác — nên chúng về đúng chỗ đang cần chúng. Đây là ghi chú truy vết: sơ đồ Use Case của V6.0 có các trang này.</p>
+<table><thead><tr><th>Trang V6.0</th><th>Nay nằm ở</th><th>Vì sao</th></tr></thead><tbody>
+<tr><td><span class="mono">/checkout</span></td><td>CUS-02 <span class="mono">/cart</span>, phần dưới giỏ hàng</td><td>Trang chọn giờ vẫn phải liệt kê lại toàn bộ giỏ; sửa số lượng thì phải quay ngược một trang.</td></tr>
+<tr><td><span class="mono">/staff/pickup/verify</span></td><td>STF-02 <span class="mono">/staff/orders</span>, ô tra ở đầu trang</td><td>Tra xong vẫn phải mở đơn mới giao được món — hai lần chuyển trang cho một việc lúc khách đang đứng đợi.</td></tr>
+<tr><td><span class="mono">/staff/receipt</span></td><td>STF-03 <span class="mono">/staff/order/detail</span>, khối chỉ hiện khi in</td><td>Cả trang chỉ để chứa một nút in.</td></tr>
+<tr><td><span class="mono">/staff/issues</span></td><td>STF-04 <span class="mono">/staff/counter</span></td><td>Đổi vai chứ không bị xóa: sự cố bếp và việc nhận món từ bếp (BR-25) trả lời chung một câu hỏi — món của đơn này đang ở đâu.</td></tr>
+<tr><td><span class="mono">/kitchen/my-tasks</span></td><td>KIT-01 <span class="mono">/kitchen/queue</span>, khối trên cùng</td><td>Đầu bếp phải nhìn việc của mình và hàng chờ cùng lúc mới quyết định được nhận món tiếp theo.</td></tr>
+</tbody></table>
+</section>
+<section id="s12">
+<h2>12. External Systems &amp; Hardware</h2>
+<table><thead><tr><th>Thành phần</th><th>Loại</th><th>Input</th><th>Output/Trách nhiệm V6</th></tr></thead><tbody>
+<tr><td><span class="badge b-ext">Payment Gateway</span></td><td>External Software</td><td>Online Pre-order payment / POS online payment.</td><td>Transaction result; callback idempotent.</td></tr>
+<tr><td><span class="badge b-ext">Notification Service</span></td><td>Supporting Software</td><td>ORDER_CONFIRMED / ORDER_READY.</td><td>Email/mock; READY message gắn pickup information.</td></tr>
+<tr><td><span class="badge b-ext">Scheduler / Background Job</span></td><td>Internal Supporting Service</td><td>CONFIRMED Online Orders + kitchen_release_at.</td><td>Release sang KDS đúng giờ, retry idempotently.</td></tr>
+<tr><td><span class="badge b-hw">POS Terminal</span></td><td>Client Hardware/UI</td><td>Walk-in order/payment.</td><td>Immediate POS flow.</td></tr>
+<tr><td><span class="badge b-hw">KDS Screen</span></td><td>Client Hardware/UI</td><td>Released OrderItem.</td><td>Realtime queue; hiển thị pickup deadline khi có.</td></tr>
+<tr><td><span class="badge b-hw">Receipt Printer / PDF</span></td><td>Optional Adapter</td><td>Order + Payment.</td><td>Receipt output.</td></tr>
+</tbody></table>
+<div class="proposal"><strong>Không có Delivery Provider / Driver App / Map Tracking</strong> trong external context của MVP.</div>
+</section>
+<section id="s13">
+<h2>13. Dashboard &amp; Reporting – định nghĩa chính thức V6</h2>
+<table><thead><tr><th>Metric</th><th>Định nghĩa</th><th>Timestamp/Filter</th></tr></thead><tbody>
+<tr><td><strong>Net Revenue</strong></td><td>Tiền thu trong kỳ trừ tiền hoàn trong kỳ:<br/><span class="mono">SUM(amount WHERE paid_at ∈ kỳ) − SUM(amount WHERE refunded_at ∈ kỳ)</span><br/><strong>Không</strong> lọc vế thu theo <span class="mono">payment_status</span>.</td><td>Hai mốc khác nhau: thu theo <span class="mono">paid_at</span>, hoàn theo <span class="mono">refunded_at</span>.</td></tr>
+<tr><td colspan="3" class="note">Đây là chỗ dễ sai nhất của cả mục 13. Bảng Payment chỉ có <em>một</em> cột trạng thái, và refund ghi đè PAID thành REFUNDED. Nếu vế thu lọc <span class="mono">payment_status = 'PAID'</span> thì một khoản đã thu rồi hoàn sẽ biến mất khỏi vế thu nhưng vẫn còn ở vế hoàn — doanh thu bị trừ hai lần và một đơn 100.000đ cho ra <strong>âm</strong> 100.000đ. Dùng đúng hai mốc thời gian còn giữ được tính chất quan trọng hơn: tổng các kỳ luôn khớp với tổng toàn thời gian.</td></tr>
+<tr><td><strong>Order Count by Channel</strong></td><td>Số ONLINE_PREORDER và POS.</td><td>order.created_at.</td></tr>
+<tr><td><strong>Completed Sales</strong></td><td>Giá trị Order COMPLETED, loại refunded/cancelled.</td><td>order.completed_at.</td></tr>
+<tr><td><strong>Best-selling Product</strong></td><td>Tổng OrderItem.quantity trong Order COMPLETED hợp lệ.</td><td>order.completed_at.</td></tr>
+<tr><td><strong>On-time Ready Rate</strong></td><td>% ONLINE_PREORDER có ready_at ≤ pickup_time.</td><td>pickup_time; filter ngày/giờ hẹn.</td></tr>
+<tr><td><strong>Average Preparation Lead</strong></td><td>Trung bình ready_at − released_to_kds_at cho completed scheduled orders.</td><td>released/ready timestamps.</td></tr>
+<tr><td><strong>Overdue Pickup Count</strong></td><td>READY Online Order chưa handoff sau pickup_time + 30 phút.</td><td>pickup_time.</td></tr>
+<tr><td><strong>Payment Summary</strong></td><td>PAID/FAILED/REFUNDED theo method/channel.</td><td>payment timestamps.</td></tr>
+</tbody></table>
+<div class="proposal"><strong>Giá trị SE:</strong> Online Pre-order không chỉ khác ở UI; nó tạo KPI vận hành riêng có thể kiểm thử bằng timestamps.</div>
+</section>
+<section id="s14">
+<h2>14. Use Case Catalogue V6</h2>
+<table><thead><tr><th>ID</th><th>Use Case</th><th>Primary Actor</th><th>Kết quả</th></tr></thead><tbody>
+<tr><td>UC-01</td><td>Đăng nhập</td><td>Customer/Staff/Kitchen/Admin</td><td>Authenticated session.</td></tr>
+<tr><td>UC-02</td><td>Xem menu</td><td>Customer/Cashier</td><td>Product khả dụng.</td></tr>
+<tr><td>UC-03</td><td>Quản lý Cart Online</td><td>Customer</td><td>Cart updated.</td></tr>
+<tr><td>UC-04</td><td>Chọn Scheduled Pickup Time</td><td>Customer</td><td>pickup_time hợp lệ.</td></tr>
+<tr><td>UC-05</td><td>Tạo ONLINE_PREORDER</td><td>Customer</td><td>PENDING_PAYMENT Order + OrderItem.</td></tr>
+<tr><td>UC-06</td><td>Thanh toán Online Pre-order</td><td>Customer + Gateway</td><td>PAID → auto CONFIRMED.</td></tr>
+<tr><td>UC-07</td><td>Release Scheduled Order to KDS</td><td>System Scheduler</td><td>released_to_kds_at được ghi một lần.</td></tr>
+<tr><td>UC-08</td><td>Tạo POS Order</td><td>Cashier</td><td>POS Order.</td></tr>
+<tr><td>UC-09</td><td>Thu POS Payment</td><td>Cashier</td><td>CASH/ONLINE payment PAID.</td></tr>
+<tr><td>UC-10</td><td>Request/Execute Cancel trước release</td><td>Customer/System/Cashier</td><td>CANCELLED + full refund nếu PAID.</td></tr>
+<tr><td>UC-11</td><td>Claim/Start OrderItem</td><td>Kitchen</td><td>WAITING → PREPARING.</td></tr>
+<tr><td>UC-12</td><td>Complete OrderItem</td><td>Kitchen</td><td>PREPARING → READY.</td></tr>
+<tr><td>UC-12a</td><td>Bàn giao món ra quầy</td><td>Kitchen</td><td>Ghi handed_over_at (BR-25).</td></tr>
+<tr><td>UC-12b</td><td>Nhận món tại quầy</td><td>Cashier</td><td>Ghi received_at; mở khóa cho UC-16 (BR-25).</td></tr>
+<tr><td>UC-13</td><td>Kitchen Issue / Remake</td><td>Kitchen</td><td>Issue OPEN/RESOLVED.</td></tr>
+<tr><td>UC-14</td><td>Gửi READY Notification</td><td>System</td><td>Customer nhận pickup information.</td></tr>
+<tr><td>UC-15</td><td>Verify Pickup Code/QR</td><td>Cashier</td><td>Online handoff được phép.</td></tr>
+<tr><td>UC-16</td><td>Handoff / Complete Order</td><td>Cashier</td><td>READY → COMPLETED.</td></tr>
+<tr><td>UC-17</td><td>Generate Receipt</td><td>Cashier/System</td><td>Receipt/PDF.</td></tr>
+<tr><td>UC-18</td><td>Quản lý Product/Category</td><td>Admin</td><td>Create/Update/Disable.</td></tr>
+<tr><td>UC-19</td><td>Quản lý User/Role</td><td>Admin</td><td>Create/Update/Lock.</td></tr>
+<tr><td>UC-20</td><td>Xem Dashboard/Report</td><td>Admin</td><td>KPI V6.</td></tr>
+<tr><td>UC-21</td><td>Tra cứu Audit/Transaction</td><td>Admin/Cashier</td><td>Operational trace.</td></tr>
+<tr><td>UC-22</td><td>Xem Order History</td><td>Customer</td><td>Own orders only.</td></tr>
+<tr><td>UC-23</td><td>Full Refund</td><td>Cashier/Admin theo quyền</td><td>REFUNDED + Audit.</td></tr>
+</tbody></table>
+</section>
+<section id="s15">
+<h2>15. Luồng thay thế &amp; trường hợp ngoại lệ</h2>
+<div class="grid2">
+<div class="card"><h3>A. Online payment thất bại</h3><ol><li>Payment FAILED.</li><li>Customer retry khi Order còn PENDING_PAYMENT.</li><li>Sau 15 phút không PAID → EXPIRED.</li><li>Không release KDS.</li></ol></div>
+<div class="card"><h3>B. Duplicate payment callback</h3><ol><li>Cùng external_transaction_id đến nhiều lần.</li><li>Chỉ một Payment transition/confirm.</li><li>Không duplicate revenue.</li><li>Không duplicate schedule.</li></ol></div>
+<div class="card"><h3>C. Scheduler chạy lại</h3><ol><li>Job gặp lại Order đã released.</li><li>Kiểm tra released_to_kds_at.</li><li>Không tạo thêm kitchen task.</li><li>Ghi/retry idempotently.</li></ol></div>
+<div class="card"><h3>D. Customer cancel Online</h3><ol><li>Order CONFIRMED, chưa OrderItem nào rời WAITING — kể cả khi đã released_to_kds.</li><li>Backend khóa dòng Order rồi mới đếm item (chống đua với thao tác claim của bếp).</li><li>Order → CANCELLED.</li><li>Payment PAID → full refund, idempotent.</li></ol></div>
+<div class="card"><h3>E. Cancel sau khi bếp đã bắt đầu</h3><ol><li>Có ít nhất một OrderItem PREPARING/READY.</li><li>Customer cancel bị từ chối.</li><li>Không rollback kitchen state.</li><li>Lối thoát duy nhất: Cashier hủy đơn kèm lý do (BR-24), hệ thống tự full refund.</li></ol></div>
+<div class="card"><h3>F. Pickup Code sai</h3><ol><li>Cashier scan/nhập code.</li><li>System reject nếu không match Order READY.</li><li>Không handoff/complete.</li><li>Cho retry/tra cứu Order.</li></ol></div>
+<div class="card"><h3>G. Customer đến muộn</h3><ol><li>Order READY.</li><li>Qua pickup_time + 30 phút chưa handoff.</li><li>UI gắn OVERDUE.</li><li>Không auto cancel/refund/complete.</li></ol></div>
+<div class="card"><h3>H. Order chưa READY khi đến giờ</h3><ol><li>current_time ≥ pickup_time nhưng Order PREPARING.</li><li>Cashier/Kitchen thấy late flag.</li><li>Ưu tiên hoàn tất.</li><li>ready_at &gt; pickup_time làm giảm On-time Ready Rate.</li></ol></div>
+<div class="card"><h3>I. Kitchen Issue / Remake</h3><ol><li>OrderItem PREPARING.</li><li>Issue OPEN.</li><li>Resolve/remake.</li><li>READY khi task hoàn tất.</li></ol></div>
+<div class="card"><h3>J. Unauthorized access</h3><ol><li>Customer gọi Order người khác.</li><li>Backend 403/404 theo policy.</li><li>Không dựa UI hiding.</li></ol></div>
+<div class="card"><h3>K. Đơn READY nhưng món còn trong bếp</h3><ol><li>Order READY, Customer đã đến và đưa đúng Pickup Code.</li><li>Còn ít nhất một OrderItem chưa có <span class="mono">received_at</span>.</li><li>Handoff bị từ chối, thông báo nêu rõ còn mấy món và phải vào STF-04 (BR-25).</li><li>Order giữ nguyên READY; không ghi picked_up_at, không COMPLETED.</li></ol></div>
+</div>
+</section>
+<section id="s16">
+<h2>16. Non-functional Requirements – measurable V6</h2>
+<table><thead><tr><th>ID</th><th>Nhóm</th><th>Yêu cầu</th></tr></thead><tbody>
+<tr><td>NFR-01</td><td><strong>Security</strong></td><td>Password hash; backend RBAC + ownership; Pickup Code/QR phải được validate server-side.</td></tr>
+<tr><td>NFR-02</td><td><strong>Performance</strong></td><td>95% API nghiệp vụ thông thường &lt; 500 ms trong tải demo, không tính external gateway.</td></tr>
+<tr><td>NFR-03</td><td><strong>Scheduled Release Accuracy</strong></td><td>Online Order đủ điều kiện phải được đánh dấu released_to_kds_at trong vòng 60 giây kể từ kitchen_release_at dưới điều kiện bình thường.</td></tr>
+<tr><td>NFR-04</td><td><strong>KDS Realtime</strong></td><td>Sau khi released_to_kds_at được commit, item phải xuất hiện trên KDS trong vòng 2 giây.</td></tr>
+<tr><td>NFR-05</td><td><strong>Release Idempotency</strong></td><td>Repeated scheduler execution tạo tối đa một logical KDS release cho mỗi Order.</td></tr>
+<tr><td>NFR-06</td><td><strong>Payment Idempotency</strong></td><td>Repeated callback cùng external_transaction_id không tạo duplicate payment/order confirmation/revenue.</td></tr>
+<tr><td>NFR-07</td><td><strong>Checkout Reliability</strong></td><td>Repeated checkout cùng idempotency key tạo tối đa một Order.</td></tr>
+<tr><td>NFR-08</td><td><strong>Auditability</strong></td><td>Payment success, auto-confirm, KDS release, item start/ready, bàn giao bếp→quầy và nhận tại quầy (BR-25), pickup verification, handoff, cancel/refund phải có audit event. <strong>Bao gồm cả lần bị từ chối</strong>: nhập sai Pickup Code phải để lại vết, nên audit event đó được ghi ở transaction riêng — ghi chung sẽ bị rollback cùng thao tác bị từ chối và mất đúng thứ đáng theo dõi nhất.</td></tr>
+<tr><td>NFR-09</td><td><strong>Data Integrity</strong></td><td>Transactional data không hard-delete; Product snapshot giữ nguyên.</td></tr>
+<tr><td>NFR-10</td><td><strong>Recovery</strong></td><td>Restart không làm mất confirmed schedule hoặc tạo duplicate release/payment.</td></tr>
+</tbody></table>
+</section>
+<section id="s17">
+<h2>17. Ngoài phạm vi phiên bản MVP</h2>
+<ul>
+<li><strong>Delivery / Shipper / giao tận nơi</strong>: không có DeliveryAddress, delivery fee, driver assignment, route, tracking hay Delivered state.</li>
+<li>Multi-branch; MVP giả định một cửa hàng nên Online không cần chọn branch.</li>
+<li>Inventory / nguyên liệu và Supplier / Purchase Order.</li>
+<li>Voucher/Promotion phức tạp, Loyalty, Review/Rating.</li>
+<li>Dynamic AI preparation-time prediction; MVP dùng lead time cố định 20 phút.</li>
+<li>Capacity optimization / giới hạn số order theo time slot; có thể là Future Enhancement.</li>
+<li>Partial refund; chỉ full refund.</li>
+<li>Guest checkout Online; khách vãng lai dùng POS.</li>
+<li>Pay at Counter cho ONLINE_PREORDER.</li>
+<li>Admin override cancellation sau kitchen release.</li>
+</ul>
+</section>
+<section id="s18">
+<h2>18. Các quyết định đã khóa – Requirements Baseline V6</h2>
+<table><thead><tr><th>#</th><th>Vấn đề</th><th>Quyết định V6</th></tr></thead><tbody>
+<tr><td>1</td><td>Kênh Order</td><td>Chỉ ONLINE_PREORDER và POS; không Delivery.</td></tr>
+<tr><td>2</td><td>Ý nghĩa Online</td><td>Đặt trước từ xa + Scheduled Store Pickup, không phải ship.</td></tr>
+<tr><td>3</td><td>Online login</td><td>Bắt buộc login.</td></tr>
+<tr><td>4</td><td>Online payment</td><td>ONLINE_GATEWAY only; không Pay at Counter.</td></tr>
+<tr><td>5</td><td>Pickup time</td><td>Bắt buộc; tối thiểu 30 phút sau checkout.</td></tr>
+<tr><td>6</td><td>Online confirmation</td><td>Payment PAID → System auto CONFIRMED.</td></tr>
+<tr><td>7</td><td>KDS release</td><td>kitchen_release_at = pickup_time − 20 phút; Scheduler release idempotently.</td></tr>
+<tr><td>8</td><td>POS</td><td>Walk-in, Cash/Online at counter, release KDS ngay sau payment/confirm.</td></tr>
+<tr><td>9</td><td>Order status</td><td>PENDING_PAYMENT, CONFIRMED, PREPARING, READY, COMPLETED, CANCELLED, EXPIRED.</td></tr>
+<tr><td>10</td><td>Cancel Online</td><td>Normal cancel khi chưa OrderItem nào rời WAITING; PAID → full refund. Xem thêm quyết định 18.</td></tr>
+<tr><td>11</td><td>Pickup verification</td><td>Online READY + PAID + valid Pickup Code/QR mới handoff.</td></tr>
+<tr><td>12</td><td>Late pickup</td><td>READY quá pickup_time + 30 phút → UI OVERDUE; không auto cancel/refund.</td></tr>
+<tr><td>13</td><td>Order aggregation</td><td>PREPARING/READY do backend aggregate từ OrderItem.</td></tr>
+<tr><td>14</td><td>Payment retry</td><td>1 Order – N attempts; callback idempotent; pending checkout 15 phút → EXPIRED.</td></tr>
+<tr><td>15</td><td>Reporting</td><td>Thêm Order by Channel, On-time Ready Rate và Overdue Pickup Count.</td></tr>
+<tr><td>16</td><td>Hard delete</td><td>Không hard-delete transactional data.</td></tr>
+<tr><td>17</td><td>POS card/QR</td><td>Bắt buộc nhập mã giao dịch trên biên lai; ghi PaymentTransaction gateway = POS_TERMINAL (BR-22).</td></tr>
+<tr><td>18</td><td>Cancel Online</td><td>Mốc chặn là "chưa OrderItem nào rời WAITING", không phải "chưa tới kitchen_release_at" (BR-12 sửa từ V6.0).</td></tr>
+<tr><td>19</td><td>Preparation lead time</td><td>Tham số cấu hình, mặc định 20 phút, không hard-code (BR-08 sửa từ V6.0).</td></tr>
+<tr><td>20</td><td>KitchenIssue</td><td>Không chặn markReady. Đã cân nhắc và bác bỏ phương án chặn (BR-19).</td></tr>
+<tr><td>21</td><td>Net Revenue</td><td>Thu theo paid_at, hoàn theo refunded_at; không lọc vế thu theo payment_status (mục 13).</td></tr>
+<tr><td>22</td><td>Số màn hình/role</td><td>Bỏ ràng buộc "đúng 5 màn hình mỗi role" của V4. Cashier 5, Customer 6, Kitchen 4, Admin 5 — theo nghiệp vụ thật, khớp 1-1 với servlet.</td></tr>
+<tr><td>23</td><td>Bàn giao món</td><td>Hai mốc của hai người: Kitchen <span class="mono">handed_over_at</span>, Cashier <span class="mono">received_at</span>. Handoff cho khách bị chặn khi còn món chưa nhận. Trục song song với item_status (BR-25).</td></tr>
+</tbody></table>
+<div class="proposal"><strong>Baseline:</strong> mọi Use Case Diagram, Activity/Sequence Diagram, ERD, API và Test Case sau V6 phải dùng đúng định nghĩa Online Pre-order này.</div>
+</section>
+<section>
+<h2>19. Kết luận – Baseline để chuyển sang thiết kế</h2>
+<div class="flow">ONLINE_PREORDER: Login → Cart → Pickup Time → Online Pay → Auto Confirm
+                                                  ↓
+                                   Wait for kitchen_release_at
+                                                  ↓
+SYSTEM SCHEDULER:                         Release to KDS
+                                                  ↓
+KITCHEN:                       WAITING → PREPARING → READY
+                                                  ↓
+CUSTOMER:                     READY Notification + Pickup QR
+                                                  ↓
+CASHIER:                         Verify → Handoff → COMPLETED
+
+POS: Walk-in → Cashier POS → Counter Payment → Immediate KDS → READY → Handoff</div>
+<p><strong>Giá trị cốt lõi của Online trong V6:</strong> khách đặt từ xa cho một thời điểm đến cửa hàng cụ thể; hệ thống điều phối thời điểm chế biến để món sẵn sàng gần giờ hẹn. Vì vậy Online có nghiệp vụ riêng về scheduling, payment, release, notification, pickup verification và on-time KPI dù không có Delivery.</p>
+<p><strong>Bước tiếp theo:</strong> Use Case Diagram → Detailed Use Cases → Activity Diagram cho Online Pre-order/POS → ERD → Sequence Diagram (Payment Callback, Scheduled Release, Pickup Handoff) → Architecture → API → Test Plan/Traceability Matrix → Implementation.</p>
+</section>
+</div>
+<footer class="footer">Tài liệu V6 · Requirements Baseline · Online Pre-order / Scheduled Store Pickup + POS · Không Delivery/Shipper.</footer>
+</div>
+</body>
+</html>

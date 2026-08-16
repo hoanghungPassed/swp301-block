@@ -1,0 +1,22 @@
+<%@ page pageEncoding="UTF-8" %>
+<%--
+  Thông báo hiển thị một lần sau khi chuyển hướng.
+  WebUtil.consumeFlash chuyển thông báo từ phiên sang request trước khi tới đây.
+
+  role="alert" cho thông báo lỗi và role="status" cho thông báo thành công: không có hai
+  thuộc tính này thì trình đọc màn hình im lặng hoàn toàn sau khi gửi biểu mẫu, người dùng
+  không hề biết việc mình vừa làm thành công hay hỏng. Lỗi dùng alert vì cần cắt ngang ngay,
+  báo thành công dùng status vì chỉ cần đọc khi rảnh.
+--%>
+<c:if test="${not empty flashSuccess}">
+  <div class="alert alert-success" role="status"><c:out value="${flashSuccess}"/></div>
+</c:if>
+<c:if test="${not empty flashError}">
+  <div class="alert alert-error" role="alert"><c:out value="${flashError}"/></div>
+</c:if>
+<c:if test="${not empty errorMessage}">
+  <div class="alert alert-error" role="alert"><c:out value="${errorMessage}"/></div>
+</c:if>
+<c:if test="${not empty warning}">
+  <div class="alert alert-warn" role="status"><c:out value="${warning}"/></div>
+</c:if>

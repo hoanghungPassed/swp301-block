@@ -1,0 +1,175 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>com.fastfood</groupId>
+    <artifactId>fastfood-preorder</artifactId>
+    <version>1.0-SNAPSHOT</version>
+    <packaging>war</packaging>
+
+    <name>Fast Food Pre-order Pickup &amp; POS</name>
+    <description>SWP301 - Fast Food Pre-order Pickup &amp; Operations Management System (Baseline V6)</description>
+
+    <properties>
+        <maven.compiler.source>17</maven.compiler.source>
+        <maven.compiler.target>17</maven.compiler.target>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+
+        <!-- Tomcat 9.x = javax.servlet. Nếu chạy Tomcat 10+, đổi sang jakarta.* (xem docs/STRUCTURE.md) -->
+        <servlet.version>4.0.1</servlet.version>
+        <jstl.version>1.2</jstl.version>
+        <mssql.version>12.6.1.jre11</mssql.version>
+    </properties>
+
+    <dependencies>
+        <!-- Servlet API (provided bởi Tomcat) -->
+        <dependency>
+            <groupId>javax.servlet</groupId>
+            <artifactId>javax.servlet-api</artifactId>
+            <version>${servlet.version}</version>
+            <scope>provided</scope>
+        </dependency>
+
+        <!-- JSP API (provided bởi Tomcat) -->
+        <dependency>
+            <groupId>javax.servlet.jsp</groupId>
+            <artifactId>javax.servlet.jsp-api</artifactId>
+            <version>2.3.3</version>
+            <scope>provided</scope>
+        </dependency>
+
+        <!-- JSTL - dùng cho toàn bộ tầng View -->
+        <dependency>
+            <groupId>javax.servlet</groupId>
+            <artifactId>jstl</artifactId>
+            <version>${jstl.version}</version>
+        </dependency>
+
+        <!-- SQL Server JDBC Driver -->
+        <dependency>
+            <groupId>com.microsoft.sqlserver</groupId>
+            <artifactId>mssql-jdbc</artifactId>
+            <version>${mssql.version}</version>
+        </dependency>
+
+        <!-- Connection pool cho DBContext -->
+        <dependency>
+            <groupId>com.zaxxer</groupId>
+            <artifactId>HikariCP</artifactId>
+            <version>5.1.0</version>
+        </dependency>
+
+        <!-- Hash password (NFR-01) -->
+        <dependency>
+            <groupId>org.mindrot</groupId>
+            <artifactId>jbcrypt</artifactId>
+            <version>0.4</version>
+        </dependency>
+
+        <!-- Sinh QR code cho Pickup Code (UC-15) -->
+        <dependency>
+            <groupId>com.google.zxing</groupId>
+            <artifactId>javase</artifactId>
+            <version>3.5.3</version>
+        </dependency>
+
+        <!-- JSON cho API/AJAX (KDS realtime polling - NFR-04) -->
+        <dependency>
+            <groupId>com.google.code.gson</groupId>
+            <artifactId>gson</artifactId>
+            <version>2.11.0</version>
+        </dependency>
+
+        <!--
+            Gửi email thật: thư xác thực địa chỉ lúc đăng ký và liên kết đặt lại mật khẩu.
+
+            Nhánh 1.6.x cố ý, chứ không phải bản mới nhất: từ 2.x thư viện đổi sang không gian
+            tên jakarta.mail, cùng một bước nhảy mà servlet API đã làm ở Tomcat 10. Dự án này
+            còn ở javax.servlet nên phải ở lại javax.mail cho khớp. Ngày đổi sang Tomcat 10 thì
+            đổi cả hai cùng lúc — xem ghi chú ở thuộc tính servlet.version bên trên.
+
+            Có mặt trong bản đóng gói (không phải provided): Tomcat không mang sẵn thư viện mail.
+        -->
+        <dependency>
+            <groupId>com.sun.mail</groupId>
+            <artifactId>javax.mail</artifactId>
+            <version>1.6.2</version>
+        </dependency>
+
+        <!-- Test -->
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <version>5.10.2</version>
+            <scope>test</scope>
+        </dependency>
+
+        <!--
+            Bộ dịch JSP của chính Tomcat, chỉ dùng khi chạy test.
+
+            Trước đây toàn bộ 26 trang JSP không có gì kiểm: một thẻ quên đóng hay một hàm thẻ
+            gõ sai chỉ lộ ra khi mở trang trên trình duyệt. JspCompileTest gọi thẳng bộ dịch này
+            để bắt những lỗi đó ngay trong `mvn test`.
+
+            Phiên bản khớp Tomcat 9 vì dự án dùng javax.servlet; Tomcat 10 trở lên đã đổi sang
+            jakarta.servlet và sẽ không dịch nổi các trang này.
+        -->
+        <dependency>
+            <groupId>org.apache.tomcat</groupId>
+            <artifactId>tomcat-jasper</artifactId>
+            <version>9.0.89</version>
+            <scope>test</scope>
+        </dependency>
+        <!--
+            JspC kế thừa Task của Ant nên phải có Ant trên đường dẫn lớp mới biên dịch được bài
+            test, dù bài test không dùng Ant để làm gì. Đây là dây rợ của Jasper, không phải
+            lựa chọn của dự án.
+        -->
+        <dependency>
+            <groupId>org.apache.ant</groupId>
+            <artifactId>ant</artifactId>
+            <version>1.10.14</version>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <finalName>fastfood</finalName>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-war-plugin</artifactId>
+                <version>3.4.0</version>
+                <configuration>
+                    <failOnMissingWebXml>false</failOnMissingWebXml>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.13.0</version>
+            </plugin>
+            <!--
+                Test chia hai nhóm bằng đuôi tên lớp:
+                  *Test  — logic thuần, chạy được ở mọi nơi, không cần cơ sở dữ liệu
+                  *IT    — chạy thật qua Service/DAO tới SQL Server ở localhost
+
+                Nhóm IT tự bỏ qua khi không có máy chủ (xem TestDatabase), nên `mvn test`
+                trên máy chưa cài SQL Server vẫn xanh thay vì đỏ vì lý do ngoài mã nguồn.
+            -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>3.2.5</version>
+                <configuration>
+                    <includes>
+                        <include>**/*Test.java</include>
+                        <include>**/*IT.java</include>
+                    </includes>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+</project>

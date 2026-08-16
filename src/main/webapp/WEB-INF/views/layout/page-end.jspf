@@ -1,0 +1,22 @@
+<%@ page pageEncoding="UTF-8" %>
+<%-- Nửa sau của khung trang dùng chung. Đi kèm page-start.jspf. --%>
+</main>
+<%@ include file="/WEB-INF/views/layout/footer.jspf" %>
+
+<%--
+  Hộp xác nhận dùng chung cho mọi thao tác không hoàn tác được (huỷ đơn, hoàn tiền, đặt lại
+  mật khẩu). Trang chỉ cần ghi data-confirm="câu hỏi" lên thẻ form, app.js lo phần còn lại.
+  Đặt sẵn ở mọi trang để không trang nào phải tự khai báo lại.
+--%>
+<dialog id="confirm-dialog" class="confirm-dialog" aria-labelledby="confirm-title">
+  <form method="dialog">
+    <h2 id="confirm-title">Xác nhận</h2>
+    <p class="mt" data-field="message"></p>
+    <div class="actions center mt">
+      <button type="submit" value="cancel" class="btn touch" autofocus>Không</button>
+      <button type="submit" value="ok" class="btn btn-danger touch">Đồng ý</button>
+    </div>
+  </form>
+</dialog>
+</body>
+</html>

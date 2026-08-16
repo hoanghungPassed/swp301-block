@@ -1,0 +1,154 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<web-app xmlns="http://xmlns.jcp.org/xml/ns/javaee"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://xmlns.jcp.org/xml/ns/javaee
+                             http://xmlns.jcp.org/xml/ns/javaee/web-app_4_0.xsd"
+         version="4.0">
+
+    <display-name>Fast Food Pre-order Pickup &amp; POS - V6</display-name>
+
+    <!--
+      Servlet được khai báo bằng annotation (@WebServlet) trong com.fastfood.controller.
+      Bảng URL mapping đầy đủ: xem docs/STRUCTURE.md mục 5.
+    -->
+
+    <!--
+      ===== Bộ lọc: khai báo ở đây chứ KHÔNG dùng @WebFilter =====
+      Thứ tự chạy của bộ lọc khai báo bằng annotation là không xác định theo đặc tả Servlet;
+      đặt tên "01-", "02-" chỉ là quy ước chứ máy chủ không bắt buộc phải theo. Trong khi đó
+      thứ tự này lại quan trọng: EncodingFilter phải chạy trước, vì bảng mã bị chốt ngay khi
+      có ai đó đọc tham số đầu tiên — chốt sai thì tên tiếng Việt gửi lên thành ký tự lỗi.
+      Thứ tự các thẻ filter-mapping trong web.xml thì được đặc tả bảo đảm.
+    -->
+    <filter>
+        <filter-name>01-EncodingFilter</filter-name>
+        <filter-class>com.fastfood.filter.EncodingFilter</filter-class>
+    </filter>
+    <filter>
+        <filter-name>02-AuthenticationFilter</filter-name>
+        <filter-class>com.fastfood.filter.AuthenticationFilter</filter-class>
+    </filter>
+    <filter>
+        <filter-name>03-CsrfFilter</filter-name>
+        <filter-class>com.fastfood.filter.CsrfFilter</filter-class>
+    </filter>
+    <filter>
+        <filter-name>04-RoleAuthorizationFilter</filter-name>
+        <filter-class>com.fastfood.filter.RoleAuthorizationFilter</filter-class>
+    </filter>
+
+    <filter-mapping>
+        <filter-name>01-EncodingFilter</filter-name>
+        <url-pattern>/*</url-pattern>
+    </filter-mapping>
+    <filter-mapping>
+        <filter-name>02-AuthenticationFilter</filter-name>
+        <url-pattern>/*</url-pattern>
+    </filter-mapping>
+    <!--
+      CsrfFilter đứng SAU AuthenticationFilter và TRƯỚC RoleAuthorizationFilter, cả hai vị trí
+      đều có lý do:
+
+      Sau bộ lọc đăng nhập, vì lý do khiến một yêu cầu thiếu mã chống giả mạo, phần lớn các lần,
+      lại là phiên đã hết hạn khi trang còn mở. Để bộ lọc đăng nhập gặp trước thì người dùng
+      được đưa về trang đăng nhập kèm đường quay lại — đúng thứ họ cần; đảo lại thì họ nhận
+      một trang 403 không nói được gì.
+
+      Trước bộ lọc phân quyền, vì một yêu cầu không chứng minh được là do chính người dùng phát
+      ra thì không đáng để đem đi xét quyền. Nó cũng khiến trang 403 của bộ lọc phân quyền chắc
+      chắn đã có mã trong tay để dựng nút Thoát trên thanh điều hướng.
+
+      Trải trên /* chứ không chỉ những địa chỉ ghi dữ liệu: bộ lọc vừa kiểm mã ở yêu cầu POST,
+      vừa PHÁT mã cho mọi trang được dựng ra. Thu hẹp phạm vi thì những trang nằm ngoài không
+      có mã để đặt vào biểu mẫu của chúng.
+    -->
+    <filter-mapping>
+        <filter-name>03-CsrfFilter</filter-name>
+        <url-pattern>/*</url-pattern>
+    </filter-mapping>
+    <filter-mapping>
+        <filter-name>04-RoleAuthorizationFilter</filter-name>
+        <url-pattern>/staff/*</url-pattern>
+        <url-pattern>/kitchen/*</url-pattern>
+        <url-pattern>/admin/*</url-pattern>
+        <url-pattern>/api/kds/*</url-pattern>
+    </filter-mapping>
+
+    <!-- ===== Listener: khởi tạo DB pool + Scheduler (UC-07, BR-13) ===== -->
+    <listener>
+        <listener-class>com.fastfood.listener.AppContextListener</listener-class>
+    </listener>
+    <listener>
+        <listener-class>com.fastfood.listener.SessionListener</listener-class>
+    </listener>
+
+    <!--
+      ===== Session =====
+
+      http-only: JavaScript không đọc được cookie phiên. Một đoạn mã lạ chèn được vào trang thì
+      vẫn không lấy được mã phiên mang đi nơi khác.
+
+      tracking-mode COOKIE: cấm hẳn cách theo dõi phiên bằng cách nhét mã phiên vào địa chỉ
+      (;jsessionid=...). Mã phiên nằm trong địa chỉ là mã phiên nằm trong lịch sử trình duyệt,
+      trong nhật ký máy chủ, và trong mọi liên kết người dùng chép cho nhau.
+
+      Còn hai thuộc tính nữa của cookie — Secure và SameSite — không khai báo được ở đây:
+      đặc tả Servlet 4.0 không có chỗ cho SameSite, và Secure thì bật cứng ở đây sẽ làm hỏng
+      luôn việc chạy thử trên http ở máy cá nhân. Cả hai nằm trong META-INF/context.xml, là
+      cấu hình của Tomcat — xem ghi chú ở đó.
+    -->
+    <session-config>
+        <session-timeout>60</session-timeout>
+        <cookie-config>
+            <http-only>true</http-only>
+        </cookie-config>
+        <tracking-mode>COOKIE</tracking-mode>
+    </session-config>
+
+    <!-- ===== Welcome page ===== -->
+    <welcome-file-list>
+        <welcome-file>index.jsp</welcome-file>
+    </welcome-file-list>
+
+    <!-- ===== Error pages (NFR-01: không lộ stacktrace) ===== -->
+    <error-page>
+        <error-code>403</error-code>
+        <location>/WEB-INF/views/error/403.jsp</location>
+    </error-page>
+    <error-page>
+        <error-code>404</error-code>
+        <location>/WEB-INF/views/error/404.jsp</location>
+    </error-page>
+    <error-page>
+        <error-code>500</error-code>
+        <location>/WEB-INF/views/error/500.jsp</location>
+    </error-page>
+    <error-page>
+        <exception-type>java.lang.Throwable</exception-type>
+        <location>/WEB-INF/views/error/500.jsp</location>
+    </error-page>
+
+    <!-- ===== Encoding cho tiếng Việt ===== -->
+    <jsp-config>
+        <jsp-property-group>
+            <url-pattern>*.jsp</url-pattern>
+            <page-encoding>UTF-8</page-encoding>
+            <!-- .jspf để không tự include chính nó qua pattern *.jsp -->
+            <include-prelude>/WEB-INF/views/layout/taglib.jspf</include-prelude>
+        </jsp-property-group>
+
+        <!--
+          Bảng mã của các mảnh .jspf KHÔNG khai báo được ở đây. Đã thử thêm một
+          jsp-property-group cho *.jspf và Jasper bỏ qua: nhóm thuộc tính chỉ áp dụng cho
+          trang được yêu cầu trực tiếp, còn tệp ghép vào lúc dịch thì không.
+
+          Thiếu bảng mã thì Jasper đọc mảnh theo ISO-8859-1 (mặc định của đặc tả JSP) và
+          chữ tiếng Việt trong đó ra màn hình thành "Thá»±c ÄÆ¡n", trong khi chữ nằm ở tệp
+          .jsp vẫn đúng — cùng một trang chỗ đúng chỗ sai nên rất dễ bỏ sót.
+
+          Cách chạy được: mỗi tệp .jspf tự khai báo <%@ page pageEncoding="UTF-8" %> ở dòng
+          đầu tiên. Thêm mảnh .jspf mới thì nhớ thêm dòng đó.
+        -->
+    </jsp-config>
+
+</web-app>

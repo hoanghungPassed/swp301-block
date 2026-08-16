@@ -1,0 +1,970 @@
+/* =============================================================================
+   Fast Food Pre-order Pickup & POS — giao diện chung
+   Viết tay, không dùng thư viện ngoài, để trang chạy được cả khi máy không có mạng.
+   ============================================================================= */
+
+:root {
+    --ink: #18202a;
+    --muted: #667085;
+    --line: #e4e7ec;
+    --bg: #f4f6f8;
+    --paper: #ffffff;
+    --soft: #f8fafc;
+    --brand: #d92d20;
+    --brand-dark: #b42318;
+    --blue: #175cd3;
+    --green: #067647;
+    --amber: #b54708;
+    --red: #b42318;
+    --radius: 10px;
+
+    /* Màu chữ phụ và nền nhãn. Tách ra thành biến để chế độ tối bên dưới đổi được;
+       trước đây hai màu này viết cứng ở gần chục chỗ. */
+    --ink-2: #344054;
+    --chip: #f2f4f7;
+
+    --brand-soft: #fef3f2;
+    --shade-green: #ecfdf3;
+    --shade-red: #fef3f2;
+    --shade-amber: #fffaeb;
+    --shade-blue: #eff8ff;
+}
+
+/*
+  Chế độ tối. Chỉ theo thiết lập của hệ điều hành, không có nút gạt riêng — bếp ca đêm là
+  chỗ cần nhất, và ở đó màn hình vốn đã đặt theo cả ca chứ không bật tắt từng lúc.
+
+  Chỉ định nghĩa lại biến, không đụng tới quy tắc bố cục nào: nhờ vậy mọi thành phần đều
+  đổi màu theo mà không phải viết lại bản sao cho từng cái.
+*/
+@media (prefers-color-scheme: dark) {
+    :root {
+        --ink: #e7eaee;
+        --muted: #98a2b3;
+        --line: #2b3441;
+        --bg: #10161d;
+        --paper: #1a222c;
+        --soft: #212b36;
+        --ink-2: #cdd5df;
+        --chip: #2b3441;
+
+        /* Màu thương hiệu và màu trạng thái phải sáng hơn trên nền tối mới đủ tương phản;
+           dùng nguyên bản dành cho nền sáng thì chữ đỏ trên nền đen gần như không đọc được. */
+        --brand: #f97066;
+        --brand-dark: #e0554a;
+        --blue: #84caff;
+        --green: #75e0a7;
+        --amber: #fdb022;
+        --red: #fda29b;
+
+        --brand-soft: #2d1b1a;
+        --shade-green: #12261c;
+        --shade-red: #2d1b1a;
+        --shade-amber: #2a2110;
+        --shade-blue: #16283d;
+    }
+
+    /* Nút đặc màu: chữ trắng trên nền sáng màu sẽ chói, đổi sang chữ tối.
+       Nhãn lọc đang chọn và số thứ tự ba bước cũng nền đặc màu thương hiệu nên đi cùng nhóm. */
+    .btn-primary, .btn-green, .btn-blue, .chip.on, .hero-steps .n { color: #10161d; }
+    .btn-green:hover { background: #5bc78e; }
+    .btn-blue:hover { background: #62b8ff; }
+
+    /* Nền giữ chỗ của ảnh món: dải màu hồng nhạt trên nền tối sẽ thành một mảng chói. */
+    .thumb { background: linear-gradient(135deg, #2a2024, #262119); color: #8a5f52; }
+
+    /* Máy in luôn dùng giấy trắng, nên bản in giữ nguyên bảng màu sáng. */
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+/*
+  Bắt buộc phải có. Thuộc tính hidden của HTML chỉ đặt display:none ở bảng kiểu mặc định
+  của trình duyệt, nên bất kỳ khai báo display nào viết ở đây cũng đè lên nó — ví dụ
+  .kds-grid { display: grid } sẽ làm <div class="kds-grid" hidden> vẫn hiện.
+  Việc bật tắt khối "hàng chờ trống" của màn hình bếp dựa hẳn vào quy tắc này.
+*/
+[hidden] { display: none !important; }
+
+body {
+    font-family: Inter, 'Segoe UI', Roboto, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    line-height: 1.55;
+    font-size: 14px;
+}
+
+a { color: var(--blue); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+/* ------------------------------------------------------------------ bố cục */
+
+.app-header {
+    background: var(--paper);
+    border-bottom: 1px solid var(--line);
+    position: sticky;
+    top: 0;
+    z-index: 20;
+}
+.app-header .inner {
+    max-width: 1220px;
+    margin: 0 auto;
+    padding: 10px 20px;
+    display: flex;
+    align-items: center;
+    gap: 18px;
+}
+.brand {
+    font-weight: 800;
+    font-size: 17px;
+    color: var(--brand);
+    letter-spacing: -0.02em;
+}
+.brand:hover { text-decoration: none; }
+.app-header nav { display: flex; gap: 4px; flex-wrap: wrap; flex: 1; }
+.app-header nav a {
+    padding: 6px 11px;
+    border-radius: 7px;
+    color: var(--ink-2);
+    font-weight: 500;
+}
+.app-header nav a:hover { background: var(--soft); text-decoration: none; }
+.app-header nav a.active { background: var(--brand-soft); color: var(--brand); }
+/* Huy hiệu số tin chưa đọc. Nền đặc màu thương hiệu chứ không phải chữ đỏ: thanh điều hướng
+   vốn đã toàn chữ, một con số đổi màu lẫn ngay vào đó và không ai nhìn thấy. */
+.nav-badge {
+    display: inline-block;
+    min-width: 18px;
+    margin-left: 5px;
+    padding: 1px 5px;
+    border-radius: 9px;
+    background: var(--brand);
+    color: #fff;
+    font-size: 11px;
+    font-weight: 700;
+    text-align: center;
+    line-height: 16px;
+}
+.user-box { display: flex; align-items: center; gap: 10px; font-size: 13px; }
+.user-box .who { color: var(--muted); }
+/* Nút Thoát là biểu mẫu POST, không phải liên kết (xem LogoutServlet). Thẻ form mặc định là
+   khối, nên nếu không gỡ nó ra khỏi dòng chảy thì nút rơi xuống hàng dưới thanh điều hướng. */
+.logout-form { display: inline; }
+
+.container { max-width: 1220px; margin: 0 auto; padding: 22px 20px 60px; }
+.container.narrow { max-width: 560px; }
+.container.medium { max-width: 860px; }
+
+.app-footer {
+    border-top: 1px solid var(--line);
+    background: var(--paper);
+    color: var(--muted);
+    font-size: 12px;
+    padding: 16px 20px;
+    text-align: center;
+}
+
+/* ------------------------------------------------------------------ tiêu đề */
+
+.page-head { margin-bottom: 18px; }
+.page-head h1 { font-size: 22px; letter-spacing: -0.02em; }
+.page-head p { color: var(--muted); margin-top: 3px; }
+h2 { font-size: 16px; margin-bottom: 10px; }
+h3 { font-size: 14px; margin-bottom: 8px; }
+
+/* ------------------------------------------------------------------ thẻ */
+
+.card {
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 16px;
+    margin-bottom: 16px;
+}
+.card.pad0 { padding: 0; overflow: hidden; }
+.card-head {
+    padding: 13px 16px;
+    border-bottom: 1px solid var(--line);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+}
+.card-head h2 { margin: 0; }
+
+.grid { display: grid; gap: 16px; }
+.grid-2 { grid-template-columns: 1fr 1fr; }
+.grid-3 { grid-template-columns: repeat(3, 1fr); }
+.grid-4 { grid-template-columns: repeat(4, 1fr); }
+.grid-side { grid-template-columns: 1fr 340px; align-items: start; }
+
+/* ------------------------------------------------------------------ bảng */
+
+table { width: 100%; border-collapse: collapse; }
+th {
+    text-align: left;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--muted);
+    background: var(--soft);
+    padding: 9px 14px;
+    border-bottom: 1px solid var(--line);
+    white-space: nowrap;
+}
+td { padding: 11px 14px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+tbody tr:last-child td { border-bottom: 0; }
+tbody tr:hover { background: var(--soft); }
+td.num, th.num { text-align: right; }
+td.center, th.center { text-align: center; }
+.table-wrap { overflow-x: auto; }
+
+/* ------------------------------------------------------------------ nhãn */
+
+.tag {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 3px 9px;
+    border-radius: 999px;
+    background: var(--chip);
+    color: var(--ink-2);
+    white-space: nowrap;
+}
+.tag-green { background: var(--shade-green); color: var(--green); }
+.tag-red   { background: var(--shade-red); color: var(--red); }
+.tag-amber { background: var(--shade-amber); color: var(--amber); }
+.tag-info  { background: var(--shade-blue); color: var(--blue); }
+.tag-warn  { background: var(--shade-amber); color: var(--amber); }
+.tag-muted { background: var(--chip); color: var(--muted); }
+
+/* ------------------------------------------------------------------ nút */
+
+.btn {
+    display: inline-block;
+    padding: 8px 15px;
+    border-radius: 8px;
+    border: 1px solid var(--line);
+    background: var(--paper);
+    color: var(--ink-2);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+    text-align: center;
+}
+.btn:hover { background: var(--soft); text-decoration: none; }
+.btn-primary { background: var(--brand); border-color: var(--brand); color: #fff; }
+.btn-primary:hover { background: var(--brand-dark); }
+.btn-green { background: var(--green); border-color: var(--green); color: #fff; }
+.btn-green:hover { background: #055c37; }
+.btn-blue { background: var(--blue); border-color: var(--blue); color: #fff; }
+.btn-blue:hover { background: #124ba8; }
+.btn-danger { color: var(--red); border-color: var(--red); }
+.btn-danger:hover { background: var(--shade-red); }
+.btn-sm { padding: 5px 10px; font-size: 12px; }
+.btn-block { display: block; width: 100%; }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/*
+  Nút cho thiết bị cảm ứng. Mục 12 tài liệu phân tích ghi rõ máy bán hàng tại quầy và màn
+  hình bếp là phần cứng có màn hình chạm, nhưng .btn-sm chỉ cao khoảng 24px — quá nhỏ so
+  với đầu ngón tay, nhất là khi tay đang bận. 48px là ngưỡng tối thiểu thông dụng.
+*/
+.touch {
+    min-height: 48px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    font-size: 14px;
+    padding: 10px 16px;
+}
+.btn-block.touch { display: flex; width: 100%; }
+
+/* ------------------------------------------------------------------ biểu mẫu */
+
+.field { margin-bottom: 13px; }
+label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 5px; }
+label .hint { font-weight: 400; color: var(--muted); }
+/* input[type=date] có mặt ở đây vì năm màn hình đang dùng nó — thiếu tên đó trong danh sách
+   thì riêng mấy ô chọn ngày rơi về kiểu mặc định của trình duyệt, cao thấp lệch hẳn so với
+   ô bên cạnh trên cùng một hàng lọc. */
+input[type=text], input[type=email], input[type=password], input[type=number],
+input[type=search], input[type=date], input[type=datetime-local], input[type=url],
+select, textarea {
+    width: 100%;
+    padding: 8px 11px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    font-size: 14px;
+    font-family: inherit;
+    background: var(--paper);
+    color: var(--ink);
+}
+input:focus, select:focus, textarea:focus {
+    outline: none;
+    border-color: var(--blue);
+    box-shadow: 0 0 0 3px rgba(23, 92, 211, 0.12);
+}
+textarea { min-height: 72px; resize: vertical; }
+.check { display: flex; align-items: center; gap: 7px; font-weight: 500; }
+.check input { width: auto; }
+.form-row { display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end; }
+.form-row .field { flex: 1; min-width: 150px; margin-bottom: 0; }
+.inline-form { display: inline; }
+
+/* ------------------------------------------------------------------ thông báo */
+
+.alert {
+    padding: 11px 14px;
+    border-radius: 8px;
+    margin-bottom: 15px;
+    border: 1px solid;
+    font-size: 13px;
+}
+.alert-success { background: var(--shade-green); border-color: var(--green); color: var(--green); }
+.alert-error   { background: var(--shade-red); border-color: var(--red); color: var(--red); }
+.alert-warn    { background: var(--shade-amber); border-color: var(--amber); color: var(--amber); }
+.alert-info    { background: var(--shade-blue); border-color: var(--blue); color: var(--blue); }
+
+/* thông báo nằm sát trong thẻ, dùng làm dải ngăn giữa tiêu đề và bảng */
+.alert-flat { border-radius: 0; border-width: 0 0 1px; margin-bottom: 0; }
+
+/* Dải nhắc "chưa xác thực email": lời nhắc và nút gửi lại thư nằm cùng một hàng.
+   wrap để trên màn hình hẹp nút xuống dòng thay vì bóp chữ thành một cột hẹp, và
+   flex-shrink: 0 giữ cho nút không bị co lại thành một vệt không đọc được nhãn. */
+.verify-banner {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+.verify-banner form { flex-shrink: 0; }
+
+/* ------------------------------------------------------------------ thực đơn */
+
+.menu-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 14px; }
+.product {
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+/* Nền giữ chỗ cho ảnh món. Tách thành lớp đứng riêng để trang chi tiết dùng lại được
+   ở cỡ lớn, thay vì chép lại cả khối khai báo vào thuộc tính style. */
+.thumb {
+    background: linear-gradient(135deg, #fff1f0, #fef6ec);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #f0a58f;
+}
+.product .thumb { height: 120px; font-size: 34px; }
+.thumb-lg { height: 200px; border-radius: 8px; font-size: 60px; }
+
+/*
+  Ảnh thật thay cho nền giữ chỗ. Chiều cao cố định sẵn nên chỗ của ảnh đã được giữ trước
+  khi ảnh tải xong — không có chuyện cả lưới món nhảy xuống khi ảnh về, điều rất dễ xảy ra
+  với ảnh lấy từ máy chủ ngoài.
+*/
+.thumb-img { display: block; width: 100%; object-fit: cover; background: var(--soft); }
+.product .body { padding: 12px; flex: 1; display: flex; flex-direction: column; gap: 5px; }
+
+/* Tên món là <h3> để trình đọc màn hình lướt được giữa các món; cỡ chữ kéo về đúng cỡ cũ,
+   không lấy theo cỡ mặc định của h3 ở đầu tệp. Chữ màu mực chứ không màu liên kết: cả lưới
+   toàn tên món mà đều xanh thì không còn nhận ra đâu là thứ đáng bấm. */
+.product .name { font-size: 14px; font-weight: 600; margin: 0; }
+.product .name a { color: var(--ink); }
+
+/*
+  Mô tả cắt gọn ở ba dòng. Không cắt thì một món tả dài mười dòng kéo cả hàng thẻ cao theo
+  nó — lưới dùng grid nên các thẻ cùng hàng luôn bằng nhau — và giá cùng nút "Thêm vào giỏ"
+  của những món bên cạnh bị đẩy xuống tận đáy một khoảng trắng mênh mông.
+*/
+.product .desc {
+    color: var(--muted);
+    font-size: 12px;
+    flex: 1;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+    line-clamp: 3;
+    overflow: hidden;
+}
+/* Không giới hạn trong .product: trang chi tiết món cũng hiện giá, ở cỡ lớn hơn. */
+.price { color: var(--brand); font-weight: 700; }
+.product .foot { padding: 0 12px 12px; }
+
+/* Thẻ món nhấc nhẹ khi trỏ vào, để thấy rõ cả thẻ là một khối chứ không phải mấy dòng chữ
+   rời nhau. Tắt hiệu ứng cho người đã bật "giảm chuyển động" trong hệ điều hành. */
+.product { transition: box-shadow 0.15s, transform 0.15s; }
+.product:hover { box-shadow: 0 6px 16px rgba(16, 24, 40, 0.10); transform: translateY(-2px); }
+@media (prefers-reduced-motion: reduce) {
+    .product { transition: none; }
+    .product:hover { transform: none; }
+}
+
+/*
+  Dãy nhãn lọc nhóm món. Mỗi nhãn là một liên kết mang sẵn cả từ khoá lẫn thứ tự đang chọn,
+  nên bấm một nhãn chỉ đổi đúng một thứ.
+*/
+.chips { display: flex; flex-wrap: wrap; gap: 7px; }
+.chip {
+    display: inline-block;
+    padding: 5px 12px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background: var(--paper);
+    color: var(--ink-2);
+    font-size: 13px;
+    font-weight: 500;
+}
+.chip:hover { background: var(--soft); text-decoration: none; }
+/* Nhãn đang chọn tô đặc màu thương hiệu: viền đổi màu thôi thì nhìn lướt qua một dãy mười
+   nhãn không thấy cái nào đang bật. */
+.chip.on { background: var(--brand); border-color: var(--brand); color: #fff; }
+.chip.on:hover { background: var(--brand-dark); }
+
+/* Dòng đếm kết quả nằm giữa hộp lọc và lưới món, nên không cần khung riêng. */
+.result-line { margin: -4px 0 12px; }
+.result-line p { margin: 0; }
+
+/* Ô chọn hẹp trong hàng lọc — "Sắp xếp" không cần rộng bằng ô tìm kiếm. */
+.form-row .field-narrow { flex: 0 1 190px; }
+
+/* ------------------------------------------------------------- khối giới thiệu
+
+  Chỉ hiện với khách chưa đăng nhập, ở đầu thực đơn. Người đã đăng nhập đã biết đây là chỗ
+  làm gì rồi, nên với họ trang mở thẳng vào thực đơn — nhắc lại mỗi lần vào chỉ tổ đẩy món
+  ăn xuống dưới mép màn hình.
+*/
+.hero {
+    display: grid;
+    grid-template-columns: 1.15fr 1fr;
+    gap: 26px;
+    align-items: center;
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 26px;
+    margin-bottom: 16px;
+}
+.hero-eyebrow {
+    color: var(--brand);
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+}
+.hero h1 { font-size: 27px; line-height: 1.25; letter-spacing: -0.02em; margin-top: 6px; }
+.hero-lead { color: var(--muted); margin-top: 9px; max-width: 46ch; }
+.hero-cta { margin: 16px 0 8px; }
+
+/* Ba bước đánh số. Là <ol> chứ không phải ba ô rời: thứ tự chính là nội dung — chọn món
+   trước, hẹn giờ sau, tới lấy sau cùng. */
+.hero-steps { list-style: none; display: flex; flex-direction: column; gap: 11px; }
+.hero-steps li {
+    display: flex;
+    gap: 11px;
+    align-items: flex-start;
+    background: var(--soft);
+    border: 1px solid var(--line);
+    border-radius: 9px;
+    padding: 11px 13px;
+}
+.hero-steps .n {
+    flex-shrink: 0;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: var(--brand);
+    color: #fff;
+    font-size: 12px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.hero-steps strong { display: block; }
+.hero-steps span.small { display: block; }
+
+/* ------------------------------------------------------------------ chỉ số */
+
+.kpi { background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px 16px; }
+.kpi .label { font-size: 12px; color: var(--muted); }
+.kpi .value { font-size: 23px; font-weight: 700; letter-spacing: -0.02em; margin-top: 3px; }
+.kpi .sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
+.kpi.good .value { color: var(--green); }
+.kpi.warn .value { color: var(--amber); }
+.kpi.bad .value  { color: var(--red); }
+
+/* Đánh giá món. Sao dùng ký tự chứ không dùng ảnh: không tải thêm gì, và phóng to chữ thì
+   sao phóng theo. aria-hidden ở nơi dùng, kèm một nhãn chữ cho trình đọc màn hình. */
+.stars { color: var(--amber); letter-spacing: 1px; }
+.rating-line { display: flex; align-items: center; gap: 6px; }
+/* Trên thẻ món, cả cụm điểm là một liên kết dẫn thẳng tới phần đánh giá của trang chi tiết. */
+a.rating-line { text-decoration: none; color: inherit; margin: 2px 0; }
+a.rating-line:hover .stars { filter: brightness(0.9); }
+.review { padding: 10px 0; border-top: 1px solid var(--line); }
+.review:first-of-type { border-top: 0; }
+.review p { margin: 4px 0 0; }
+
+/* Nút món quen trên lưới thực đơn. Trạng thái đã đánh dấu phải nhận ra được mà không cần đọc
+   chữ — ngôi sao đặc và màu hổ phách — vì mắt lướt qua cả lưới chứ không đọc từng nút. */
+.btn-fav { margin-top: 6px; }
+.btn-fav.on { color: var(--amber); border-color: var(--amber); background: var(--shade-amber); }
+
+/* Thanh tiến độ chỉ tiêu doanh thu. Màu lấy theo chính lớp good/warn/bad của ô chứa nó, để
+   con số và thanh không bao giờ nói hai chuyện khác nhau. */
+.progress { height: 6px; background: var(--line); border-radius: 3px; overflow: hidden; margin: 6px 0 4px; }
+.progress-bar { height: 100%; background: var(--brand); border-radius: 3px; }
+.kpi.good .progress-bar { background: var(--green); }
+.kpi.warn .progress-bar { background: var(--amber); }
+.kpi.bad  .progress-bar { background: var(--red); }
+
+/* ------------------------------------------------------------------ tab */
+
+.tabs { display: flex; gap: 5px; border-bottom: 1px solid var(--line); margin-bottom: 16px; flex-wrap: wrap; }
+.tabs a {
+    padding: 9px 14px;
+    color: var(--ink-2);
+    font-weight: 600;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+}
+.tabs a:hover { text-decoration: none; color: var(--ink); }
+.tabs a.active { color: var(--brand); border-bottom-color: var(--brand); }
+.tabs .count {
+    display: inline-block;
+    background: var(--chip);    border-radius: 999px;
+    padding: 0 7px;
+    font-size: 11px;
+    margin-left: 5px;
+}
+.tabs a.active .count { background: var(--brand-soft); color: var(--brand); }
+
+/* ------------------------------------------------------------------ màn hình bếp */
+
+.kds-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 13px; }
+.kds-card {
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-left: 4px solid var(--line);
+    border-radius: var(--radius);
+    padding: 13px;
+}
+.kds-card.online { border-left-color: var(--blue); }
+.kds-card.pos    { border-left-color: var(--muted); }
+.kds-card.urgent { border-left-color: var(--amber); background: var(--shade-amber); }
+.kds-card.late   { border-left-color: var(--red); background: var(--shade-red); }
+.kds-card .qty { font-size: 21px; font-weight: 800; }
+.kds-card .title { font-weight: 600; margin-bottom: 3px; }
+.kds-card .meta { font-size: 12px; color: var(--muted); display: flex; justify-content: space-between; gap: 8px; }
+.kds-card .actions { margin-top: 10px; }
+
+/* ------------------------------------------------------------------ mã nhận hàng */
+
+.pickup-code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 27px;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    background: var(--soft);
+    border: 1px dashed var(--line);
+    border-radius: var(--radius);
+    padding: 14px;
+    text-align: center;
+}
+.qr-box { text-align: center; padding: 10px 0; }
+.qr-box img { border: 1px solid var(--line); border-radius: 8px; background: #fff; padding: 8px; }
+
+/* ------------------------------------------------------------------ tiến trình đơn */
+
+.steps { display: flex; gap: 0; margin: 6px 0 18px; list-style: none; }
+.step { flex: 1; text-align: center; position: relative; font-size: 12px; color: var(--muted); }
+.step::before {
+    content: '';
+    display: block;
+    height: 3px;
+    background: var(--line);
+    margin-bottom: 8px;
+}
+.step.done { color: var(--green); font-weight: 600; }
+.step.done::before { background: var(--green); }
+.step.current { color: var(--brand); font-weight: 700; }
+.step.current::before { background: var(--brand); }
+
+/* ------------------------------------------------------------------ hộp thông báo */
+
+/* Danh sách chứ không phải bảng: mỗi tin là một đoạn văn dài ngắn khác nhau, nhồi vào ô bảng
+   thì chiều cao hàng nhảy loạn và cột ngày trôi đi đâu mất. */
+.notice-list { list-style: none; }
+.notice {
+    display: flex;
+    gap: 12px;
+    padding: 13px 16px;
+    border-bottom: 1px solid var(--line);
+}
+.notice:last-child { border-bottom: 0; }
+/* Tin chưa đọc nhận ra bằng BA dấu hiệu chồng lên nhau — nền, vạch trái, và thẻ chữ "Mới"
+   trong HTML. Chỉ dựa vào màu nền thì người không phân biệt được màu, hoặc đang ngồi ngoài
+   nắng, nhìn danh sách này thấy mọi dòng như nhau. */
+.notice.unread { background: var(--soft); box-shadow: inset 3px 0 0 var(--brand); }
+.notice-icon { font-size: 20px; line-height: 1.3; }
+.notice p { margin: 0; }
+
+/* ------------------------------------------------------------------ linh tinh */
+
+.muted { color: var(--muted); }
+/* Dùng cho con số cần bật ra khỏi dòng chữ, ví dụ "còn thiếu ..." ở ô tính tiền thối tại quầy.
+   Khác .tag-red ở chỗ không có nền: đây là một dòng trong bảng tính tiền, không phải huy hiệu. */
+.text-red { color: var(--red); }
+.small { font-size: 12px; }
+.mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+.right { text-align: right; }
+.mt { margin-top: 14px; }
+.mb { margin-bottom: 14px; }
+/* khoảng cách hẹp, dùng giữa các dòng của cùng một khối — 14px ở đó làm khối rời ra thành
+   mấy mảnh không còn đọc như một tin nữa */
+.mt-tight { margin-top: 6px; }
+.row-between { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.stack { display: flex; flex-direction: column; gap: 9px; }
+.actions { display: flex; gap: 7px; flex-wrap: wrap; }
+.empty { text-align: center; padding: 36px 16px; color: var(--muted); }
+.empty .icon { font-size: 30px; margin-bottom: 6px; }
+.total-line { display: flex; justify-content: space-between; padding: 6px 0; }
+.total-line.grand { border-top: 1px solid var(--line); margin-top: 6px; padding-top: 11px; font-size: 16px; font-weight: 700; }
+.total-line.middle { align-items: center; }
+
+/* --------------------------------------------------------------- lớp thay style rời
+
+   Những lớp dưới đây thay cho các thuộc tính style viết thẳng trong trang. Gom về đây
+   để đổi một kiểu hiển thị chỉ phải sửa một chỗ, và để màu thương hiệu không nằm rải
+   rác trong hơn hai mươi tệp JSP.
+   ------------------------------------------------------------------------------- */
+
+/*
+  Chữ chỉ dành cho trình đọc màn hình. Dùng cho tiêu đề cột chứa nút thao tác: để trống thì
+  người dùng trình đọc màn hình nghe một ô rỗng và không biết cột đó là gì, còn hiện chữ ra
+  thì thừa với người nhìn được. Không dùng display:none vì như vậy trình đọc cũng bỏ qua.
+*/
+.visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+/* nhãn của một nhóm lựa chọn, không gắn với ô nhập cụ thể nào */
+.field-label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 5px; }
+
+/* xem trước ảnh trong biểu mẫu quản trị */
+.url-preview {
+    display: block;
+    width: 100%;
+    height: 120px;
+    object-fit: cover;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    margin-top: 8px;
+    background: var(--soft);
+}
+
+/* ---------------------------------------------------------------- hộp xác nhận */
+
+.confirm-dialog {
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 20px;
+    max-width: 400px;
+    width: calc(100% - 32px);
+    color: var(--ink);
+    background: var(--paper);
+}
+.confirm-dialog::backdrop { background: rgba(16, 24, 40, 0.45); }
+.confirm-dialog h2 { margin: 0; }
+
+.grow { flex: 1; }
+.row-tight { display: flex; gap: 4px; align-items: center; }
+.actions.center { justify-content: center; }
+.bullets { padding-left: 18px; }
+.flush { margin-bottom: 0; }
+
+/* thẻ bếp dùng làm liên kết: giữ màu chữ của thẻ, không lấy màu liên kết */
+a.kds-card { color: inherit; display: block; }
+a.kds-card:hover { text-decoration: none; border-color: var(--muted); }
+
+/* ô nhập số lượng trong giỏ hàng và phiếu tính tiền — cũng phải bấm được bằng ngón tay */
+.qty-input { width: 64px; text-align: center; min-height: 44px; }
+.qty-form { display: flex; gap: 5px; justify-content: center; }
+.line-amount { min-width: 76px; text-align: right; }
+
+/* ô nhập mã nhận hàng: mã sinh ra luôn viết hoa nên hiển thị đúng như vậy cho dễ đối chiếu */
+.code-input { text-transform: uppercase; letter-spacing: 0.1em; }
+
+.select-sm { font-size: 12px; padding: 3px 6px; }
+.check label { margin: 0; }
+
+/* nhãn trạng thái bấm được — trông như .tag nhưng thật ra là nút gửi biểu mẫu */
+.tag-btn { border: 0; cursor: pointer; font-family: inherit; }
+
+/* thẻ trong khung viền, không có lề ngoài */
+.card-inset { margin: 0; background: var(--soft); }
+
+/* thẻ chiếm trọn trang cho các trang báo lỗi */
+.card-hero { text-align: center; padding: 44px 20px; }
+.hero-icon { font-size: 44px; margin-bottom: 8px; }
+
+/* dòng "không có dữ liệu" nằm trong bảng */
+.cell-empty { padding: 26px; }
+
+.price-lg { font-size: 24px; }
+
+/* biểu đồ cột doanh thu. Chỉ chiều cao từng cột nằm lại trong style vì đó là số liệu. */
+.chart { display: flex; align-items: flex-end; gap: 6px; height: 150px; padding-top: 10px; }
+.chart-col { flex: 1; text-align: center; }
+.chart-bar { background: var(--brand); border-radius: 4px 4px 0 0; }
+.chart-label { font-size: 10px; margin-top: 4px; }
+
+/* ------------------------------------------------------------------ màn hình nhỏ */
+
+/* ------------------------------------------------------- điều hướng bằng bàn phím */
+
+/*
+  Viền tiêu điểm. Trước đây chỉ ô nhập mới có dấu hiệu, còn nút và liên kết thì không —
+  đi bằng phím Tab qua trang gần như không biết mình đang đứng ở đâu. Dùng :focus-visible
+  nên viền chỉ hiện khi đi bằng bàn phím, bấm chuột thì không.
+*/
+:focus-visible {
+    outline: 2px solid var(--blue);
+    outline-offset: 2px;
+    border-radius: 4px;
+}
+
+/* Nhảy thẳng tới nội dung, bỏ qua thanh điều hướng lặp lại ở mọi trang. */
+.skip-link {
+    position: absolute;
+    left: 8px;
+    top: -60px;
+    z-index: 40;
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 10px 15px;
+    font-weight: 600;
+    transition: top 0.15s;
+}
+.skip-link:focus { top: 8px; text-decoration: none; }
+
+/* ------------------------------------------------------------------ màn hình nhỏ */
+
+/* Nút mở menu. Ẩn mặc định; app.js bỏ thuộc tính hidden khi chạy được, nên lúc tắt
+   JavaScript nút không hiện ra và thanh điều hướng vẫn nằm nguyên như cũ. */
+.nav-toggle {
+    display: none;
+    background: none;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 8px 12px;
+    font-size: 17px;
+    line-height: 1;
+    cursor: pointer;
+    color: var(--ink);
+}
+
+@media (max-width: 900px) {
+    .grid-2, .grid-3, .grid-4, .grid-side { grid-template-columns: 1fr; }
+    .app-header .inner { flex-wrap: wrap; }
+
+    /* Khối giới thiệu xếp dọc: hai cột trên màn hẹp làm cả ba bước bị bóp thành cột chữ
+       gãy vụn. Chữ tiêu đề nhỏ lại theo, không thì một dòng chiếm hết khung nhìn. */
+    .hero { grid-template-columns: 1fr; gap: 20px; padding: 22px 18px; }
+    .hero h1 { font-size: 22px; }
+
+    /* Ngoại lệ: bốn ô chỉ báo của màn hình bếp xếp 2×2 chứ không chồng thành bốn hàng.
+       Chồng dọc thì hàng chờ bị đẩy hẳn xuống dưới mép màn, mà hàng chờ mới là thứ đầu bếp
+       ngẩng lên nhìn — bốn con số chỉ là phần tóm tắt. Đặt sau dòng trên để đè lại .grid-4. */
+    .kds-kpis { grid-template-columns: 1fr 1fr; }
+}
+
+@media (max-width: 720px) {
+    .nav-toggle { display: inline-flex; align-items: center; }
+    .nav-toggle[hidden] { display: none; }
+
+    /* Thanh điều hướng xuống thành một khối riêng, mở ra khi bấm nút. Không thu gọn thì
+       năm mục cộng hộp tài khoản chiếm gần nửa màn hình điện thoại. */
+    .app-header nav { display: none; width: 100%; order: 3; }
+    .app-header nav.open { display: flex; flex-direction: column; gap: 2px; }
+    .app-header nav a { padding: 11px; }
+
+    .app-header .inner { gap: 10px; }
+    .user-box { margin-left: auto; }
+    .user-box .who { display: none; }
+}
+
+@media (max-width: 600px) {
+    .container { padding: 16px 13px 40px; }
+    .page-head h1 { font-size: 19px; }
+    .form-row { flex-direction: column; align-items: stretch; }
+    .form-row .field { width: 100%; }
+
+    /*
+      Bảng chuyển thành thẻ xếp dọc. Chỉ áp dụng cho hai bảng khách hàng thật sự mở trên
+      điện thoại; bảng của quản trị và thu ngân dùng trên máy để bàn nên vẫn cuộn ngang.
+      Nhãn từng ô lấy từ data-label để bỏ hàng tiêu đề mà vẫn hiểu được từng dòng.
+    */
+    .table-cards thead { display: none; }
+    .table-cards tr {
+        display: block;
+        border-bottom: 1px solid var(--line);
+        padding: 10px 4px;
+    }
+    .table-cards tbody tr:last-child { border-bottom: 0; }
+    .table-cards td {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        border: 0;
+        padding: 5px 10px;
+        text-align: left;
+    }
+    .table-cards td::before {
+        content: attr(data-label);
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 600;
+        flex-shrink: 0;
+    }
+    .table-cards td.num, .table-cards td.center { text-align: right; }
+    .table-cards td:empty { display: none; }
+}
+
+/* ---------------------------------------------------------------- chuyển trang */
+
+.pager {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    padding: 12px 16px;
+    border-top: 1px solid var(--line);
+}
+.pager-count { color: var(--muted); font-size: 13px; }
+.pager-links { display: flex; gap: 4px; align-items: center; flex-wrap: wrap; }
+
+/* Ô bấm đủ lớn cho ngón tay: thanh này cũng dùng trên máy tại quầy. */
+.pager-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 40px;
+    min-height: 40px;
+    padding: 0 11px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    color: var(--ink-2);
+    font-size: 13px;
+    font-weight: 600;
+    background: var(--paper);
+}
+.pager-link:hover { background: var(--soft); text-decoration: none; }
+.pager-link.current {
+    background: var(--brand-soft);
+    border-color: var(--brand);
+    color: var(--brand);
+}
+.pager-link.disabled { opacity: 0.4; }
+.pager-gap { color: var(--muted); padding: 0 2px; }
+
+/* Thanh chuyển trang không có nghĩa gì trên giấy. */
+@media print { .pager { display: none; } }
+
+/* -------------------------------------------------------------------- hoá đơn in */
+
+.center { text-align: center; }
+
+.receipt { max-width: 340px; margin: 0 auto; }
+.receipt-head { text-align: center; padding-bottom: 12px; border-bottom: 1px dashed var(--line); }
+.receipt-shop { font-size: 19px; font-weight: 800; letter-spacing: 0.06em; }
+.receipt-meta { padding: 10px 0; border-bottom: 1px dashed var(--line); }
+.receipt-items { margin: 10px 0; }
+.receipt-items th { background: none; padding: 6px 0; }
+.receipt-items td { padding: 7px 0; border-bottom: 1px dashed #eef0f2; }
+
+/* Khối chỉ dành cho giấy. Nhờ nó mà hoá đơn nằm chung trang với chi tiết đơn thay vì phải
+   mở thêm một màn hình riêng chỉ để bấm nút in. */
+.print-only { display: none; }
+
+/*
+  Bản in. Giấy chỉ nên có hoá đơn: thanh điều hướng, chân trang và mọi nút bấm đều bỏ đi.
+  Khổ 80mm là cỡ giấy thông dụng của máy in nhiệt đặt ở quầy; in ra PDF cũng dùng khổ này.
+*/
+@media print {
+    /* Giấy luôn trắng. Nếu máy đang ở chế độ tối mà không đặt lại bảng màu ở đây thì hoá
+       đơn in ra sẽ là chữ xám nhạt trên nền trắng, gần như không đọc được. */
+    :root {
+        --ink: #000;
+        --ink-2: #000;
+        --muted: #444;
+        --line: #999;
+        --paper: #fff;
+        --bg: #fff;
+        --soft: #fff;
+        --chip: #eee;
+    }
+
+    .app-header,
+    .app-footer,
+    .skip-link,
+    .nav-toggle,
+    .no-print,
+    .confirm-dialog { display: none !important; }
+
+    .print-only { display: block; }
+
+    body { background: #fff; color: #000; font-size: 12px; }
+    .container { max-width: 100%; padding: 0; }
+    .card { border: 0; border-radius: 0; padding: 0; margin: 0; }
+    .receipt { max-width: 80mm; }
+    .pickup-code { border-style: dashed; font-size: 22px; padding: 8px; }
+
+    /* Nền màu thường bị máy in bỏ qua, nên nhãn trạng thái phải có viền mới thấy được. */
+    .tag { border: 1px solid #999; }
+
+    @page { margin: 8mm; }
+}
+
+/* --------------------------------------------------------------- giảm chuyển động */
+
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+}
+
+/* Ô nhập ngắn nằm chung hàng với nút trong bảng — dùng ở màn Quầy giao nhận (lý do từ chối)
+   và màn điều phối (ghi chú nhanh). Không dùng .field vì ở đây không có nhãn riêng: nhãn
+   chính là placeholder, và cả cụm phải vừa một dòng của ô bảng. */
+.input-sm {
+  width: 14rem;
+  max-width: 100%;
+  padding: .3rem .5rem;
+  font-size: .85rem;
+}
+
+/* Hàng ghi chú nằm dưới mỗi dòng đơn ở màn điều phối. Không viền trên để nó đọc như phần
+   phụ của dòng ngay trên, không phải một dòng đơn khác. */
+.note-row > td { border-top: 0; padding-top: 0; }
