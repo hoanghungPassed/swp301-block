@@ -1,8 +1,8 @@
 package com.fastfood.dao.customer;
 
 import com.fastfood.dao.JdbcSupport;
-import com.fastfood.model.dto.ReviewSummary;
-import com.fastfood.model.entity.Review;
+import com.fastfood.model.dto.Dtos.ReviewSummary;
+import com.fastfood.model.entity.MenuEntities.Review;
 
 import java.math.BigDecimal;
 import java.sql.Connection;
@@ -14,7 +14,6 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
-/** Truy vấn bảng Review — đánh giá món của khách. */
 public class ReviewDAO {
 
     private static final String BASE =
@@ -52,7 +51,6 @@ public class ReviewDAO {
         }
     }
 
-    /** Đánh giá của một món, mới nhất trước. */
     public List<Review> findByProduct(Connection con, int productId) throws SQLException {
         try (PreparedStatement ps = con.prepareStatement(
                 BASE + "WHERE r.product_id = ? ORDER BY r.created_at DESC, r.review_id DESC")) {
@@ -61,7 +59,6 @@ public class ReviewDAO {
         }
     }
 
-    /** Đánh giá của chính khách này cho món này, hoặc null nếu chưa đánh giá. */
     public Review findMine(Connection con, int productId, int customerId) throws SQLException {
         try (PreparedStatement ps = con.prepareStatement(
                 BASE + "WHERE r.product_id = ? AND r.customer_id = ?")) {
@@ -89,16 +86,6 @@ public class ReviewDAO {
         return summary;
     }
 
-    /**
-     * Khách này đã <b>mua và đã nhận</b> món này chưa.
-     * <p>
-     * Điều kiện là đơn ở trạng thái {@code COMPLETED}, tức là đã giao tới tay khách — không phải
-     * chỉ "đã đặt". Đơn đã đặt rồi huỷ, hoặc đơn còn đang nấu, đều chưa cho ai cơ sở nào để nói
-     * món ngon hay dở.
-     * <p>
-     * Ràng buộc này không đặt được ở tầng dữ liệu: {@code CHECK} trong SQL Server không nhìn
-     * sang bảng khác.
-     */
     public boolean hasCompletedPurchase(Connection con, int customerId, int productId)
             throws SQLException {
         String sql =

@@ -1,7 +1,7 @@
 package com.fastfood.flow;
 
-import com.fastfood.model.entity.Order;
-import com.fastfood.model.entity.OrderItem;
+import com.fastfood.model.entity.OrderEntities.Order;
+import com.fastfood.model.entity.OrderEntities.OrderItem;
 import com.fastfood.service.kitchen.KitchenService;
 import com.fastfood.service.staff.StaffOrderService;
 import com.fastfood.testsupport.IntegrationTestBase;
@@ -15,16 +15,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/**
- * Hàng chờ của quầy giao nhận (BR-25).
- * <p>
- * Đây là danh sách trả lời câu hỏi mà người đứng quầy hỏi cả ngày: món của đơn này đang ở đâu.
- * Trạng thái đơn không trả lời được — đơn ghi là sẵn sàng chỉ nghĩa là bếp đã nấu xong, món
- * vẫn có thể còn nằm trong bếp.
- * <p>
- * Bài đáng chú ý nhất ở đây là {@link #cancelledOrderItemsStayOnTheCounterQueue()}: nó giữ một
- * quyết định trông như thiếu sót nếu chỉ đọc câu truy vấn.
- */
 @DisplayName("Hàng chờ của quầy giao nhận")
 class CounterQueueIT extends IntegrationTestBase {
 
@@ -104,8 +94,6 @@ class CounterQueueIT extends IntegrationTestBase {
         assertFalse(onCounterQueue(b), "Bàn giao món này không được kéo theo món của đơn khác");
     }
 
-    // ------------------------------------------------------------------ dựng dữ liệu
-
     private boolean onCounterQueue(int itemId) {
         return staffOrders.awaitingCounter().stream()
                 .anyMatch(i -> i.getOrderItemId() == itemId);
@@ -114,7 +102,6 @@ class CounterQueueIT extends IntegrationTestBase {
     private record Fixture(int orderId, List<Integer> itemIds) {
     }
 
-    /** Một món đã nấu xong, do KITCHEN_1 làm, còn nằm trong bếp. */
     private int readyItemInKitchen() {
         Fixture f = twoItemOrder(1);
         kitchenService.claim(f.itemIds.get(0), userId(KITCHEN_1));
@@ -126,7 +113,6 @@ class CounterQueueIT extends IntegrationTestBase {
         return twoItemOrder(2);
     }
 
-    /** Đơn tại quầy đã xác nhận, món đã xuống bếp — không cần giờ hẹn nên dựng gọn. */
     private Fixture twoItemOrder(int itemCount) {
         LocalDateTime now = LocalDateTime.now();
         exec("INSERT INTO dbo.Orders (customer_id, order_source, total_amount, order_status, " +

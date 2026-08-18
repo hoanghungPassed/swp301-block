@@ -1,6 +1,6 @@
 package com.fastfood.flow;
 
-import com.fastfood.model.entity.Product;
+import com.fastfood.model.entity.MenuEntities.Product;
 import com.fastfood.service.shared.MenuService;
 import com.fastfood.testsupport.IntegrationTestBase;
 import org.junit.jupiter.api.DisplayName;
@@ -14,14 +14,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/**
- * Lọc và sắp xếp thực đơn — những gì trang đầu tiên khách nhìn thấy thật sự làm được.
- * <p>
- * <b>Vì sao phần sắp xếp cần test riêng.</b> Mệnh đề {@code ORDER BY} không nhận tham số
- * {@code ?}, nên thứ tự bắt buộc phải ghép chữ vào câu lệnh. Chỗ ghép chữ duy nhất trong cả
- * lớp DAO ấy là chỗ dễ mở ra lỗ tiêm SQL nhất, và cũng là chỗ mà một mã sắp xếp gõ sai sẽ
- * lặng lẽ trả về thứ tự khác chứ không báo lỗi gì.
- */
 @DisplayName("Duyệt thực đơn")
 class MenuBrowseIT extends IntegrationTestBase {
 
@@ -84,8 +76,6 @@ class MenuBrowseIT extends IntegrationTestBase {
         void unknownSortCodeFallsBackInsteadOfInjecting() {
             List<BigDecimal> macDinh = giaTheoThuTu("DEFAULT");
 
-            /* Nếu tham số được ghép thẳng vào ORDER BY thì hai dòng dưới đây làm hỏng câu
-               lệnh và ném SQLException. Rơi về mặc định mới là hành vi đúng. */
             assertEquals(macDinh, giaTheoThuTu("p.price; DROP TABLE dbo.Product--"));
             assertEquals(macDinh, giaTheoThuTu("khong-co-ma-nay"));
             assertEquals(macDinh, giaTheoThuTu(null),

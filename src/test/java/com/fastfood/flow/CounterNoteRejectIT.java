@@ -1,14 +1,14 @@
 package com.fastfood.flow;
 
-import com.fastfood.common.constant.IssueType;
-import com.fastfood.common.constant.PaymentMethod;
-import com.fastfood.common.exception.BusinessException;
-import com.fastfood.common.exception.NotFoundException;
-import com.fastfood.common.exception.ValidationException;
-import com.fastfood.model.dto.PosLine;
-import com.fastfood.model.entity.KitchenIssue;
-import com.fastfood.model.entity.Order;
-import com.fastfood.model.entity.OrderNote;
+import com.fastfood.common.constant.Constants.IssueType;
+import com.fastfood.common.constant.Constants.PaymentMethod;
+import com.fastfood.common.exception.AppException.BusinessException;
+import com.fastfood.common.exception.AppException.NotFoundException;
+import com.fastfood.common.exception.AppException.ValidationException;
+import com.fastfood.model.dto.Dtos.PosLine;
+import com.fastfood.model.entity.OperationEntities.KitchenIssue;
+import com.fastfood.model.entity.OrderEntities.Order;
+import com.fastfood.model.entity.OrderEntities.OrderNote;
 import com.fastfood.service.kitchen.KitchenService;
 import com.fastfood.service.staff.CounterRejectService;
 import com.fastfood.service.staff.OrderNoteService;
@@ -25,9 +25,6 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/**
- * Hai màn còn lại của thu ngân: ghi chú điều phối và từ chối nhận món tại quầy.
- */
 @DisplayName("Ghi chú điều phối và từ chối nhận món tại quầy")
 class CounterNoteRejectIT extends IntegrationTestBase {
 
@@ -41,7 +38,6 @@ class CounterNoteRejectIT extends IntegrationTestBase {
                 List.of(new PosLine(anyOrderableProductId(), 1)), PaymentMethod.CASH, null);
     }
 
-    /** Đơn tại quầy có đúng một món, đã nấu xong và bếp đã bàn giao ra quầy, quầy chưa nhận. */
     private Order orderWithItemOnCounter() {
         Order order = posOrder();
         int itemId = order.getItems().get(0).getOrderItemId();
@@ -51,7 +47,6 @@ class CounterNoteRejectIT extends IntegrationTestBase {
         return order;
     }
 
-    /** Một món đã được bếp bàn giao ra quầy nhưng quầy chưa nhận — đúng lúc từ chối được. */
     private int itemWaitingOnCounter() {
         return orderWithItemOnCounter().getItems().get(0).getOrderItemId();
     }
@@ -158,8 +153,6 @@ class CounterNoteRejectIT extends IntegrationTestBase {
             int cashier = userId(CASHIER_1);
             rejectService.reject(itemId, cashier, "sai món");
 
-            // Món đang nằm ở bếp thì đơn chưa giao được — đây chính là chỗ trước đây bế tắc,
-            // vì không có cách nào đưa món ra quầy lần thứ hai.
             assertThrows(BusinessException.class, () -> orderService.handoff(order.getOrderId(), cashier, null),
                     "Còn món chưa ở trong tay quầy thì không giao cho khách được");
 

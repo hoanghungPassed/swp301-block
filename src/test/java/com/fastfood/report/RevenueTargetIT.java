@@ -1,10 +1,10 @@
 package com.fastfood.report;
 
-import com.fastfood.common.constant.AuditAction;
-import com.fastfood.common.exception.BusinessException;
-import com.fastfood.common.exception.NotFoundException;
-import com.fastfood.common.exception.ValidationException;
-import com.fastfood.model.entity.RevenueTarget;
+import com.fastfood.common.constant.Constants.AuditAction;
+import com.fastfood.common.exception.AppException.BusinessException;
+import com.fastfood.common.exception.AppException.NotFoundException;
+import com.fastfood.common.exception.AppException.ValidationException;
+import com.fastfood.model.entity.OperationEntities.RevenueTarget;
 import com.fastfood.service.admin.ReportService;
 import com.fastfood.service.admin.RevenueTargetService;
 import com.fastfood.testsupport.IntegrationTestBase;
@@ -22,12 +22,6 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/**
- * Chỉ tiêu doanh thu trên bảng điều khiển của quản trị viên.
- * <p>
- * Các bài về mức đạt dùng mốc thời gian <b>năm 2020</b>: xa hẳn mọi khoảng mặc định của báo cáo
- * (14 và 30 ngày gần nhất) nên khoản tiền dựng thêm ở đây không lọt vào con số của bài test khác.
- */
 @DisplayName("Chỉ tiêu doanh thu")
 class RevenueTargetIT extends IntegrationTestBase {
 
@@ -37,13 +31,6 @@ class RevenueTargetIT extends IntegrationTestBase {
     private static final LocalDate NGAY_A = LocalDate.of(2020, 1, 15);
     private static final LocalDate NGAY_B = LocalDate.of(2020, 1, 16);
 
-    /**
-     * Một khoản tiền mặt đã thu, gắn vào một đơn <b>tại quầy</b>.
-     * <p>
-     * Phải là đơn tại quầy: trigger BR-04 chặn thu tiền mặt cho đơn đặt trước, và lấy bừa đơn
-     * đầu tiên trong bảng thì rơi trúng một đơn đặt trước. Bảng Payment bị trigger chặn xoá nên
-     * không dọn lại được — đó là lý do mốc thời gian đặt tận năm 2020.
-     */
     private void thuTien(BigDecimal amount, LocalDateTime paidAt, int attemptNo) {
         Integer orderId = scalar(Integer.class,
                 "SELECT TOP 1 order_id FROM dbo.Orders WHERE order_source = 'POS' ORDER BY order_id");

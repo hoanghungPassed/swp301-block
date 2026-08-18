@@ -12,15 +12,6 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 
-/**
- * Khởi động và dừng ứng dụng.
- * <p>
- * Kết nối cơ sở dữ liệu được thử ngay lúc khởi động để lỗi cấu hình lộ ra trong log máy chủ,
- * thay vì đợi tới khi người dùng đầu tiên bấm vào một trang nào đó mới báo lỗi.
- * <p>
- * Chỉ khai báo trong {@code WEB-INF/web.xml}, không kèm {@code @WebListener}: khai báo cả hai
- * nơi là để cùng một listener được đăng ký hai lần, và khi đó bộ hẹn giờ cũng chạy hai bản.
- */
 public class AppContextListener implements ServletContextListener {
 
     private static final Logger LOG = Logger.getLogger(AppContextListener.class.getName());
@@ -29,9 +20,6 @@ public class AppContextListener implements ServletContextListener {
 
     @Override
     public void contextInitialized(ServletContextEvent sce) {
-        // Tem phiên bản gắn vào địa chỉ tệp CSS và JS. Đổi sau mỗi lần khởi động nên sửa giao
-        // diện xong chỉ cần chạy lại máy chủ là trình duyệt lấy bản mới, không phải Ctrl+F5
-        // và cũng không có chuyện đang xem nhầm bản cũ mà tưởng mình sửa hỏng.
         sce.getServletContext().setAttribute("assetVersion",
                 Long.toString(System.currentTimeMillis() / 1000L, 36));
 
@@ -45,11 +33,9 @@ public class AppContextListener implements ServletContextListener {
                      + "va bao dam da chay database/FastFoodPreorder.sql.");
         }
 
-        // Hai luồng: một cho việc đưa đơn xuống bếp, một cho việc dọn đơn quá hạn,
-        // để công việc này chậm không làm trễ công việc kia.
         scheduler = Executors.newScheduledThreadPool(2, r -> {
             Thread t = new Thread(r, "fastfood-scheduler");
-            t.setDaemon(true);   // không giữ máy chủ lại khi tắt ứng dụng
+            t.setDaemon(true);
             return t;
         });
 

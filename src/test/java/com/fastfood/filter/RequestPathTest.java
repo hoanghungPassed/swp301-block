@@ -6,17 +6,6 @@ import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-/**
- * Đường dẫn mà cả ba bộ lọc cùng nhìn thấy.
- * <p>
- * Một dòng mã nhưng đáng có bài test riêng, vì nó là <b>nguồn duy nhất</b> quyết định mọi so
- * khớp về quyền: danh sách trang công khai, danh sách miễn trừ mã chống giả mạo, và bảng tiền
- * tố vai trò đều tra bằng chuỗi này. Sai ở đây thì cả ba sai theo, và sai theo những chiều
- * khác nhau — chỗ thì đóng thừa, chỗ thì mở nhầm.
- * <p>
- * Bài test nằm cùng gói vì {@link RequestPath} ở mức gói: nó là chi tiết chung của các bộ lọc,
- * không phải thứ tầng khác được gọi tới.
- */
 @DisplayName("Đường dẫn dùng chung cho các bộ lọc")
 class RequestPathTest {
 
@@ -26,12 +15,6 @@ class RequestPathTest {
         assertEquals("/login", RequestPath.of(FakeHttp.request("/login").build()));
     }
 
-    /**
-     * Với ánh xạ dạng tiền tố, máy chủ tách địa chỉ làm hai mảnh. Chỉ đọc mảnh đầu thì
-     * {@code /kitchen/queue/item} rút gọn thành {@code /kitchen} — vẫn khớp tiền tố vai trò
-     * nên không lộ ra, nhưng danh sách miễn trừ và danh sách công khai thì tra bằng chuỗi
-     * đầy đủ, và ở đó chênh lệch này là chênh lệch về quyền.
-     */
     @Test
     @DisplayName("Servlet ánh xạ dạng tiền tố: ghép lại đủ cả hai mảnh")
     void prefixMappingJoinsBothParts() {

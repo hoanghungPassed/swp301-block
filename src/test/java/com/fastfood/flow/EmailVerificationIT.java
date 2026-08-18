@@ -1,9 +1,9 @@
 package com.fastfood.flow;
 
-import com.fastfood.common.constant.AuditAction;
-import com.fastfood.common.exception.BusinessException;
+import com.fastfood.common.constant.Constants.AuditAction;
+import com.fastfood.common.exception.AppException.BusinessException;
 import com.fastfood.integration.notification.NotificationSender;
-import com.fastfood.model.entity.User;
+import com.fastfood.model.entity.UserEntities.User;
 import com.fastfood.service.auth.AuthService;
 import com.fastfood.service.auth.EmailVerificationService;
 import com.fastfood.service.customer.CartService;
@@ -24,24 +24,6 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/**
- * Xác thực địa chỉ email của tài khoản khách tự đăng ký — chạy thật xuống cơ sở dữ liệu.
- * <p>
- * Ba nhóm ở đây trả lời ba câu khác nhau, và cả ba đều là loại lỗi <b>không lộ ra trên màn
- * hình</b>: hệ thống vẫn chạy đúng với người dùng bình thường trong khi rào chắn thì không có.
- * <ul>
- *   <li><b>Mã có thật sự dùng một lần và có hạn không</b> — cùng bộ câu hỏi đã đặt cho mã đặt
- *       lại mật khẩu ở {@code AuthFlowIT}, vì hai luồng có cùng hình dáng và cùng chỗ dễ sai.</li>
- *   <li><b>Bấm lại lá thư cũ có bị báo lỗi oan không</b> — trình duyệt và bộ quét liên kết của
- *       các dịch vụ thư đều hay tải trước đường dẫn trong thư, nên lượt bấm thật của người dùng
- *       rất thường là lượt thứ hai. Báo "liên kết hỏng" ở đúng lượt đó là dựng ra một lỗi không
- *       có thật, và người dùng sẽ đi xin thư mới cho một việc đã xong.</li>
- *   <li><b>Chốt chặn đặt hàng có nằm ở tầng Service không</b> — nút bị ẩn ngoài giao diện vẫn
- *       gửi được yêu cầu bằng tay, nên bài test gọi thẳng Service, không đi qua trang.</li>
- * </ul>
- * <p>
- * Mã gốc chỉ lấy được từ lá thư, đúng như người dùng thật: ở bảng chỉ có bản băm.
- */
 @DisplayName("Xác thực địa chỉ email")
 class EmailVerificationIT extends IntegrationTestBase {
 
@@ -51,11 +33,8 @@ class EmailVerificationIT extends IntegrationTestBase {
     private final CartService cartService = new CartService();
     private final CustomerOrderService customerOrders = new CustomerOrderService();
 
-    /** Hộp thư giả: giữ lại tin cuối cùng để bài test đọc được liên kết trong đó. */
     private final Inbox inbox = new Inbox();
     private final EmailVerificationService verifyService = new EmailVerificationService(inbox);
-
-    // ------------------------------------------------------------------ cấp mã và xác nhận
 
     @Nested
     @DisplayName("Bấm liên kết trong thư")
@@ -87,7 +66,6 @@ class EmailVerificationIT extends IntegrationTestBase {
             String token = sendAndCapture(acc);
             verifyService.confirm(token, "10.1.1.1");
 
-            // Đây là lượt bấm mà trình duyệt hoặc bộ quét thư đã tiêu mất mã trước người dùng.
             assertEquals(EmailVerificationService.Result.ALREADY_VERIFIED,
                     verifyService.confirm(token, "10.1.1.1"),
                     "Bao lien ket hong o day la dung ra mot loi khong co that");
@@ -105,7 +83,6 @@ class EmailVerificationIT extends IntegrationTestBase {
         void expiredTokenIsRejected() {
             Account acc = newAccount();
             String token = sendAndCapture(acc);
-            // Đẩy hạn về quá khứ thay vì chờ hai mươi tư giờ.
             exec("UPDATE dbo.EmailVerificationToken SET expires_at = ? WHERE user_id = ?",
                     LocalDateTime.now().minusMinutes(1), acc.id());
 
@@ -136,8 +113,6 @@ class EmailVerificationIT extends IntegrationTestBase {
         }
     }
 
-    // ------------------------------------------------------------------ gửi lại thư
-
     @Nested
     @DisplayName("Gửi lại thư xác thực")
     class Resend {
@@ -159,7 +134,6 @@ class EmailVerificationIT extends IntegrationTestBase {
         @DisplayName("Xin quá nhiều lần thì bị chặn")
         void tooManyRequestsAreBlocked() {
             Account acc = newAccount();
-            // Trần mặc định là 5 lần trong 15 phút — xem security.verify.maxRequests.
             for (int i = 0; i < 5; i++) {
                 verifyService.resend(load(acc.id()), BASE_URL, "10.1.1.1");
             }
@@ -191,8 +165,6 @@ class EmailVerificationIT extends IntegrationTestBase {
         }
     }
 
-    // ------------------------------------------------------------------ chốt chặn đặt hàng
-
     @Nested
     @DisplayName("Chốt chặn đặt đơn online")
     class OrderGate {
@@ -206,8 +178,6 @@ class EmailVerificationIT extends IntegrationTestBase {
             BusinessException e = assertThrows(BusinessException.class,
                     () -> customerOrders.createOnlineOrder(acc.id(), safePickupTime(), key()));
 
-            // Câu từ chối phải mang theo địa chỉ: khách gõ nhầm email lúc đăng ký thường nhận
-            // ra ngay ở đây, và đây là lần đầu họ nhìn lại địa chỉ mình đã gõ.
             assertTrue(e.getMessage().contains(acc.email()),
                     "Loi chan phai noi ro dia chi nao dang cho xac thuc: " + e.getMessage());
         }
@@ -221,7 +191,6 @@ class EmailVerificationIT extends IntegrationTestBase {
             assertThrows(BusinessException.class,
                     () -> customerOrders.createOnlineOrder(acc.id(), safePickupTime(), key()));
 
-            // Không có đơn nào lọt xuống, kể cả đơn dở dang: chốt chặn nằm trước mọi thao tác ghi.
             assertEquals(0, count("SELECT COUNT(*) FROM dbo.Orders WHERE customer_id = ?", acc.id()));
         }
 
@@ -244,28 +213,17 @@ class EmailVerificationIT extends IntegrationTestBase {
             assertThrows(BusinessException.class,
                     () -> customerOrders.createOnlineOrder(acc.id(), safePickupTime(), key()));
 
-            // Khách bị chặn vì một việc chưa làm xong, không phải vì họ chọn sai món. Mất giỏ ở
-            // đây là bắt họ chọn lại từ đầu sau khi xác thực.
             assertEquals(2, count("SELECT ISNULL(SUM(ci.quantity), 0) FROM dbo.CartItem ci " +
                     "JOIN dbo.Cart c ON c.cart_id = ci.cart_id WHERE c.user_id = ?", acc.id()));
         }
     }
 
-    // ------------------------------------------------------------------ tiện ích
-
-    /** Một tài khoản khách mới toanh cho mỗi bài, để các bài không giẫm lên nhau. */
     private Account newAccount() {
         String email = "test-verify-" + System.nanoTime() + "@gmail.com";
         User created = authService.register("Khach Test", email, null, "MatKhauGoc7", "MatKhauGoc7");
         return new Account(created.getUserId(), email);
     }
 
-    /**
-     * Gửi một lá thư và lấy lại mã gốc từ chính lá thư đó.
-     * <p>
-     * Không đọc được từ cơ sở dữ liệu, và đó chính là điều đang cần: ở bảng chỉ có bản băm.
-     * Đường duy nhất còn lại đúng bằng đường của người dùng thật — mở thư, lấy liên kết.
-     */
     private String sendAndCapture(Account acc) {
         inbox.clear();
         verifyService.resend(load(acc.id()), BASE_URL, "10.1.1.1");
@@ -283,7 +241,6 @@ class EmailVerificationIT extends IntegrationTestBase {
                 "SELECT email_verified FROM dbo.Users WHERE user_id = ?", userId));
     }
 
-    /** Số mã còn dùng được của một tài khoản. */
     private static int liveTokens(int userId) {
         return count("SELECT COUNT(*) FROM dbo.EmailVerificationToken "
                 + "WHERE user_id = ? AND used_at IS NULL AND expires_at > SYSDATETIME()", userId);
@@ -305,13 +262,6 @@ class EmailVerificationIT extends IntegrationTestBase {
     private record Account(int id, String email) {
     }
 
-    /**
-     * Hộp thư giả thay cho kênh gửi tin thật.
-     * <p>
-     * Giữ lại nội dung tin cuối cùng để bài test lấy được liên kết trong đó — đúng thao tác của
-     * người dùng khi họ mở thư. Đây cũng là bài kiểm tra ngầm cho chính nội dung tin: liên kết
-     * phải có thật trong đó và phải dùng được, chứ không chỉ có mã nằm đâu đó trong bảng.
-     */
     private static final class Inbox implements NotificationSender {
 
         private static final Pattern LINK = Pattern.compile("/verify-email\\?token=([A-Za-z0-9_-]+)");
@@ -333,7 +283,6 @@ class EmailVerificationIT extends IntegrationTestBase {
             lastContent = null;
         }
 
-        /** Mã nằm trong liên kết của tin cuối cùng, hoặc null nếu không có tin nào. */
         String tokenInLink() {
             if (lastContent == null) {
                 return null;

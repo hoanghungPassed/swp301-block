@@ -1,6 +1,6 @@
 package com.fastfood.dao.shared;
 
-import com.fastfood.model.entity.Transaction;
+import com.fastfood.model.entity.OrderEntities.Transaction;
 
 import java.sql.*;
 import java.time.LocalDateTime;
@@ -8,18 +8,8 @@ import java.util.ArrayList;
 import java.util.List;
 import com.fastfood.dao.JdbcSupport;
 
-/**
- * Truy vấn bảng PaymentTransaction — nhật ký đối soát với cổng thanh toán.
- */
 public class TransactionDAO {
 
-    /**
-     * Ghi nhận một giao dịch từ cổng thanh toán.
-     * <p>
-     * Trả về false khi mã giao dịch đã tồn tại, nghĩa là cổng thanh toán gọi lại lần thứ hai.
-     * Cách nhận biết này dựa vào ràng buộc duy nhất của cơ sở dữ liệu chứ không kiểm tra
-     * bằng câu SELECT trước — hai lệnh gọi về cùng lúc vẫn có thể cùng thấy "chưa tồn tại".
-     */
     public boolean insertIfNew(Connection con, Transaction t) throws SQLException {
         String sql = "INSERT INTO dbo.PaymentTransaction (payment_id, gateway, external_transaction_id, " +
                      "status, raw_reference, created_at) VALUES (?, ?, ?, ?, ?, ?)";

@@ -3,7 +3,7 @@ package com.fastfood.controller.auth;
 import com.fastfood.common.exception.AppException;
 import com.fastfood.common.util.WebUtil;
 import com.fastfood.controller.BaseServlet;
-import com.fastfood.model.entity.User;
+import com.fastfood.model.entity.UserEntities.User;
 import com.fastfood.service.auth.AuthService;
 
 import javax.servlet.ServletException;
@@ -12,7 +12,6 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 
-/** Đăng nhập cho cả bốn vai trò. */
 @WebServlet("/login")
 public class LoginServlet extends BaseServlet {
 
@@ -35,7 +34,6 @@ public class LoginServlet extends BaseServlet {
         try {
             User user = authService.login(email, req.getParameter("password"), WebUtil.clientIp(req));
 
-            // Cấp phiên mới sau khi xác thực để tránh bị chiếm phiên đã biết trước
             redirect(req, resp, WebUtil.startAuthenticatedSession(req, user, "/"));
         } catch (AppException e) {
             req.setAttribute("errorMessage", e.getMessage());

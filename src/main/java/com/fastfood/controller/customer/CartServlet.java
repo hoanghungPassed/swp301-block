@@ -5,9 +5,9 @@ import com.fastfood.common.util.DateTimeUtil;
 import com.fastfood.common.util.WebUtil;
 import com.fastfood.config.AppConfig;
 import com.fastfood.controller.BaseServlet;
-import com.fastfood.model.dto.CartView;
-import com.fastfood.model.entity.Order;
-import com.fastfood.model.entity.User;
+import com.fastfood.model.dto.Dtos.CartView;
+import com.fastfood.model.entity.OrderEntities.Order;
+import com.fastfood.model.entity.UserEntities.User;
 import com.fastfood.service.customer.CartService;
 import com.fastfood.service.customer.CustomerOrderService;
 
@@ -19,19 +19,6 @@ import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
-/**
- * Giỏ hàng và đặt trước: xem, thêm, đổi số lượng, bỏ món, rồi chọn giờ đến lấy ngay tại chỗ.
- * <p>
- * Chọn giờ trước đây là một màn hình riêng. Tách ra thì khách phải nhớ giỏ hàng có gì trong
- * lúc chọn giờ, nên màn hình đó lại phải liệt kê lại toàn bộ giỏ — cùng một danh sách hiện
- * hai lần ở hai trang, và sửa số lượng thì phải quay ngược về trang trước.
- * <p>
- * Không có ô địa chỉ giao hàng và không có lựa chọn trả tiền tại quầy: đơn đặt trước bắt buộc
- * thanh toán online. Khách muốn trả tiền mặt thì mua trực tiếp tại cửa hàng.
- * <p>
- * Mọi thao tác ghi đều kết thúc bằng chuyển hướng chứ không hiển thị thẳng, để khách
- * bấm tải lại trang không vô tình thêm món lần nữa.
- */
 @WebServlet("/cart")
 public class CartServlet extends BaseServlet {
 
@@ -45,15 +32,12 @@ public class CartServlet extends BaseServlet {
         CartView cart = cartService.getCart(user.getUserId());
         req.setAttribute("cart", cart);
 
-        // Phần chọn giờ chỉ dựng lên khi giỏ thật sự đặt được. Giỏ trống hoặc còn món ngừng
-        // bán thì không sinh khoá chống trùng, vì chẳng có đơn nào sắp được tạo.
         if (cart.isCheckoutable()) {
             LocalDateTime earliest = orderService.earliestPickupTime();
             req.setAttribute("minPickupTime", DateTimeUtil.toHtmlInput(earliest));
             req.setAttribute("suggestedPickupTime", DateTimeUtil.toHtmlInput(earliest.plusMinutes(15)));
             req.setAttribute("minLeadMinutes", AppConfig.pickupMinLeadMinutes());
             req.setAttribute("paymentExpiryMinutes", AppConfig.paymentExpiryMinutes());
-            // Khoá chống trùng: khách bấm đúp hoặc tải lại trang cũng chỉ tạo một đơn
             req.setAttribute("idempotencyKey", UUID.randomUUID().toString());
         }
         forward(req, resp, "customer/cart.jsp");
@@ -93,8 +77,6 @@ public class CartServlet extends BaseServlet {
                 return;
             }
             case "placeOrder": {
-                // Không dùng handle(): đặt hàng thành công thì đi tiếp sang cổng thanh toán
-                // chứ không quay lại giỏ, nên đường đi khi thành công và khi hỏng khác nhau.
                 LocalDateTime pickupTime = WebUtil.getDateTime(req, "pickupTime");
                 String idempotencyKey = WebUtil.getString(req, "idempotencyKey");
                 try {

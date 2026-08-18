@@ -1,21 +1,21 @@
 package com.fastfood.service.kitchen;
 
-import com.fastfood.common.constant.AuditAction;
-import com.fastfood.common.constant.IssueType;
-import com.fastfood.common.constant.OrderStatus;
-import com.fastfood.common.exception.BusinessException;
-import com.fastfood.common.exception.NotFoundException;
-import com.fastfood.common.exception.ValidationException;
+import com.fastfood.common.constant.Constants.AuditAction;
+import com.fastfood.common.constant.Constants.IssueType;
+import com.fastfood.common.constant.Constants.OrderStatus;
+import com.fastfood.common.exception.AppException.BusinessException;
+import com.fastfood.common.exception.AppException.NotFoundException;
+import com.fastfood.common.exception.AppException.ValidationException;
 import com.fastfood.common.util.DateTimeUtil;
 import com.fastfood.dao.kitchen.KitchenIssueDAO;
 import com.fastfood.dao.shared.OrderDAO;
 import com.fastfood.dao.shared.OrderItemDAO;
 import com.fastfood.dao.shared.ProductDAO;
-import com.fastfood.model.dto.KdsItemView;
-import com.fastfood.model.entity.KitchenIssue;
-import com.fastfood.model.dto.Page;
-import com.fastfood.model.entity.Order;
-import com.fastfood.model.entity.OrderItem;
+import com.fastfood.model.dto.Dtos.KdsItemView;
+import com.fastfood.model.entity.OperationEntities.KitchenIssue;
+import com.fastfood.model.dto.Dtos.Page;
+import com.fastfood.model.entity.OrderEntities.Order;
+import com.fastfood.model.entity.OrderEntities.OrderItem;
 import com.fastfood.service.Tx;
 import com.fastfood.service.shared.AuditService;
 import com.fastfood.service.shared.OrderCoreService;
@@ -26,25 +26,15 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Nghiệp vụ bếp.
- * <p>
- * Bếp chỉ nhìn thấy món của những đơn đã được đưa xuống. Đơn đặt trước đã thanh toán nhưng
- * chưa tới giờ nằm ngoài tầm nhìn của bếp — đó chính là cơ chế giữ cho món không bị làm sớm.
- * <p>
- * Bếp cũng không biết gì về tiền: không thấy trạng thái thanh toán, không đổi được giờ hẹn.
- */
 public class KitchenService {
 
     private final OrderItemDAO orderItemDAO = new OrderItemDAO();
-    /** Chỉ để đọc lại đơn khi cần giải thích vì sao một thao tác bị từ chối. */
     private final OrderDAO orderDAO = new OrderDAO();
     private final KitchenIssueDAO issueDAO = new KitchenIssueDAO();
     private final ProductDAO productDAO = new ProductDAO();
     private final OrderCoreService orderCore = new OrderCoreService();
     private final AuditService auditService = new AuditService();
 
-    /** Hàng chờ: món chưa ai nhận, sắp theo mức độ gấp. */
     public List<KdsItemView> waitingQueue() {
         List<OrderItem> items = Tx.read(orderItemDAO::findWaitingQueue);
         List<KdsItemView> views = new ArrayList<>(items.size());
@@ -54,7 +44,6 @@ public class KitchenService {
         return views;
     }
 
-    /** Việc mà đầu bếp đang làm dở. */
     public List<KdsItemView> myTasks(int userId) {
         List<OrderItem> items = Tx.read(con -> orderItemDAO.findMyTasks(con, userId));
         List<KdsItemView> views = new ArrayList<>(items.size());
@@ -64,12 +53,6 @@ public class KitchenService {
         return views;
     }
 
-    /**
-     * Mọi món đang nằm trong bếp lúc này, bất kể ai làm — dùng cho ô chọn món ở màn báo sự cố.
-     * <p>
-     * Không lọc theo người đang đăng nhập: sự cố là chuyện của cả bếp, và người phát hiện món
-     * cháy thường không phải người đang đứng nấu nó.
-     */
     public List<KdsItemView> itemsInKitchen() {
         List<OrderItem> items = Tx.read(orderItemDAO::findInKitchen);
         List<KdsItemView> views = new ArrayList<>(items.size());
@@ -79,11 +62,6 @@ public class KitchenService {
         return views;
     }
 
-    /**
-     * Một trang món đã hoàn thành, mới nhất trước.
-     *
-     * @param assignedTo lọc theo người làm; truyền 0 để xem của cả bếp
-     */
     public Page<OrderItem> recentReady(int pageNo, int assignedTo) {
         int page = Page.safePage(pageNo);
         int offset = Page.offset(page, Page.SIZE);
@@ -101,19 +79,6 @@ public class KitchenService {
         return item;
     }
 
-    /**
-     * Đầu bếp nhận việc.
-     * <p>
-     * Điều kiện "món còn ở hàng chờ và chưa ai nhận" nằm ngay trong câu lệnh cập nhật.
-     * Hai người cùng bấm nhận một món thì người thứ hai nhận về 0 dòng và được báo món
-     * đã có người làm — thay vì ghi đè lên phân công của người trước.
-     * <p>
-     * Dòng đơn được khoá <b>trước</b> khi ghi, không phải sau. Khách huỷ đơn cũng khoá đúng
-     * dòng này rồi mới đếm số món đã vào bếp (xem {@code CustomerOrderService.cancelByCustomer}).
-     * Đảo thứ tự thì hai bên chạy song song trên cùng một đơn: cơ sở dữ liệu bật chế độ đọc
-     * ảnh chụp nên lệnh đếm của bên huỷ không nhìn thấy món vừa được nhận, và kết quả là
-     * đơn bị huỷ trong lúc bếp đã bắt đầu nấu.
-     */
     public void claim(int orderItemId, int userId) {
         LocalDateTime now = DateTimeUtil.now();
         Tx.writeVoid(con -> {
@@ -125,9 +90,6 @@ public class KitchenService {
 
             int changed = orderItemDAO.claim(con, orderItemId, userId, now);
             if (changed == 0) {
-                // Câu lệnh gộp bốn điều kiện nên 0 dòng không nói được lý do. Đọc lại đơn để
-                // phân biệt hai chuyện khác hẳn nhau: món có người làm rồi, và món của một đơn
-                // mà bếp lẽ ra chưa được nhìn thấy.
                 Order order = orderDAO.findById(con, item.getOrderId());
                 if (order == null || order.getReleasedToKdsAt() == null) {
                     throw new BusinessException("Đơn này chưa tới lượt vào bếp nên chưa nhận được. "
@@ -137,19 +99,10 @@ public class KitchenService {
             }
             auditService.log(con, userId, "ORDER_ITEM", orderItemId,
                     AuditAction.ITEM_START, null, "PREPARING");
-            // Đơn chuyển sang đang chế biến khi món đầu tiên được nhận
             orderCore.recalculateStatus(con, item.getOrderId(), now);
         });
     }
 
-    /**
-     * Đánh dấu món đã xong.
-     * <p>
-     * Một dòng món là một việc nguyên khối: đặt 3 phần thì làm xong cả 3 mới đánh dấu,
-     * không có trạng thái xong một phần.
-     *
-     * @return true nếu món này là món cuối cùng và cả đơn vừa chuyển sang sẵn sàng
-     */
     public boolean markReady(int orderItemId, int userId) {
         LocalDateTime now = DateTimeUtil.now();
         return Tx.write(con -> {
@@ -159,9 +112,6 @@ public class KitchenService {
             }
             int changed = orderItemDAO.markReady(con, orderItemId, userId, now);
             if (changed == 0) {
-                // Đơn bị huỷ giữa lúc bếp đang nấu là chuyện có thật, và đầu bếp cần biết ngay
-                // để dừng tay — nói "chỉ người đang chế biến mới đánh dấu được" ở tình huống đó
-                // là sai và làm họ tưởng mình bấm nhầm nút.
                 Order order = orderDAO.findById(con, item.getOrderId());
                 if (order != null && !order.isActiveForKitchen()) {
                     throw new BusinessException("Đơn #" + item.getOrderId() + " đã "
@@ -177,7 +127,6 @@ public class KitchenService {
         });
     }
 
-    /** Món đầu bếp đã làm xong nhưng chưa đưa ra quầy. */
     public List<KdsItemView> awaitingHandover(int userId) {
         List<OrderItem> items = Tx.read(con -> orderItemDAO.findAwaitingHandover(con, userId));
         List<KdsItemView> views = new ArrayList<>(items.size());
@@ -187,17 +136,6 @@ public class KitchenService {
         return views;
     }
 
-    /**
-     * Bếp đưa món ra quầy.
-     * <p>
-     * Tách khỏi lúc đánh dấu món xong chứ không gộp làm một: món xong là lúc tắt bếp, còn đưa
-     * ra quầy là lúc rời tay đầu bếp. Giữa hai mốc đó món nằm trong bếp và chưa ai ngoài quầy
-     * chịu trách nhiệm về nó — chính là khoảng mà trước đây không ai nhìn thấy, nên món để
-     * quên trong bếp chỉ lộ ra khi khách hỏi.
-     * <p>
-     * Không đụng tới trạng thái đơn: đơn đã sẵn sàng từ lúc món cuối xong, việc bàn giao
-     * không làm nó sẵn sàng thêm lần nữa.
-     */
     public void handOverToCounter(int orderItemId, int userId) {
         LocalDateTime now = DateTimeUtil.now();
         Tx.writeVoid(con -> {
@@ -207,8 +145,6 @@ public class KitchenService {
             }
             int changed = orderItemDAO.handOverToCounter(con, orderItemId, userId, now);
             if (changed == 0) {
-                // Ba lý do có thể dẫn tới 0 dòng; đọc lại để nói đúng lý do thay vì một câu
-                // chung chung khiến đầu bếp bấm đi bấm lại.
                 if (item.isHandedOver()) {
                     throw new BusinessException("Món này đã được bàn giao ra quầy rồi.");
                 }
@@ -222,21 +158,6 @@ public class KitchenService {
         });
     }
 
-    // ------------------------------------------------------------ sự cố bếp
-
-    /**
-     * Ghi nhận sự cố: hết nguyên liệu, món hỏng phải làm lại.
-     * Sự cố chạy song song với trạng thái món — món đang làm lại vẫn giữ trạng thái
-     * đang chế biến chứ không lùi về hàng chờ, để tránh việc bị người khác nhận lại.
-     * <p>
-     * Riêng <b>hết nguyên liệu</b> còn tắt luôn món đó trên thực đơn. Đây là chỗ duy nhất
-     * bếp nói được với phần còn lại của hệ thống mà không cần ai chuyển lời: không tắt thì
-     * khách tiếp theo vẫn đặt đúng món vừa hết, và cửa hàng lại nợ thêm một đơn không làm
-     * được. Quản trị viên bật lại khi có hàng.
-     * <p>
-     * Sự cố <b>không</b> tự huỷ món hay tự huỷ đơn. Huỷ đơn là quyết định phải hỏi khách,
-     * nên nó thuộc về thu ngân — xem {@code StaffOrderService.cancelByStaff}.
-     */
     public void openIssue(int orderItemId, int userId, String issueType, String description) {
         if (issueType == null || issueType.isBlank()) {
             throw new ValidationException("Vui lòng chọn loại sự cố.");
@@ -272,13 +193,6 @@ public class KitchenService {
         });
     }
 
-    /**
-     * Sửa mô tả sự cố đang mở.
-     * <p>
-     * Chỉ sửa được mô tả, không sửa được loại sự cố. Đổi loại là đổi hệ quả — chuyển sang
-     * hết nguyên liệu thì phải tắt món, chuyển ngược lại thì phải cân nhắc bật món — nên
-     * việc đó đi qua đường thu hồi rồi báo lại, chứ không lặng lẽ đổi tại chỗ.
-     */
     public void updateIssue(int issueId, int userId, String description) {
         Tx.writeVoid(con -> {
             KitchenIssue before = requireOwnOpenIssue(con, issueId, userId);
@@ -291,15 +205,6 @@ public class KitchenService {
         });
     }
 
-    /**
-     * Thu hồi sự cố báo nhầm.
-     * <p>
-     * Bản ghi được giữ lại ở trạng thái đã huỷ chứ không xoá khỏi bảng: nhật ký thao tác đã
-     * ghi lần mở sự cố và trỏ về mã này, xoá hẳn thì dòng nhật ký đó chỉ vào chỗ trống.
-     * <p>
-     * Báo hết nguyên liệu đã tắt món trên thực đơn, nên thu hồi phải bật lại — nhưng chỉ khi
-     * không còn báo hết nào khác đang mở cho cùng món đó.
-     */
     public void cancelIssue(int issueId, int userId) {
         LocalDateTime now = DateTimeUtil.now();
         Tx.writeVoid(con -> {
@@ -323,12 +228,6 @@ public class KitchenService {
         });
     }
 
-    /**
-     * Sự cố phải còn đang mở và phải do chính người đang thao tác báo.
-     * <p>
-     * Đọc trước để báo lỗi cho đúng: câu lệnh cập nhật gộp cả hai điều kiện nên khi nó trả về
-     * 0 dòng thì không biết là do người khác báo hay do vừa được xử lý xong.
-     */
     private KitchenIssue requireOwnOpenIssue(Connection con, int issueId, int userId)
             throws SQLException {
         KitchenIssue issue = issueDAO.findById(con, issueId);
@@ -360,17 +259,10 @@ public class KitchenService {
         return Tx.read(issueDAO::findOpen);
     }
 
-    /**
-     * Sự cố đang mở của một đơn — dùng ở màn hình chi tiết đơn của thu ngân.
-     * <p>
-     * Bếp phát hiện sự cố nhưng người phải trả lời khách lại là thu ngân, nên thông tin
-     * buộc phải đi được sang bên đó. Trước đây nó dừng lại trong bếp và đơn kẹt vô hạn.
-     */
     public List<KitchenIssue> openIssuesOfOrder(int orderId) {
         return Tx.read(con -> issueDAO.findOpenByOrder(con, orderId));
     }
 
-    /** Số sự cố chưa xử lý, hiện thành cảnh báo trên màn hình điều phối. */
     public int countOpenIssues() {
         return Tx.read(issueDAO::countOpen);
     }
@@ -379,7 +271,6 @@ public class KitchenService {
         return Tx.read(con -> issueDAO.findRecent(con, limit));
     }
 
-    /** Một sự cố cụ thể — dùng để đổ sẵn vào biểu mẫu sửa. */
     public KitchenIssue findIssue(int issueId) {
         KitchenIssue issue = Tx.read(con -> issueDAO.findById(con, issueId));
         if (issue == null) {

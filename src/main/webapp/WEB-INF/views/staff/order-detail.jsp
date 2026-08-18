@@ -1,7 +1,5 @@
 <c:set var="pageTitle" value="Đơn #${order.orderId}" /><c:set var="nav" value="orders" />
 <%@ include file="/WEB-INF/views/layout/page-start.jspf" %>
-  <%-- Hoá đơn không còn là trang riêng: bấm in ngay tại đây, khối hoá đơn nằm cuối trang và
-       chỉ hiện ra trên giấy. Trước đây phải mở thêm một trang nữa chỉ để bấm đúng một nút. --%>
   <div class="row-between mb no-print">
     <p class="small"><a href="${ctx}/staff/orders">← Danh sách đơn hàng</a></p>
     <button type="button" class="btn touch" data-print>In hoá đơn</button>
@@ -86,8 +84,6 @@
                 <td class="num">${ff:money(item.unitPrice)}</td>
                 <td class="num">${ff:money(item.lineTotal)}</td>
                 <td><span class="${ff:itemStatusClass(item.itemStatus)}">${ff:itemStatus(item.itemStatus)}</span></td>
-                <%-- Ba mức của chặng bàn giao. Cột này trả lời câu thu ngân hay phải hỏi bếp:
-                     món đã ra tới quầy chưa, hay vẫn còn trong bếp. --%>
                 <td class="small">
                   <c:choose>
                     <c:when test="${item.received}">
@@ -253,8 +249,6 @@
     </div>
   </div>
 
-  <%-- Hoá đơn: ẩn trên màn hình, chỉ hiện khi in. Khổ giấy và bảng màu do khối @media print
-       trong main.css lo — cùng một khối đang dùng cho mọi trang có nút in. --%>
   <div class="card receipt print-only">
     <div class="receipt-head">
       <div class="receipt-shop">FAST FOOD</div>

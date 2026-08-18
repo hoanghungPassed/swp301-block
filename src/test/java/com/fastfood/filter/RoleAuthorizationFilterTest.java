@@ -1,6 +1,6 @@
 package com.fastfood.filter;
 
-import com.fastfood.model.entity.User;
+import com.fastfood.model.entity.UserEntities.User;
 import com.fastfood.testsupport.FakeHttp;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -16,17 +16,6 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/**
- * Hành vi thật của bộ lọc phân quyền.
- * <p>
- * {@code RoutePolicyTest} đã kiểm bảng ánh xạ tiền tố → vai trò, tức là <i>quyết định</i> có
- * đúng không. Bài này kiểm việc <i>thi hành</i> quyết định đó: bộ lọc có thật sự dừng chuỗi lại,
- * và có trả về đúng loại phản hồi cho đúng loại địa chỉ.
- * <p>
- * Ranh giới cần nhớ: bộ lọc này chỉ xét quyền theo <b>địa chỉ</b>. Quyền theo dữ liệu — khách
- * chỉ xem được đơn của chính mình — phải đọc cơ sở dữ liệu nên nằm ở tầng Service, và được
- * canh bởi các bài {@code *IT} tương ứng.
- */
 @DisplayName("Bộ lọc phân quyền theo vai trò")
 class RoleAuthorizationFilterTest {
 
@@ -76,7 +65,6 @@ class RoleAuthorizationFilterTest {
                     role + " di qua duoc " + path + " — chan ma van goi tiep thi servlet van chay");
         }
 
-        /** Quản trị viên xem được mọi màn hình vận hành để hỗ trợ và kiểm tra khi có sự cố. */
         @ParameterizedTest(name = "{0}")
         @ValueSource(strings = {"/staff/pos", "/kitchen/queue", "/api/kds/queue", "/admin/users"})
         @DisplayName("Quản trị viên đi được khắp nơi")
@@ -143,11 +131,6 @@ class RoleAuthorizationFilterTest {
     @DisplayName("Dữ liệu vai trò hỏng")
     class VaiTroHong {
 
-        /**
-         * Vai trò đọc lên từ cơ sở dữ liệu nên về nguyên tắc luôn nằm trong bốn giá trị đã biết.
-         * Nhưng nếu có ngày nó không nằm, kết cục phải là "không có quyền" chứ không phải một
-         * trang lỗi 500 — và tuyệt đối không phải là đi tiếp.
-         */
         @ParameterizedTest(name = "vai trò = \"{0}\"")
         @ValueSource(strings = {"SUPERUSER", "customer ", "", "ADMIN2"})
         @DisplayName("Tên vai trò lạ dẫn tới 403, không phải lỗi 500 và không phải cửa mở")
@@ -180,7 +163,6 @@ class RoleAuthorizationFilterTest {
             assertFalse(chain.ran());
         }
 
-        /** Chữ hoa chữ thường trong cơ sở dữ liệu không được biến thành chuyện phân quyền. */
         @Test
         @DisplayName("Vai trò khác hoa thường vẫn nhận ra đúng")
         void roleMatchIsCaseInsensitive() throws Exception {
@@ -193,11 +175,6 @@ class RoleAuthorizationFilterTest {
         }
     }
 
-    /**
-     * Bộ lọc đọc đường dẫn qua {@link RequestPath}, tức là ghép {@code servletPath} với
-     * {@code pathInfo} — đúng hai mảnh mà máy chủ dùng để chọn servlet. Tự cắt chuỗi từ
-     * {@code getRequestURI()} thì với ánh xạ dạng tiền tố, hai bên sẽ nhìn hai đường dẫn khác nhau.
-     */
     @Test
     @DisplayName("Servlet ánh xạ dạng tiền tố vẫn được xét đúng khu vực")
     void prefixMappedServletIsResolvedCorrectly() throws Exception {

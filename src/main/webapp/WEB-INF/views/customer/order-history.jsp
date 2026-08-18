@@ -27,7 +27,6 @@
     </div>
   </c:if>
 
-  <%-- Bộ lọc nằm ngoài thẻ bảng để nó không cuộn ngang theo bảng trên màn hình hẹp. --%>
   <div class="card">
     <form method="get" action="${ctx}/order/history" class="form-row">
       <div class="field">
@@ -39,8 +38,6 @@
           </c:forEach>
         </select>
       </div>
-      <%-- Ô ngày chứ không phải ngày giờ: khách nhớ "hôm thứ bảy tuần trước", không nhớ phút.
-           Ngày kết thúc được service mở tới cuối ngày nên chọn hôm nay vẫn thấy đơn hôm nay. --%>
       <div class="field">
         <label for="from">Đặt từ ngày</label>
         <input type="date" id="from" name="from" value="<c:out value="${param.from}"/>">
@@ -94,8 +91,6 @@
                 <td data-label="Trạng thái"><span class="${ff:orderStatusClass(o.orderStatus)}">${ff:orderStatus(o.orderStatus)}</span></td>
                 <td class="center" data-label="">
                   <a class="btn touch" href="${ctx}/order/track?orderId=${o.orderId}">Xem</a>
-                  <%-- Lưu thành mẫu ngay tại dòng đơn: đây là lúc khách đang nhìn thấy đúng
-                       thứ họ muốn lưu, không phải gõ lại từ trí nhớ ở một trang khác. --%>
                   <form method="post" action="${ctx}/order/history" class="inline-form">
                     <input type="hidden" name="_csrf" value="${csrfToken}">
                     <input type="hidden" name="action" value="templateSave">

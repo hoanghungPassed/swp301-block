@@ -1,14 +1,14 @@
 package com.fastfood.service.customer;
 
-import com.fastfood.common.exception.BusinessException;
-import com.fastfood.common.exception.NotFoundException;
-import com.fastfood.common.exception.ValidationException;
+import com.fastfood.common.exception.AppException.BusinessException;
+import com.fastfood.common.exception.AppException.NotFoundException;
+import com.fastfood.common.exception.AppException.ValidationException;
 import com.fastfood.common.util.DateTimeUtil;
 import com.fastfood.dao.JdbcSupport;
 import com.fastfood.dao.customer.ReviewDAO;
 import com.fastfood.dao.shared.ProductDAO;
-import com.fastfood.model.dto.ReviewSummary;
-import com.fastfood.model.entity.Review;
+import com.fastfood.model.dto.Dtos.ReviewSummary;
+import com.fastfood.model.entity.MenuEntities.Review;
 import com.fastfood.service.Tx;
 
 import java.sql.Connection;
@@ -16,32 +16,12 @@ import java.sql.SQLException;
 import java.time.LocalDateTime;
 import java.util.List;
 
-/**
- * Đánh giá món của khách, hiện trên trang chi tiết món.
- * <p>
- * <b>Chỉ khách đã mua và đã nhận mới đánh giá được.</b> Đây là chốt chặn đáng giá nhất của cả
- * tính năng: không có nó thì bảng đánh giá chỉ là một ô nhập chữ mà bất kỳ tài khoản nào cũng
- * gõ vào được, và điểm trung bình của món không nói lên điều gì. Điều kiện là đơn ở trạng thái
- * đã giao — đơn đang nấu hay đơn đã huỷ đều chưa cho ai cơ sở để nói món ngon hay dở.
- * <p>
- * <b>Mỗi khách một đánh giá cho một món</b>, chốt bằng {@code UQ_Review_cust_product}. Không có
- * nó, một khách bấm gửi hai lần là tự đẩy điểm trung bình của món lên.
- * <p>
- * <b>Điểm trung bình chỉ hiện ở trang chi tiết, cố ý chưa đưa lên thực đơn.</b> Thêm một phép
- * tính trung bình vào {@code ProductDAO.findMenu} là thêm gánh nặng cho truy vấn chạy nhiều nhất
- * của trang công khai. Đây là việc để lại, không phải việc quên.
- * <p>
- * Xoá hẳn khỏi bảng: đây là nội dung của chính khách, không dính tiền, và không bản ghi nào trỏ
- * tới ngoài phép tính trung bình — vốn tự tính lại sau khi dòng biến mất.
- */
 public class ReviewService {
 
     private static final int MAX_COMMENT_LENGTH = 1000;
 
     private final ReviewDAO reviewDAO = new ReviewDAO();
     private final ProductDAO productDAO = new ProductDAO();
-
-    // ============================================================ đọc
 
     public List<Review> reviewsOf(int productId) {
         return Tx.read(con -> reviewDAO.findByProduct(con, productId));
@@ -51,12 +31,6 @@ public class ReviewService {
         return Tx.read(con -> reviewDAO.summaryOf(con, productId));
     }
 
-    /**
-     * Đánh giá của chính khách này cho món này, hoặc null.
-     * <p>
-     * Khách chưa đăng nhập trả về null chứ không ném lỗi: chi tiết món là trang công khai, và
-     * người xem không đăng nhập là chuyện bình thường.
-     */
     public Review myReview(int productId, Integer customerId) {
         if (customerId == null) {
             return null;
@@ -64,15 +38,12 @@ public class ReviewService {
         return Tx.read(con -> reviewDAO.findMine(con, productId, customerId));
     }
 
-    /** Khách này có đủ điều kiện đánh giá món này không — dùng để quyết định hiện ô nhập hay không. */
     public boolean canReview(int productId, Integer customerId) {
         if (customerId == null) {
             return false;
         }
         return Tx.read(con -> reviewDAO.hasCompletedPurchase(con, customerId, productId));
     }
-
-    // ============================================================ ghi
 
     public Review add(int productId, int customerId, int rating, String comment) {
         int diem = requireRating(rating);
@@ -104,13 +75,6 @@ public class ReviewService {
         }
     }
 
-    /**
-     * Sửa lại đánh giá của mình.
-     * <p>
-     * Không giới hạn thời gian sửa: món có thể dở đi hoặc ngon lên theo ca bếp, và một đánh giá
-     * bị khoá cứng sau vài ngày chỉ khiến khách bỏ luôn không sửa. Bản ghi mang cờ đã sửa để
-     * người đọc biết nội dung không còn là ấn tượng lần đầu.
-     */
     public void update(int reviewId, int customerId, int rating, String comment) {
         int diem = requireRating(rating);
         String text = optionalComment(comment);
@@ -128,8 +92,6 @@ public class ReviewService {
             reviewDAO.delete(con, reviewId, customerId);
         });
     }
-
-    // ============================================================ dùng chung
 
     private void requirePurchase(Connection con, int customerId, int productId) throws SQLException {
         if (!reviewDAO.hasCompletedPurchase(con, customerId, productId)) {

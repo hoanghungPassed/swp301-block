@@ -1,8 +1,8 @@
 package com.fastfood.flow;
 
 import com.fastfood.config.DBContext;
-import com.fastfood.model.dto.Page;
-import com.fastfood.model.entity.Notification;
+import com.fastfood.model.dto.Dtos.Page;
+import com.fastfood.model.entity.UserEntities.Notification;
 import com.fastfood.service.shared.NotificationService;
 import com.fastfood.testsupport.IntegrationTestBase;
 import org.junit.jupiter.api.DisplayName;
@@ -22,24 +22,11 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/**
- * Hộp thông báo của khách.
- * <p>
- * Bản chạy thử gửi tin qua kênh giả lập, nghĩa là không có bức thư nào thật sự tới tay khách.
- * Màn hình này vì thế là <b>nơi duy nhất</b> khách đọc được tin đơn bị huỷ hay tiền được hoàn,
- * nên phần đáng kiểm nhất không phải là danh sách hiện ra, mà là dấu đã đọc: sai chỗ đó thì
- * huy hiệu trên thanh điều hướng nói dối, và một huy hiệu nói dối thì lần sau không ai bấm.
- * <p>
- * Các bài đổi dấu đã đọc đều chạy trong {@link #giuNguyenHopThu}: dữ liệu mẫu là của chung cả
- * lượt chạy, và một bài để lại hộp thư đọc sạch sẽ làm bài kiểm dữ liệu mẫu ở dưới báo đỏ vì
- * một lý do chẳng liên quan gì tới mã nguồn.
- */
 @DisplayName("Hộp thông báo của khách")
 class NotificationInboxIT extends IntegrationTestBase {
 
     private final NotificationService notificationService = new NotificationService();
 
-    /** Chạy một đoạn có đổi dấu đã đọc, rồi trả hộp thư của khách về đúng như trước. */
     private void giuNguyenHopThu(int userId, Runnable doan) {
         Map<Integer, String> truoc = new LinkedHashMap<>();
         try (Connection con = DBContext.getConnection();
@@ -82,7 +69,6 @@ class NotificationInboxIT extends IntegrationTestBase {
         return ids;
     }
 
-    /** Một đơn của khách này có tin gắn kèm. */
     private int donCoTin(int userId) {
         Integer id = scalar(Integer.class,
                 "SELECT TOP 1 order_id FROM dbo.Notification WHERE user_id = ? " +
@@ -108,12 +94,6 @@ class NotificationInboxIT extends IntegrationTestBase {
                     "Nội dung rỗng thì dòng tin chẳng nói được gì — tiêu đề loại tin là chưa đủ");
         }
 
-        /**
-         * Kiểm bằng "có ít nhất một" ở cả hai phía chứ không phải "không có dòng nào vi phạm":
-         * các bài test khác trong cùng lượt chạy có huỷ đơn thật, và mỗi lần như vậy lại sinh
-         * thêm một tin chưa đọc thuộc về một đơn đã khép lại. Ràng buộc chặt hơn sẽ đỏ vì việc
-         * một bài test khác vừa làm, chứ không phải vì dữ liệu mẫu sai.
-         */
         @Test
         @DisplayName("Dữ liệu mẫu có cả tin đã đọc lẫn tin chưa đọc")
         void seedSplitsReadFromUnread() {

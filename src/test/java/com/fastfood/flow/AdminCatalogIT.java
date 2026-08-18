@@ -1,9 +1,9 @@
 package com.fastfood.flow;
 
-import com.fastfood.common.exception.NotFoundException;
-import com.fastfood.common.exception.ValidationException;
-import com.fastfood.model.entity.Category;
-import com.fastfood.model.entity.Product;
+import com.fastfood.common.exception.AppException.NotFoundException;
+import com.fastfood.common.exception.AppException.ValidationException;
+import com.fastfood.model.entity.MenuEntities.Category;
+import com.fastfood.model.entity.MenuEntities.Product;
 import com.fastfood.service.admin.AdminService;
 import com.fastfood.testsupport.IntegrationTestBase;
 import org.junit.jupiter.api.DisplayName;
@@ -17,20 +17,10 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/**
- * Đủ bốn thao tác trên món ăn và nhóm món — hai màn hình quản trị danh mục.
- * <p>
- * Điều cần chứng minh ở đây không chỉ là "bốn thao tác chạy được", mà là <b>Xoá đi một đường
- * riêng, tách khỏi Sửa</b>. Trước đây trạng thái kinh doanh nằm trong ô tick của form Sửa: mọi
- * lần lưu nội dung đều ghi đè trạng thái, nên một lần quên tick là món rời thực đơn mà không ai
- * chủ ý làm vậy — và nhật ký không phân biệt được lần đó với một lần sửa giá bình thường.
- */
 @DisplayName("Quản trị món ăn và nhóm món")
 class AdminCatalogIT extends IntegrationTestBase {
 
     private final AdminService adminService = new AdminService();
-
-    // ================================================================== món ăn
 
     @Nested
     @DisplayName("Món ăn")
@@ -82,7 +72,7 @@ class AdminCatalogIT extends IntegrationTestBase {
 
             Product form = adminService.findProduct(id);
             form.setName("Sua Ten Thoi");
-            form.setStatus("ACTIVE");   // form cố tình gửi trạng thái sai — tầng dịch vụ phải bỏ qua
+            form.setStatus("ACTIVE");
             adminService.saveProduct(userId(ADMIN), form);
 
             assertEquals("INACTIVE", statusOfProduct(id),
@@ -190,8 +180,6 @@ class AdminCatalogIT extends IntegrationTestBase {
         }
     }
 
-    // ================================================================== nhóm món
-
     @Nested
     @DisplayName("Nhóm món")
     class Categories {
@@ -243,7 +231,7 @@ class AdminCatalogIT extends IntegrationTestBase {
 
             Category form = adminService.findCategory(id);
             form.setName("Sua Ten Thoi");
-            form.setStatus("ACTIVE");   // form cố tình gửi trạng thái sai
+            form.setStatus("ACTIVE");
             adminService.saveCategory(userId(ADMIN), form);
 
             assertEquals("INACTIVE", statusOfCategory(id),
@@ -341,9 +329,6 @@ class AdminCatalogIT extends IntegrationTestBase {
         }
     }
 
-    // ------------------------------------------------------------------ tiện ích
-
-    /** Một nhóm món mới toanh cho mỗi bài, để các bài không giẫm lên nhau. */
     private int newCategory(String name) {
         String unique = name + " " + System.nanoTime();
         Category form = new Category();

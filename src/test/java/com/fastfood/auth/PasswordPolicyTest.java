@@ -1,6 +1,6 @@
 package com.fastfood.auth;
 
-import com.fastfood.common.exception.ValidationException;
+import com.fastfood.common.exception.AppException.ValidationException;
 import com.fastfood.common.util.PasswordUtil;
 import com.fastfood.common.util.ValidationUtil;
 import org.junit.jupiter.api.DisplayName;
@@ -24,15 +24,15 @@ class PasswordPolicyTest {
 
         @ParameterizedTest(name = "\"{0}\"")
         @ValueSource(strings = {
-                "Abc123",        // 6 ký tự, ngắn hơn mức tối thiểu
-                "Abcd123",       // 7 ký tự
-                "abcdefgh",      // không có số
-                "12345678",      // không có chữ, mà cũng nằm trong danh sách phổ biến
-                "password1",     // đủ chữ đủ số đủ dài, nhưng ai cũng thử nó đầu tiên
-                "PASSWORD1",     // và hoa thường không làm nó bớt phổ biến
-                " Matkhau7",     // khoảng trắng đầu, gần như luôn là do dán nhầm
-                "Matkhau1 ",     // khoảng trắng cuối
-                "        ",      // chỉ toàn khoảng trắng
+                "Abc123",
+                "Abcd123",
+                "abcdefgh",
+                "12345678",
+                "password1",
+                "PASSWORD1",
+                " Matkhau7",
+                "Matkhau1 ",
+                "        ",
         })
         void tooWeak(String password) {
             assertThrows(ValidationException.class,
@@ -46,24 +46,18 @@ class PasswordPolicyTest {
             assertThrows(ValidationException.class, () -> ValidationUtil.requirePasswordStrength(""));
         }
 
-        /**
-         * Bcrypt chỉ đọc 72 byte đầu và bỏ im lặng phần còn lại. Không chặn thì hai mật khẩu
-         * khác nhau từ byte thứ 73 trở đi cùng mở được một tài khoản — và không có gì trên màn
-         * hình cho thấy chuyện đó đang xảy ra.
-         */
         @Test
         @DisplayName("Dài quá giới hạn của bcrypt thì bị chặn, không bị cắt cụt lặng lẽ")
         void beyondBcryptLimit() {
-            String tooLong = "a1" + "x".repeat(71);   // 73 byte
+            String tooLong = "a1" + "x".repeat(71);
             assertThrows(ValidationException.class,
                     () -> ValidationUtil.requirePasswordStrength(tooLong));
         }
 
-        /** Tiếng Việt có dấu tốn tới ba byte mỗi chữ, nên đếm ký tự là đếm sai. */
         @Test
         @DisplayName("Giới hạn đếm theo byte, không theo ký tự")
         void limitCountsBytesNotChars() {
-            String vietnamese = "Mật1" + "ườ".repeat(20);   // 44 ký tự nhưng hơn 72 byte
+            String vietnamese = "Mật1" + "ườ".repeat(20);
             assertTrue(vietnamese.length() < 72, "Bai test nay chi co nghia khi chuoi ngan hon 72 KY TU");
             assertThrows(ValidationException.class,
                     () -> ValidationUtil.requirePasswordStrength(vietnamese));
@@ -76,12 +70,12 @@ class PasswordPolicyTest {
 
         @ParameterizedTest(name = "\"{0}\"")
         @ValueSource(strings = {
-                "Matkhau7",         // đúng mức tối thiểu
-                "MatKhauMoi9",      // các bài test tích hợp đang dùng
+                "Matkhau7",
+                "MatKhauMoi9",
                 "TempPass1",
                 "MatKhauGoc7",
-                "co dau va so 9",   // khoảng trắng ở giữa thì hoàn toàn hợp lệ
-                "Mật khẩu số 1",    // tiếng Việt có dấu
+                "co dau va so 9",
+                "Mật khẩu số 1",
         })
         void strongEnough(String password) {
             assertDoesNotThrow(() -> ValidationUtil.requirePasswordStrength(password));
@@ -102,17 +96,12 @@ class PasswordPolicyTest {
             }
         }
 
-        /**
-         * Điều làm mật khẩu tạm khác một chuỗi cố định gõ cứng trong mã trang: nó khác nhau ở
-         * mỗi lần. Trước đây mọi tài khoản được đặt lại đều về cùng một chuỗi mà cả lớp biết.
-         */
         @Test
         @DisplayName("Mỗi lần một khác")
         void differsEveryTime() {
             assertNotEquals(PasswordUtil.randomTemporary(), PasswordUtil.randomTemporary());
         }
 
-        /** Sinh ra để đọc qua điện thoại: 0 với O, 1 với l đọc sai là phải gọi lại lần nữa. */
         @Test
         @DisplayName("Không chứa ký tự dễ đọc nhầm")
         void avoidsAmbiguousCharacters() {

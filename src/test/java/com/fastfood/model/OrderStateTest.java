@@ -1,12 +1,12 @@
 package com.fastfood.model;
 
-import com.fastfood.common.constant.KdsReleaseState;
-import com.fastfood.common.constant.OrderStatus;
-import com.fastfood.common.constant.PaymentStatus;
+import com.fastfood.common.constant.Constants.KdsReleaseState;
+import com.fastfood.common.constant.Constants.OrderStatus;
+import com.fastfood.common.constant.Constants.PaymentStatus;
 import com.fastfood.config.AppConfig;
-import com.fastfood.model.entity.Order;
-import com.fastfood.model.entity.OrderItem;
-import com.fastfood.model.entity.Payment;
+import com.fastfood.model.entity.OrderEntities.Order;
+import com.fastfood.model.entity.OrderEntities.OrderItem;
+import com.fastfood.model.entity.OrderEntities.Payment;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -20,14 +20,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/**
- * Các giá trị <b>suy ra</b> của đơn hàng: trạng thái đưa xuống bếp, cờ khách đến muộn, món ra
- * trễ hẹn, còn huỷ được hay không.
- * <p>
- * Không có giá trị nào ở đây được lưu thành cột. Đó là quyết định thiết kế: lưu thêm cột nghĩa
- * là phải cập nhật đúng lúc ở mọi nơi, và chỉ cần sót một chỗ là dữ liệu tự mâu thuẫn với
- * chính nó. Đổi lại, công thức suy ra phải đúng — nên nó được kiểm ở đây.
- */
 @DisplayName("Trạng thái suy ra của đơn hàng")
 class OrderStateTest {
 
@@ -218,10 +210,6 @@ class OrderStateTest {
     @DisplayName("Chuyển trạng thái của đơn")
     class StatusMachine {
 
-        // Mốc "chỉ đơn sẵn sàng mới giao được" không kiểm ở đây nữa: nó không chỉ là một
-        // trạng thái mà còn đòi quầy đã nhận đủ món và tiền đã thu, nên chỗ kiểm đúng là
-        // StaffOrderService.handoff — xem OnlinePreorderFlowIT và CounterQueueIT.
-
         @Test
         @DisplayName("Ba trạng thái kết thúc thì không đi tiếp được")
         void terminalStatesAreFinal() {
@@ -231,8 +219,6 @@ class OrderStateTest {
             assertFalse(OrderStatus.READY.isFinal());
         }
     }
-
-    // ------------------------------------------------------------------ dựng đối tượng
 
     private static Order order(OrderStatus status) {
         Order o = new Order();

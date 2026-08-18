@@ -2,8 +2,8 @@ package com.fastfood.controller.admin;
 
 import com.fastfood.common.util.WebUtil;
 import com.fastfood.controller.BaseServlet;
-import com.fastfood.model.entity.Product;
-import com.fastfood.model.entity.User;
+import com.fastfood.model.entity.MenuEntities.Product;
+import com.fastfood.model.entity.UserEntities.User;
 import com.fastfood.service.admin.AdminService;
 
 import javax.servlet.ServletException;
@@ -13,16 +13,6 @@ import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.math.BigDecimal;
 
-/**
- * Quản lý món ăn.
- * <p>
- * Xoá ở đây là <b>ngừng kinh doanh</b> chứ không xoá bản ghi: các đơn cũ vẫn tham chiếu tới
- * món, xoá thật sẽ làm hỏng lịch sử đơn hàng. Nút Ngừng bán đi theo nhánh {@code retire} riêng,
- * tách khỏi form Sửa — sửa mô tả một món không được kéo theo việc món đó rời thực đơn.
- * <p>
- * Đừng nhầm với nút {@code toggle} trên danh sách: đó là <i>Còn hàng / Tạm hết</i> trong ngày,
- * một việc khác hẳn với ngừng bán hẳn.
- */
 @WebServlet("/admin/products")
 public class ProductManageServlet extends BaseServlet {
 
@@ -44,8 +34,6 @@ public class ProductManageServlet extends BaseServlet {
         req.setAttribute("keyword", keyword);
         req.setAttribute("status", status);
         req.setAttribute("stock", stock);
-        // Liên kết chuyển trang phải mang theo bộ lọc đang áp dụng, nếu không thì bấm sang
-        // trang 2 lại nhảy về xem toàn bộ danh sách món.
         req.setAttribute("filterQuery", WebUtil.queryStringWithout(req, "page", "edit"));
         if (editId > 0) {
             req.setAttribute("editing", adminService.findProduct(editId));
@@ -53,10 +41,6 @@ public class ProductManageServlet extends BaseServlet {
         forward(req, resp, "admin/product.jsp");
     }
 
-    /**
-     * Ô lọc tình trạng hàng trong ngày. Ba giá trị chứ không phải hai: không chọn gì nghĩa là
-     * lấy cả món còn hàng lẫn món tạm hết, nên phải là {@code null} chứ không phải {@code false}.
-     */
     private Boolean availableFilter(String stock) {
         if ("IN".equals(stock)) {
             return Boolean.TRUE;
@@ -71,7 +55,6 @@ public class ProductManageServlet extends BaseServlet {
     protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws IOException {
         User admin = requireUser(req);
         String action = WebUtil.getString(req, "action");
-        // Xong việc thì quay lại đúng danh sách vừa xem — biểu mẫu mang theo bộ lọc trong ô 'back'.
         String back = WebUtil.pathWithFilters("/admin/products", WebUtil.getString(req, "back"));
 
         if ("toggle".equals(action)) {
@@ -97,11 +80,10 @@ public class ProductManageServlet extends BaseServlet {
         form.setDescription(WebUtil.getString(req, "description"));
         form.setImageUrl(WebUtil.getString(req, "imageUrl"));
         form.setAvailable(WebUtil.getBoolean(req, "available"));
-        // Trạng thái kinh doanh cố ý không đọc từ form: nó thuộc về nhánh retire/restore ở trên.
         try {
             form.setPrice(new BigDecimal(WebUtil.getString(req, "price")));
         } catch (RuntimeException e) {
-            form.setPrice(BigDecimal.valueOf(-1));   // để tầng dịch vụ báo lỗi giá không hợp lệ
+            form.setPrice(BigDecimal.valueOf(-1));
         }
 
         handle(req, resp, () -> adminService.saveProduct(admin.getUserId(), form),

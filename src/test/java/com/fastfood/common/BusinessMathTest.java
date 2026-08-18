@@ -1,10 +1,10 @@
 package com.fastfood.common;
 
-import com.fastfood.common.constant.OrderSource;
-import com.fastfood.common.constant.PaymentMethod;
-import com.fastfood.model.dto.DashboardKpi;
-import com.fastfood.model.dto.Page;
-import com.fastfood.model.entity.OrderItem;
+import com.fastfood.common.constant.Constants.OrderSource;
+import com.fastfood.common.constant.Constants.PaymentMethod;
+import com.fastfood.model.dto.Dtos.DashboardKpi;
+import com.fastfood.model.dto.Dtos.Page;
+import com.fastfood.model.entity.OrderEntities.OrderItem;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -16,9 +16,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/**
- * Các phép tính nhỏ mà sai thì cả con số hiển thị ra sai theo.
- */
 @DisplayName("Phép tính nghiệp vụ")
 class BusinessMathTest {
 

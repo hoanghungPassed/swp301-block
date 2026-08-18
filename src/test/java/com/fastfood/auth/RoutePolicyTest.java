@@ -1,6 +1,6 @@
 package com.fastfood.auth;
 
-import com.fastfood.common.constant.RoleName;
+import com.fastfood.common.constant.Constants.RoleName;
 import com.fastfood.filter.AuthenticationFilter;
 import com.fastfood.filter.RoleAuthorizationFilter;
 import org.junit.jupiter.api.DisplayName;
@@ -24,46 +24,17 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/**
- * Ranh giới quyền theo <b>địa chỉ URL</b>, đọc từ chính ba nguồn quyết định nó: chú thích
- * {@code @WebServlet} trên từng servlet, danh sách trang công khai trong
- * {@link AuthenticationFilter}, và các tiền tố khai báo cho bộ lọc phân quyền trong
- * {@code web.xml}.
- * <p>
- * <b>Vì sao cần.</b> Ba nguồn đó nằm ở ba tệp khác nhau và không tệp nào biết tệp kia. Thêm một
- * màn hình mới là thêm một dòng vào nguồn thứ nhất, còn hai nguồn kia phải tự nhớ mà sửa theo —
- * và quên thì <b>không có gì hỏng</b>:
- * <ul>
- *   <li>Quên khai báo tiền tố trong {@code web.xml}: màn hình vẫn chạy đúng cho người có quyền,
- *       chỉ là nó cũng chạy đúng cho mọi tài khoản khác.</li>
- *   <li>Thêm nhầm một địa chỉ vào danh sách công khai: khách chưa đăng nhập vào được, mà không
- *       màn hình nào báo lỗi.</li>
- *   <li>Đặt một màn hình của khách dưới tiền tố {@code /staff/}: khách nhận 403 trên chính
- *       trang của mình — cái này thì lộ ngay, nhưng chỉ lộ khi có người mở đúng trang đó.</li>
- * </ul>
- * Cả ba đều là lỗi im lặng, và cả ba đều là lỗi về quyền. Đây là bài {@code *Test} chứ không
- * phải {@code *IT}: nó chỉ đọc chú thích và tệp cấu hình, không cần cơ sở dữ liệu.
- */
 @DisplayName("Ranh giới quyền theo địa chỉ URL")
 class RoutePolicyTest {
 
     private static final Path SRC = Path.of("src", "main", "java");
     private static final Path WEB_XML = Path.of("src", "main", "webapp", "WEB-INF", "web.xml");
 
-    /** Hai trang cố ý mở cho người chưa đăng nhập — xem ghi chú ở {@code controller/customer}. */
     private static final Set<String> TRANG_CONG_KHAI_CO_Y = Set.of("/menu", "/product/detail");
 
-    /**
-     * Địa chỉ cổng thanh toán gọi vào từ máy chủ của họ. Bắt buộc phải mở vì lệnh gọi ấy không
-     * mang theo phiên của bất kỳ ai; đổi lại, chúng không đọc dữ liệu của người dùng ra và phải
-     * tự chứng minh bằng chữ ký hoặc khoá API.
-     */
     private static final Set<String> CONG_THANH_TOAN_GOI_VE =
             Set.of("/payment/callback", "/payment/sepay/webhook");
 
-    // ------------------------------------------------------------------ đọc nguồn
-
-    /** Địa chỉ khai báo bằng {@code @WebServlet}, gom theo gói con của {@code controller}. */
     private static Map<String, List<String>> diaChiTheoGoi() throws Exception {
         Map<String, List<String>> theoGoi = new LinkedHashMap<>();
         for (String goi : List.of("customer", "staff", "kitchen", "admin", "auth", "api")) {
@@ -89,7 +60,6 @@ class RoutePolicyTest {
         return theoGoi;
     }
 
-    /** Các tiền tố mà {@code web.xml} gắn bộ lọc phân quyền vào. */
     private static Set<String> tienToPhanQuyen() throws Exception {
         String xml = Files.readString(WEB_XML);
         int dau = xml.indexOf("04-RoleAuthorizationFilter</filter-name>", xml.indexOf("<filter-mapping>"));
@@ -106,7 +76,6 @@ class RoutePolicyTest {
         return mau;
     }
 
-    /** Một địa chỉ có rơi vào tiền tố nào của bộ lọc phân quyền không. */
     private static boolean bocBoiPhanQuyen(String diaChi, Set<String> mau) {
         for (String pattern : mau) {
             if (pattern.endsWith("/*") && diaChi.startsWith(pattern.substring(0, pattern.length() - 1))) {
@@ -118,8 +87,6 @@ class RoutePolicyTest {
         }
         return false;
     }
-
-    // ------------------------------------------------------------------ bài kiểm
 
     @Nested
     @DisplayName("Màn hình của khách hàng")

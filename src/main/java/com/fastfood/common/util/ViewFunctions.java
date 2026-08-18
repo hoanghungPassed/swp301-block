@@ -3,19 +3,10 @@ package com.fastfood.common.util;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
-/**
- * Hàm gọi được từ trang JSP, khai báo trong {@code WEB-INF/fastfood.tld}.
- * <p>
- * Giải hai việc mà thẻ JSTL sẵn có không làm được: định dạng {@link LocalDateTime}
- * (thẻ {@code fmt:formatDate} chỉ nhận kiểu Date cũ), và dịch các mã trạng thái sang
- * tiếng Việt ở một chỗ duy nhất thay vì rải câu lệnh điều kiện khắp các trang.
- */
 public final class ViewFunctions {
 
     private ViewFunctions() {
     }
-
-    // ------------------------------------------------------------ định dạng
 
     public static String dateTime(LocalDateTime value) {
         return DateTimeUtil.format(value);
@@ -33,12 +24,9 @@ public final class ViewFunctions {
         return MoneyUtil.format(value);
     }
 
-    /** "còn 12 phút" hoặc "trễ 5 phút" — dùng ở màn hình bếp và quầy. */
     public static String humanize(LocalDateTime value) {
         return DateTimeUtil.humanize(value);
     }
-
-    // ------------------------------------------------------------ nhãn tiếng Việt
 
     public static String orderStatus(String status) {
         if (status == null) {
@@ -56,7 +44,6 @@ public final class ViewFunctions {
         }
     }
 
-    /** Tên lớp CSS để tô màu nhãn trạng thái. */
     public static String orderStatusClass(String status) {
         if (status == null) {
             return "tag";
@@ -161,13 +148,6 @@ public final class ViewFunctions {
         }
     }
 
-    /**
-     * Trạng thái sự cố bếp.
-     * <p>
-     * Ba màn hình cùng hiện danh sách sự cố (bếp, chi tiết món, thu ngân). Để mỗi trang tự
-     * viết điều kiện thì thêm một trạng thái là phải sửa cả ba, và sót một chỗ thì sự cố
-     * thu hồi lại hiện thành "đã xử lý" — đúng cái nhầm lẫn mà trạng thái này sinh ra để tránh.
-     */
     public static String issueStatus(String status) {
         if (status == null) {
             return "";
@@ -180,7 +160,6 @@ public final class ViewFunctions {
         }
     }
 
-    /** Lớp màu của thẻ trạng thái sự cố, đi kèm {@link #issueStatus(String)}. */
     public static String issueStatusTag(String status) {
         if (status == null) {
             return "";
@@ -192,13 +171,6 @@ public final class ViewFunctions {
         }
     }
 
-    /**
-     * Tiêu đề của một tin trong hộp thông báo của khách.
-     * <p>
-     * Nội dung tin đã nói đủ chuyện gì xảy ra, nhưng nói bằng một đoạn văn. Tiêu đề ngắn ở đây
-     * để khách lướt qua danh sách là thấy ngay dòng nào đáng đọc — nhất là dòng báo hoàn tiền
-     * nằm lẫn giữa mấy tin xác nhận đơn.
-     */
     public static String notificationEvent(String event) {
         if (event == null) {
             return "";
@@ -212,7 +184,6 @@ public final class ViewFunctions {
         }
     }
 
-    /** Biểu tượng đi kèm tiêu đề tin, để phân biệt tin vui và tin xấu ngay từ xa. */
     public static String notificationIcon(String event) {
         if (event == null) {
             return "•";
@@ -226,7 +197,6 @@ public final class ViewFunctions {
         }
     }
 
-    /** Lớp màu của thẻ loại tin, đi kèm {@link #notificationEvent(String)}. */
     public static String notificationEventClass(String event) {
         if (event == null) {
             return "tag";
@@ -240,7 +210,6 @@ public final class ViewFunctions {
         }
     }
 
-    /** Dịch mã thao tác trong nhật ký sang câu tiếng Việt dễ đọc. */
     public static String auditAction(String action) {
         if (action == null) {
             return "";

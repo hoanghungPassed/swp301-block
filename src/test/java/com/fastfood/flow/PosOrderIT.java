@@ -1,11 +1,11 @@
 package com.fastfood.flow;
 
-import com.fastfood.common.constant.PaymentMethod;
-import com.fastfood.common.exception.BusinessException;
-import com.fastfood.common.exception.ValidationException;
-import com.fastfood.model.dto.PosCartLine;
-import com.fastfood.model.dto.PosLine;
-import com.fastfood.model.entity.Order;
+import com.fastfood.common.constant.Constants.PaymentMethod;
+import com.fastfood.common.exception.AppException.BusinessException;
+import com.fastfood.common.exception.AppException.ValidationException;
+import com.fastfood.model.dto.Dtos.PosCartLine;
+import com.fastfood.model.dto.Dtos.PosLine;
+import com.fastfood.model.entity.OrderEntities.Order;
 import com.fastfood.service.staff.StaffOrderService;
 import com.fastfood.testsupport.IntegrationTestBase;
 import org.junit.jupiter.api.DisplayName;
@@ -21,14 +21,6 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/**
- * Bán hàng tại quầy — trọng tâm là <b>sự thật về tiền</b> (BR-22).
- * <p>
- * Tiền của lần quẹt thẻ chạy qua máy thanh toán đặt ở quầy chứ không qua hệ thống, nên dòng
- * "đã thu" trong cơ sở dữ liệu chỉ là lời khai của thu ngân. Buộc nhập mã giao dịch trên biên
- * lai là cách biến lời khai đó thành thứ đối soát được với sao kê — và ràng buộc duy nhất trên
- * mã chặn luôn tình huống một lần quẹt thẻ bị lập thành hai đơn.
- */
 @DisplayName("Đơn tại quầy và sự thật về tiền")
 class PosOrderIT extends IntegrationTestBase {
 
@@ -37,8 +29,6 @@ class PosOrderIT extends IntegrationTestBase {
     private List<PosLine> oneItem() {
         return List.of(new PosLine(anyOrderableProductId(), 2));
     }
-
-    // ------------------------------------------------------------------ tiền mặt
 
     @Test
     @DisplayName("Thu tiền mặt: lập đơn, thu tiền và đưa xuống bếp trong một nhịp")
@@ -65,8 +55,6 @@ class PosOrderIT extends IntegrationTestBase {
         Order order = staffOrders.createPosOrder(userId(CASHIER_1), oneItem(), PaymentMethod.CASH, "   ");
         assertEquals("CONFIRMED", order.getOrderStatus());
     }
-
-    // ------------------------------------------------------------------ thẻ / mã QR
 
     @Test
     @DisplayName("Quẹt thẻ mà bỏ trống mã biên lai thì bị từ chối")
@@ -128,8 +116,6 @@ class PosOrderIT extends IntegrationTestBase {
                 "Gõ lại cùng mã bằng chữ hoa vẫn là cùng một biên lai");
     }
 
-    // ------------------------------------------------------------------ kiểm tra đầu vào
-
     @Test
     @DisplayName("Phiếu trống thì không lập đơn")
     void emptyCartIsRejected() {
@@ -156,15 +142,6 @@ class PosOrderIT extends IntegrationTestBase {
                 () -> staffOrders.createPosOrder(userId(CASHIER_1),
                         List.of(new PosLine(offMenu, 1)), PaymentMethod.CASH, null));
     }
-
-    // ------------------------------------------------------- phiếu tính tiền trên màn hình
-
-    /*
-      Phiếu tính tiền là thứ thu ngân đọc để nói giá cho khách, nên nó phải nói đúng những gì
-      sắp xảy ra khi bấm thu tiền. Bản trước ghép giỏ với danh sách thực đơn: món vừa hết hàng
-      rơi khỏi phiếu mà vẫn nằm trong giỏ, nên tổng trên màn hình thiếu một món và lỗi chỉ nổ
-      ra lúc thu tiền.
-    */
 
     @Test
     @DisplayName("Phiếu tính tiền giữ lại món vừa ngừng bán và đánh dấu nó, không giấu đi")

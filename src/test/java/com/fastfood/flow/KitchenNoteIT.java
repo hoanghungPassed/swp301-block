@@ -1,10 +1,10 @@
 package com.fastfood.flow;
 
-import com.fastfood.common.exception.BusinessException;
-import com.fastfood.common.exception.NotFoundException;
-import com.fastfood.common.exception.ValidationException;
-import com.fastfood.model.entity.KitchenNote;
-import com.fastfood.model.entity.OrderItemNote;
+import com.fastfood.common.exception.AppException.BusinessException;
+import com.fastfood.common.exception.AppException.NotFoundException;
+import com.fastfood.common.exception.AppException.ValidationException;
+import com.fastfood.model.entity.OperationEntities.KitchenNote;
+import com.fastfood.model.entity.OrderEntities.OrderItemNote;
 import com.fastfood.service.kitchen.KitchenNoteService;
 import com.fastfood.service.kitchen.KitchenService;
 import com.fastfood.testsupport.IntegrationTestBase;
@@ -20,20 +20,12 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/**
- * Hai loại ghi chú của bếp.
- * <p>
- * Điều quan trọng nhất được kiểm ở đây không phải bốn thao tác chạy được, mà là <b>ghi chú không
- * làm tăng số sự cố đang mở</b>. Con số đó điều khiển bốn chỗ cảnh báo đỏ trên màn hình thu ngân;
- * nếu ghi chú thường ngày lọt vào đó thì cảnh báo mất hết ý nghĩa.
- */
 @DisplayName("Ghi chú chế biến và sổ bàn giao ca bếp")
 class KitchenNoteIT extends IntegrationTestBase {
 
     private final KitchenNoteService noteService = new KitchenNoteService();
     private final KitchenService kitchenService = new KitchenService();
 
-    /** Một món có thật trong dữ liệu mẫu để gắn ghi chú vào. */
     private static int anyOrderItemId() {
         Integer id = scalar(Integer.class,
                 "SELECT TOP 1 order_item_id FROM dbo.OrderItem ORDER BY order_item_id");

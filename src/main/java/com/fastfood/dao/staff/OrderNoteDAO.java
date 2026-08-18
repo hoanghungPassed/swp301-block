@@ -1,7 +1,7 @@
 package com.fastfood.dao.staff;
 
 import com.fastfood.dao.JdbcSupport;
-import com.fastfood.model.entity.OrderNote;
+import com.fastfood.model.entity.OrderEntities.OrderNote;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -14,7 +14,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-/** Truy vấn bảng OrderNote — ghi chú điều phối của thu ngân. */
 public class OrderNoteDAO {
 
     private static final String BASE =
@@ -57,13 +56,6 @@ public class OrderNoteDAO {
         }
     }
 
-    /**
-     * Ghi chú của nhiều đơn cùng lúc, gom theo mã đơn.
-     * <p>
-     * Màn điều phối hiện bốn tab với hàng chục đơn; hỏi ghi chú từng đơn một sẽ thành hàng chục
-     * lượt truy vấn cho một lần mở trang. Danh sách mã đơn ghép thẳng vào câu lệnh được vì nó do
-     * chính hệ thống sinh ra từ khoá chính, không phải dữ liệu người dùng nhập.
-     */
     public Map<Integer, List<OrderNote>> findByOrders(Connection con, List<Integer> orderIds)
             throws SQLException {
         Map<Integer, List<OrderNote>> byOrder = new LinkedHashMap<>();

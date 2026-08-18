@@ -1,14 +1,4 @@
 <%@ page pageEncoding="UTF-8" %>
-<%--
-  Phần <head> dùng chung. Trang gọi đặt trước biến pageTitle.
-
-  Biểu tượng trang nhúng thẳng dưới dạng SVG trong địa chỉ data: — không tốn thêm một lượt
-  tải, và quan trọng hơn là không để trình duyệt gọi /favicon.ico rồi nhận 404 trên mọi lượt
-  xem trang, làm log máy chủ đầy những dòng lỗi giả.
-
-  Tham số ?v= lấy từ lúc máy chủ khởi động: sửa CSS hay JS xong chỉ cần khởi động lại Tomcat
-  là trình duyệt tải bản mới, không phải bấm Ctrl+F5 và cũng không lo xem nhầm bản cũ.
---%>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="description" content="Đặt trước đồ ăn nhanh và hẹn giờ đến lấy tại cửa hàng.">

@@ -1,6 +1,6 @@
 package com.fastfood.dao.shared;
 
-import com.fastfood.model.entity.User;
+import com.fastfood.model.entity.UserEntities.User;
 
 import java.sql.*;
 import java.time.LocalDateTime;
@@ -8,7 +8,6 @@ import java.util.ArrayList;
 import java.util.List;
 import com.fastfood.dao.JdbcSupport;
 
-/** Truy vấn bảng Users. Luôn lấy kèm tên vai trò vì hầu hết màn hình đều cần. */
 public class UserDAO {
 
     private static final String BASE =
@@ -44,18 +43,10 @@ public class UserDAO {
         }
     }
 
-    /** Danh sách tài khoản cho màn hình quản trị, lọc theo vai trò và từ khoá. */
     public List<User> search(Connection con, String roleName, String keyword) throws SQLException {
         return search(con, roleName, keyword, null, 0, Integer.MAX_VALUE);
     }
 
-    /**
-     * Một trang của danh sách tài khoản.
-     * <p>
-     * Thứ tự có {@code u.user_id} ở cuối để hai người trùng họ tên không đảo chỗ giữa các
-     * trang — SQL Server không hứa hẹn thứ tự nào cho các dòng bằng nhau, nên thiếu cột này
-     * thì một tài khoản có thể hiện ở cả trang 1 lẫn trang 2, hoặc không ở trang nào.
-     */
     public List<User> search(Connection con, String roleName, String keyword, String status,
                              int offset, int limit) throws SQLException {
         List<Object> params = new ArrayList<>();
@@ -79,7 +70,6 @@ public class UserDAO {
         return list;
     }
 
-    /** Tổng số tài khoản khớp bộ lọc, để biết có bao nhiêu trang. */
     public long countSearch(Connection con, String roleName, String keyword, String status)
             throws SQLException {
         List<Object> params = new ArrayList<>();
@@ -95,10 +85,6 @@ public class UserDAO {
         }
     }
 
-    /**
-     * Mệnh đề lọc dùng chung cho câu lấy dữ liệu và câu đếm — viết hai lần thì số trang sẽ
-     * lệch khỏi số dòng thật ngay lần đầu có người sửa một bên.
-     */
     private String where(String roleName, String keyword, String status, List<Object> params) {
         StringBuilder sql = new StringBuilder("WHERE 1 = 1 ");
         if (roleName != null && !roleName.isBlank()) {
@@ -117,7 +103,6 @@ public class UserDAO {
         return sql.toString();
     }
 
-    /** Danh sách nhân viên bếp, dùng cho màn hình phân công. */
     public List<User> findByRole(Connection con, String roleName) throws SQLException {
         return search(con, roleName, null);
     }
@@ -133,9 +118,6 @@ public class UserDAO {
             ps.setString(4, u.getPasswordHash());
             ps.setInt(5, u.getRoleId());
             ps.setString(6, u.getStatus());
-            // Ghi thẳng chứ không để DEFAULT của bảng lo: hai nơi tạo tài khoản có hai câu trả
-            // lời khác nhau cho cùng cột này (khách tự đăng ký thì chưa, nhân viên do quản trị
-            // viên tạo thì rồi), nên để giá trị mặc định quyết định là giấu mất sự khác nhau đó.
             ps.setBoolean(7, u.isEmailVerified());
             JdbcSupport.setDateTime(ps, 8, u.getCreatedAt());
             ps.executeUpdate();
@@ -159,13 +141,6 @@ public class UserDAO {
         }
     }
 
-    /**
-     * Đổi mật khẩu và đặt luôn cờ "phải đổi ở lần đăng nhập sau".
-     * <p>
-     * Hai việc này đi cùng nhau vì chúng luôn ngược chiều nhau: người dùng tự đổi thì tắt cờ,
-     * quản trị viên đặt lại hộ thì bật cờ. Tách thành hai câu lệnh thì sẽ có lúc quên câu thứ
-     * hai, và tài khoản chạy tiếp bằng mật khẩu mà người khác biết.
-     */
     public void updatePassword(Connection con, int userId, String passwordHash,
                                boolean mustChange) throws SQLException {
         try (PreparedStatement ps = con.prepareStatement(
@@ -177,17 +152,6 @@ public class UserDAO {
         }
     }
 
-    /**
-     * Đánh dấu địa chỉ email đã được chủ tài khoản xác nhận, và chỉ khi cờ còn đang tắt.
-     * <p>
-     * Điều kiện {@code email_verified = 0} nằm trong chính câu lệnh, cùng lý do với
-     * {@code PasswordResetTokenDAO.markUsed}: khách bấm liên kết trong thư hai lần — hoặc trình
-     * duyệt tải trước liên kết rồi khách bấm tiếp — thì cả hai lượt đều đọc thấy "chưa xác
-     * thực". Để cơ sở dữ liệu phân xử thì đúng một lượt đổi được số dòng, và tầng trên phân
-     * biệt được "vừa xác thực xong" với "đã xác thực từ trước" để nói đúng câu.
-     *
-     * @return true nếu chính lần gọi này bật được cờ
-     */
     public boolean markEmailVerified(Connection con, int userId, LocalDateTime at) throws SQLException {
         try (PreparedStatement ps = con.prepareStatement(
                 "UPDATE dbo.Users SET email_verified = 1, updated_at = ? " +
@@ -198,7 +162,6 @@ public class UserDAO {
         }
     }
 
-    /** Quản trị viên khoá hoặc mở khoá tài khoản — không bao giờ xoá, để giữ lịch sử đơn. */
     public void updateStatus(Connection con, int userId, String status) throws SQLException {
         try (PreparedStatement ps = con.prepareStatement(
                 "UPDATE dbo.Users SET status = ? WHERE user_id = ?")) {

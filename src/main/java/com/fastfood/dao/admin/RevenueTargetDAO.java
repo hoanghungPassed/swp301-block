@@ -1,7 +1,7 @@
 package com.fastfood.dao.admin;
 
 import com.fastfood.dao.JdbcSupport;
-import com.fastfood.model.entity.RevenueTarget;
+import com.fastfood.model.entity.OperationEntities.RevenueTarget;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -13,7 +13,6 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
-/** Truy vấn bảng RevenueTarget — chỉ tiêu doanh thu theo kỳ. */
 public class RevenueTargetDAO {
 
     private static final String BASE =
@@ -51,7 +50,6 @@ public class RevenueTargetDAO {
         }
     }
 
-    /** Chỉ tiêu của đúng một kỳ. Trả null nghĩa là kỳ đó chưa ai đặt chỉ tiêu. */
     public RevenueTarget findByPeriod(Connection con, String periodType, LocalDate periodStart)
             throws SQLException {
         try (PreparedStatement ps = con.prepareStatement(
@@ -63,7 +61,6 @@ public class RevenueTargetDAO {
         }
     }
 
-    /** Danh sách chỉ tiêu, kỳ gần nhất trước. */
     public List<RevenueTarget> findRecent(Connection con, int limit) throws SQLException {
         try (PreparedStatement ps = con.prepareStatement(
                 BASE.replaceFirst("SELECT", "SELECT TOP (" + limit + ")") +

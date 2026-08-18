@@ -1,11 +1,11 @@
 package com.fastfood.flow;
 
-import com.fastfood.common.constant.PaymentMethod;
-import com.fastfood.common.exception.BusinessException;
-import com.fastfood.common.exception.ValidationException;
-import com.fastfood.model.dto.PosLine;
-import com.fastfood.model.entity.Order;
-import com.fastfood.model.entity.Shift;
+import com.fastfood.common.constant.Constants.PaymentMethod;
+import com.fastfood.common.exception.AppException.BusinessException;
+import com.fastfood.common.exception.AppException.ValidationException;
+import com.fastfood.model.dto.Dtos.PosLine;
+import com.fastfood.model.entity.OrderEntities.Order;
+import com.fastfood.model.entity.OperationEntities.Shift;
 import com.fastfood.service.staff.ShiftService;
 import com.fastfood.service.staff.StaffOrderService;
 import com.fastfood.testsupport.IntegrationTestBase;
@@ -22,20 +22,12 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/**
- * Ca làm việc của thu ngân và đối soát tiền mặt.
- * <p>
- * Bài đáng đọc trước là {@link Reconcile#refundLeavesTheDrawerOfTheShiftThatPaidItOut()}: nó
- * kiểm đúng cái bẫy mà báo cáo doanh thu đã từng mắc — một khoản đã thu rồi hoàn phải được
- * đếm bằng <b>hai mốc thời gian khác nhau</b>, chứ không lọc theo trạng thái hiện tại.
- */
 @DisplayName("Ca làm việc và đối soát tiền mặt tại quầy")
 class ShiftReconcileIT extends IntegrationTestBase {
 
     private final ShiftService shiftService = new ShiftService();
     private final StaffOrderService orderService = new StaffOrderService();
 
-    /** Đóng mọi ca còn mở của thu ngân để mỗi bài bắt đầu từ trạng thái sạch. */
     private void closeAnyOpenShift(int cashierId) {
         Shift open = shiftService.currentShift(cashierId);
         if (open != null) {

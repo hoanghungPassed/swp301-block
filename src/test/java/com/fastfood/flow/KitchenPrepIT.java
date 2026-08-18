@@ -1,9 +1,9 @@
 package com.fastfood.flow;
 
-import com.fastfood.common.exception.BusinessException;
-import com.fastfood.common.exception.NotFoundException;
-import com.fastfood.common.exception.ValidationException;
-import com.fastfood.model.entity.PrepTask;
+import com.fastfood.common.exception.AppException.BusinessException;
+import com.fastfood.common.exception.AppException.NotFoundException;
+import com.fastfood.common.exception.AppException.ValidationException;
+import com.fastfood.model.entity.OperationEntities.PrepTask;
 import com.fastfood.service.kitchen.PrepService;
 import com.fastfood.testsupport.IntegrationTestBase;
 import org.junit.jupiter.api.DisplayName;
@@ -18,18 +18,11 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/**
- * Kế hoạch chuẩn bị sẵn của bếp — phần việc duy nhất của bếp không bắt nguồn từ đơn hàng.
- * <p>
- * Điều đáng kiểm nhất không phải bốn thao tác chạy được, mà là <b>ba chốt chặn</b>: một món
- * một dòng mỗi ngày, dòng đã khép lại thì không sửa được nữa, và chỉ người lập mới thu hồi được.
- */
 @DisplayName("Bếp lập kế hoạch chuẩn bị sẵn trong ca")
 class KitchenPrepIT extends IntegrationTestBase {
 
     private final PrepService prepService = new PrepService();
 
-    /** Ngày riêng cho mỗi bài để hai bài không tranh nhau ràng buộc "một món một ngày". */
     private static LocalDate dayOffset(int days) {
         return LocalDate.now().plusDays(days);
     }

@@ -7,9 +7,6 @@
 
   <%@ include file="/WEB-INF/views/layout/flash.jspf" %>
 
-  <%-- Ca làm việc đứng đầu trang: nó là việc có thời hạn — mở đầu ca, đóng cuối ca — còn tra
-       cứu đơn thì làm lúc nào cũng được. Đặt dưới danh sách đơn thì cuối ca phải cuộn qua cả
-       trang mới thấy nút đóng ca. --%>
   <div class="card">
     <c:choose>
       <c:when test="${empty currentShift}">
@@ -73,8 +70,6 @@
           <button type="submit" class="btn btn-block">Lưu ghi chú</button>
         </form>
 
-        <%-- Chỉ thu hồi được ca chưa có đơn nào; có đơn rồi thì tiền đã nằm trong két và
-             phải đóng ca cho đúng thủ tục. --%>
         <c:if test="${currentShift.orderCount eq 0}">
           <form method="post" action="${ctx}/staff/history" class="mt"
                 data-confirm="Thu hồi ca mở nhầm này?">

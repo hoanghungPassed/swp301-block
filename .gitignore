@@ -18,6 +18,13 @@ nbproject/
 # Local config chứa credential
 src/main/resources/db.local.properties
 
+# Nhật ký và phiên làm việc của trợ lý lập trình — xem docs/GIT.md §1.
+# Những tệp này chứa đường dẫn máy cá nhân, biến môi trường và đôi khi cả khoá.
+.claude/
+.aider*
+.cursor/
+*.agent.log
+
 # Kiểm thử: phụ thuộc và tệp sinh ra, không đưa vào kho
 test/node_modules/
 test/package.json

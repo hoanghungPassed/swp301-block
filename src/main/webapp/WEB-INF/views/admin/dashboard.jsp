@@ -16,8 +16,6 @@
       </div>
       <button type="submit" class="btn btn-primary">Xem</button>
     </form>
-    <%-- Ba khoảng hay xem nhất, đi thẳng bằng liên kết. Gõ tay hai mốc thời gian đầy đủ chỉ
-         để xem doanh thu hôm nay là bốn thao tác cho một câu hỏi hỏi mỗi ngày. --%>
     <div class="row-tight mt">
       <span class="small muted">Xem nhanh:</span>
       <a class="btn btn-sm ${range eq 'today' ? 'btn-primary' : ''}" href="${ctx}/admin/dashboard?range=today">Hôm nay</a>
@@ -78,8 +76,6 @@
     </div>
   </div>
 
-  <%-- Chỉ tiêu doanh thu. Hai ô dưới đây cố ý KHÔNG đổi theo bộ lọc ngày ở đầu trang: mức đạt
-       chỉ tiêu tháng mà nhảy theo khoảng người dùng đang xem thì con số ấy không so được với gì. --%>
   <div class="card">
     <div class="row-between mb">
       <h2>Chỉ tiêu doanh thu</h2>
@@ -238,14 +234,11 @@
       <c:forEach var="row" items="${revenueByDay}">
         <c:if test="${row.amount > maxRevenue}"><c:set var="maxRevenue" value="${row.amount}" /></c:if>
       </c:forEach>
-      <%-- role="img" kèm nhãn cho từng cột: không có nó thì trình đọc màn hình chỉ gặp một
-           chuỗi ô trống, còn thuộc tính title thì chỉ chuột mới thấy. --%>
       <div class="chart" role="img" aria-label="Biểu đồ doanh thu theo ngày, ${fn:length(revenueByDay)} ngày">
         <c:forEach var="row" items="${revenueByDay}">
           <div class="chart-col"
                title="<c:out value="${row.label}"/>: ${ff:money(row.amount)}"
                aria-label="<c:out value="${row.label}"/>: ${ff:money(row.amount)}">
-            <%-- Chỉ chiều cao còn nằm trong style: đó là số liệu, không phải kiểu hiển thị. --%>
             <div class="chart-bar"
                  style="height:${maxRevenue > 0 ? (row.amount * 130 / maxRevenue) : 0}px;"></div>
             <div class="small muted chart-label">

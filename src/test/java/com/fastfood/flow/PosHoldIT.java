@@ -1,9 +1,9 @@
 package com.fastfood.flow;
 
-import com.fastfood.common.exception.BusinessException;
-import com.fastfood.common.exception.NotFoundException;
-import com.fastfood.common.exception.ValidationException;
-import com.fastfood.model.entity.PosHold;
+import com.fastfood.common.exception.AppException.BusinessException;
+import com.fastfood.common.exception.AppException.NotFoundException;
+import com.fastfood.common.exception.AppException.ValidationException;
+import com.fastfood.model.entity.OperationEntities.PosHold;
 import com.fastfood.service.staff.PosHoldService;
 import com.fastfood.testsupport.IntegrationTestBase;
 import org.junit.jupiter.api.DisplayName;
@@ -21,12 +21,6 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/**
- * Phiếu treo tại quầy — màn hình bán hàng của thu ngân.
- * <p>
- * Dùng {@code cashier2} cho phần lớn bài test vì dữ liệu mẫu đã treo sẵn hai phiếu cho
- * {@code cashier1}: đếm tuyệt đối trên người đó sẽ hỏng ngay khi ai đó sửa dữ liệu mẫu.
- */
 @DisplayName("Phiếu treo tại quầy")
 class PosHoldIT extends IntegrationTestBase {
 
@@ -38,7 +32,6 @@ class PosHoldIT extends IntegrationTestBase {
         return lines;
     }
 
-    /** Tên phiếu phải khác nhau giữa các bài test vì UQ_PosHold_cashier_label chặn trùng. */
     private PosHold treo(int cashierId, String label, Map<Integer, Integer> lines) {
         return holdService.hold(cashierId, label, null, lines);
     }
@@ -258,7 +251,6 @@ class PosHoldIT extends IntegrationTestBase {
                                 .compareTo(moi),
                         "Bảng PosHoldItem cố ý không lưu giá — giá phải đọc mới từ bảng món");
             } finally {
-                // Trả giá về như cũ: các bài test khác trong cùng lượt chạy dùng chung dữ liệu mẫu.
                 exec("UPDATE dbo.Product SET price = ? WHERE product_id = ?", gia_cu, product);
             }
         }

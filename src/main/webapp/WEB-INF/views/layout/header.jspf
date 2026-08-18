@@ -1,14 +1,8 @@
 <%@ page pageEncoding="UTF-8" %>
-<%--
-  Thanh điều hướng. Mục hiển thị theo vai trò của người đang đăng nhập.
-  Ẩn mục ở đây chỉ để giao diện gọn — quyền thật sự do bộ lọc phía máy chủ quyết định.
---%>
 <header class="app-header">
   <div class="inner">
     <a class="brand" href="${ctx}/"><span aria-hidden="true">🍔</span> Fast Food</a>
 
-    <%-- Ẩn sẵn; app.js bỏ hidden khi chạy được. Tắt JavaScript thì nút không hiện ra và
-         thanh điều hướng vẫn nằm nguyên, chứ không thành cái nút bấm mãi không mở. --%>
     <button type="button" class="nav-toggle" id="nav-toggle" hidden
             aria-expanded="false" aria-controls="main-nav" aria-label="Hiện hoặc ẩn menu điều hướng">☰</button>
 
@@ -19,9 +13,6 @@
           <c:if test="${not empty me}">
             <a href="${ctx}/cart" class="${nav eq 'cart' ? 'active' : ''}" ${nav eq 'cart' ? 'aria-current="page"' : ''}>Giỏ hàng</a>
             <a href="${ctx}/order/history" class="${nav eq 'orders' ? 'active' : ''}" ${nav eq 'orders' ? 'aria-current="page"' : ''}>Đơn của tôi</a>
-            <%-- Con số tin chưa đọc do BaseServlet.forward đặt vào, nên có ở mọi trang.
-                 Số nằm trong một thẻ riêng kèm nhãn đọc được: "Thông báo 3" mà không nói 3 là
-                 gì thì trình đọc màn hình phát ra một con số trơ trọi giữa thanh điều hướng. --%>
             <a href="${ctx}/notifications" class="${nav eq 'notifications' ? 'active' : ''}" ${nav eq 'notifications' ? 'aria-current="page"' : ''}>Thông báo<c:if
                  test="${not empty unreadNotifications and unreadNotifications > 0}"><span
                  class="nav-badge">${unreadNotifications}<span class="visually-hidden"> tin chưa đọc</span></span></c:if></a>
@@ -30,17 +21,12 @@
 
         <c:when test="${me.roleName eq 'CASHIER'}">
           <a href="${ctx}/staff/pos" class="${nav eq 'pos' ? 'active' : ''}" ${nav eq 'pos' ? 'aria-current="page"' : ''}>Bán tại quầy</a>
-          <%-- Tra mã nhận hàng nằm ngay đầu màn Đơn hàng, không còn mục riêng. --%>
           <a href="${ctx}/staff/orders" class="${nav eq 'orders' ? 'active' : ''}" ${nav eq 'orders' ? 'aria-current="page"' : ''}>Đơn hàng</a>
           <a href="${ctx}/staff/counter" class="${nav eq 'counter' ? 'active' : ''}" ${nav eq 'counter' ? 'aria-current="page"' : ''}>Quầy giao nhận</a>
-          <%-- Nhãn nói cả "ca" vì ca làm việc nằm trong trang này. Gọi trống là "Lịch sử" thì
-               việc bắt buộc mỗi ca — mở ca, đóng ca, đối soát tiền — không có tên trên thanh
-               điều hướng, và thu ngân mới vào không có cách nào đoán ra nó nằm đâu. --%>
           <a href="${ctx}/staff/history" class="${nav eq 'history' ? 'active' : ''}" ${nav eq 'history' ? 'aria-current="page"' : ''}>Ca &amp; lịch sử</a>
         </c:when>
 
         <c:when test="${me.roleName eq 'KITCHEN'}">
-          <%-- Hàng chờ và việc của mình nằm chung một trang: đầu bếp không phải chuyển qua lại. --%>
           <a href="${ctx}/kitchen/queue" class="${nav eq 'queue' ? 'active' : ''}" ${nav eq 'queue' ? 'aria-current="page"' : ''}>Bếp</a>
           <a href="${ctx}/kitchen/issue" class="${nav eq 'issue' ? 'active' : ''}" ${nav eq 'issue' ? 'aria-current="page"' : ''}>Sự cố</a>
           <a href="${ctx}/kitchen/history" class="${nav eq 'history' ? 'active' : ''}" ${nav eq 'history' ? 'aria-current="page"' : ''}>Đã hoàn thành</a>
@@ -67,8 +53,6 @@
             <c:out value="${me.fullName}"/> · <span class="tag">${ff:roleName(me.roleName)}</span>
           </span>
           <a href="${ctx}/profile" class="btn btn-sm">Tài khoản</a>
-          <%-- Thoát là biểu mẫu POST chứ không phải liên kết: một liên kết GET cho phép trang
-               bất kỳ đá người dùng ra khỏi hệ thống bằng một thẻ <img>, xem LogoutServlet. --%>
           <form method="post" action="${ctx}/logout" class="logout-form">
             <input type="hidden" name="_csrf" value="${csrfToken}">
             <button type="submit" class="btn btn-sm">Thoát</button>

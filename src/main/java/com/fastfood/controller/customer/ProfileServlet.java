@@ -2,7 +2,7 @@ package com.fastfood.controller.customer;
 
 import com.fastfood.common.util.WebUtil;
 import com.fastfood.controller.BaseServlet;
-import com.fastfood.model.entity.User;
+import com.fastfood.model.entity.UserEntities.User;
 import com.fastfood.service.auth.AuthService;
 
 import javax.servlet.ServletException;
@@ -11,7 +11,6 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 
-/** Thông tin tài khoản và đổi mật khẩu. */
 @WebServlet("/profile")
 public class ProfileServlet extends BaseServlet {
 
@@ -36,9 +35,6 @@ public class ProfileServlet extends BaseServlet {
                         req.getParameter("currentPassword"),
                         req.getParameter("newPassword"),
                         req.getParameter("confirmPassword"));
-                // Gỡ cờ ngay trên đối tượng trong phiên. Chỉ ghi xuống cơ sở dữ liệu thôi thì
-                // AuthenticationFilter vẫn đọc bản cũ trong phiên và giữ người dùng ở lại đây
-                // mãi, dù họ vừa làm đúng việc được yêu cầu.
                 user.setMustChangePassword(false);
             }, "Đã đổi mật khẩu.", "/profile");
             return;
@@ -48,7 +44,6 @@ public class ProfileServlet extends BaseServlet {
         String phone = WebUtil.getString(req, "phone");
         handle(req, resp, () -> {
             authService.updateProfile(user.getUserId(), fullName, phone);
-            // Cập nhật lại tên hiển thị trên thanh điều hướng ngay, không đợi đăng nhập lại
             user.setFullName(fullName);
             user.setPhone(phone);
         }, "Đã cập nhật thông tin tài khoản.", "/profile");

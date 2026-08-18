@@ -11,15 +11,6 @@ import java.util.Properties;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-/**
- * Điểm truy cập duy nhất tới SQL Server.
- * <p>
- * Dùng connection pool vì màn hình bếp truy vấn lại mỗi 2 giây và Scheduler chạy mỗi 30 giây —
- * mở/đóng kết nối mới cho từng lần sẽ tốn hơn nhiều so với chi phí giữ pool.
- * <p>
- * Tầng Service chịu trách nhiệm mở, commit và đóng kết nối; tầng DAO chỉ nhận
- * {@link Connection} có sẵn để nhiều thao tác nằm chung một giao dịch.
- */
 public final class DBContext {
 
     private static final Logger LOG = Logger.getLogger(DBContext.class.getName());
@@ -28,7 +19,6 @@ public final class DBContext {
     private DBContext() {
     }
 
-    /** Gọi một lần lúc ứng dụng khởi động (AppContextListener). */
     public static synchronized void init() {
         if (dataSource != null) {
             return;
@@ -44,7 +34,6 @@ public final class DBContext {
         cfg.setConnectionTimeout(Long.parseLong(p.getProperty("db.pool.connectionTimeout", "30000")));
         cfg.setIdleTimeout(Long.parseLong(p.getProperty("db.pool.idleTimeout", "600000")));
         cfg.setPoolName("FastFoodPool");
-        // Mặc định bật auto-commit; Service tự tắt khi cần chạy giao dịch nhiều bước.
         cfg.setAutoCommit(true);
 
         dataSource = new HikariDataSource(cfg);
@@ -59,9 +48,6 @@ public final class DBContext {
         }
     }
 
-    /**
-     * Lấy một kết nối từ pool. Luôn dùng trong try-with-resources để trả về pool.
-     */
     public static Connection getConnection() throws SQLException {
         if (dataSource == null) {
             init();
@@ -69,7 +55,6 @@ public final class DBContext {
         return dataSource.getConnection();
     }
 
-    /** Kiểm tra kết nối lúc khởi động để lỗi cấu hình lộ ra ngay, không đợi tới request đầu tiên. */
     public static boolean testConnection() {
         try (Connection con = getConnection()) {
             return con.isValid(3);

@@ -10,7 +10,6 @@
 
   <%@ include file="/WEB-INF/views/layout/flash.jspf" %>
 
-  <%-- Món đang nằm trên quầy đứng đầu: món càng để lâu càng nguội. --%>
   <div class="card pad0 table-wrap">
     <div class="card-head"><h2>Bếp vừa bàn giao (${fn:length(awaitingCounter)})</h2></div>
     <table>
@@ -21,8 +20,6 @@
         <c:forEach var="it" items="${awaitingCounter}">
           <tr>
             <td><a href="${ctx}/staff/order/detail?orderId=${it.orderId}">#${it.orderId}</a>
-              <%-- Đơn có thể bị huỷ sau khi bếp đã nấu xong. Món vẫn có thật nên vẫn phải
-                   hiện ra, nhưng để mang đi bỏ chứ không đưa cho khách. --%>
               <c:if test="${it.orderClosed}">
                 <div><span class="tag tag-red">${ff:orderStatus(it.orderStatus)} — không giao</span></div>
               </c:if>
@@ -44,8 +41,6 @@
                 <input type="hidden" name="orderItemId" value="${it.orderItemId}">
                 <button type="submit" class="btn btn-sm btn-green touch">Đã nhận món</button>
               </form>
-              <%-- Đường ra thứ hai cho cùng một món: món sai hoặc nguội thì trả về bếp thay vì
-                   nhận rồi đi nói miệng. Lý do bắt buộc nhập để bếp biết cần sửa gì. --%>
               <form method="post" action="${ctx}/staff/counter" class="inline-form">
                 <input type="hidden" name="_csrf" value="${csrfToken}">
                 <input type="hidden" name="action" value="reject">
@@ -64,8 +59,6 @@
     </table>
   </div>
 
-  <%-- Phiếu do chính quầy lập. Tách khỏi bảng sự cố bếp bên dưới vì hai bên cần thấy phần của
-       mình trước, dù cả hai nằm chung một bảng dữ liệu. --%>
   <div class="card pad0 table-wrap">
     <div class="card-head"><h2>Món quầy đã từ chối (${fn:length(counterRejects)})</h2></div>
     <table>
@@ -110,8 +103,6 @@
     </table>
   </div>
 
-  <%-- Đơn đã nhận đủ món mới gọi khách được. Đơn còn thiếu vẫn hiện ở đây nhưng nói rõ còn
-       thiếu mấy món, thay vì biến mất — biến mất thì thu ngân tưởng đơn chưa xong và đi hỏi bếp. --%>
   <div class="card pad0 table-wrap">
     <div class="card-head"><h2>Chờ khách tới lấy (${fn:length(readyOrders)})</h2></div>
     <table>
@@ -120,7 +111,6 @@
                  <th scope="col"><span class="visually-hidden">Thao tác</span></th></tr></thead>
       <tbody>
         <c:forEach var="o" items="${readyOrders}">
-          <%-- Đếm tại chỗ từ danh sách món đã nạp sẵn cùng đơn, không hỏi thêm cơ sở dữ liệu. --%>
           <c:set var="notReceived" value="0"/>
           <c:forEach var="it" items="${o.items}">
             <c:if test="${not it.received}"><c:set var="notReceived" value="${notReceived + 1}"/></c:if>

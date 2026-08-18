@@ -1,8 +1,8 @@
 package com.fastfood.dao.kitchen;
 
 import com.fastfood.dao.JdbcSupport;
-import com.fastfood.model.entity.KitchenNote;
-import com.fastfood.model.entity.OrderItemNote;
+import com.fastfood.model.entity.OperationEntities.KitchenNote;
+import com.fastfood.model.entity.OrderEntities.OrderItemNote;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -13,13 +13,6 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Truy vấn hai bảng ghi chú của bếp: ghi chú theo món và sổ bàn giao ca.
- * <p>
- * Gộp vào một lớp vì hai bảng có cùng hình dạng (người viết, nội dung, hai mốc thời gian) và
- * cùng một quy tắc: chỉ người viết mới sửa hoặc xoá được, và điều kiện đó nằm ngay trong câu
- * lệnh chứ không kiểm tra trước rồi mới ghi. Tách thành hai lớp sẽ nhân đôi đúng khuôn đó.
- */
 public class KitchenNoteDAO {
 
     private static final String ITEM_BASE =
@@ -33,8 +26,6 @@ public class KitchenNoteDAO {
             "       n.updated_at, u.full_name AS author_name " +
             "FROM dbo.KitchenNote n " +
             "JOIN dbo.Users u ON u.user_id = n.author_id ";
-
-    // ============================================================ ghi chú theo món
 
     public int insertItemNote(Connection con, OrderItemNote note) throws SQLException {
         String sql = "INSERT INTO dbo.OrderItemNote (order_item_id, author_id, content, created_at) " +
@@ -83,12 +74,6 @@ public class KitchenNoteDAO {
         }
     }
 
-    /**
-     * Xoá hẳn khỏi bảng, khác mọi thứ khác trong hệ thống.
-     * <p>
-     * Được phép vì ghi chú không dính tới tiền, không đổi trạng thái đơn, và không có dòng nhật
-     * ký nào trỏ về nó — ba lý do khiến các bảng khác phải xoá mềm đều không áp dụng ở đây.
-     */
     public int deleteItemNote(Connection con, int noteId, int authorId) throws SQLException {
         try (PreparedStatement ps = con.prepareStatement(
                 "DELETE FROM dbo.OrderItemNote WHERE note_id = ? AND author_id = ?")) {
@@ -97,8 +82,6 @@ public class KitchenNoteDAO {
             return ps.executeUpdate();
         }
     }
-
-    // ============================================================ sổ bàn giao ca
 
     public int insertShiftNote(Connection con, KitchenNote note) throws SQLException {
         String sql = "INSERT INTO dbo.KitchenNote (shift_date, author_id, content, created_at) " +
@@ -126,7 +109,6 @@ public class KitchenNoteDAO {
         }
     }
 
-    /** Vài ngày gần nhất, không chỉ hôm nay: ca sáng cần đọc lại cả bàn giao của tối hôm trước. */
     public List<KitchenNote> findRecentShiftNotes(Connection con, int days) throws SQLException {
         try (PreparedStatement ps = con.prepareStatement(SHIFT_BASE +
                 "WHERE n.shift_date >= DATEADD(DAY, ?, CAST(SYSDATETIME() AS DATE)) " +
@@ -157,8 +139,6 @@ public class KitchenNoteDAO {
             return ps.executeUpdate();
         }
     }
-
-    // ============================================================ dùng chung
 
     private List<OrderItemNote> collectItemNotes(PreparedStatement ps) throws SQLException {
         List<OrderItemNote> list = new ArrayList<>();

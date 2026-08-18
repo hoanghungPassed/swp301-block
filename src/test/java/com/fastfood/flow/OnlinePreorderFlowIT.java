@@ -1,10 +1,10 @@
 package com.fastfood.flow;
 
-import com.fastfood.common.exception.BusinessException;
+import com.fastfood.common.exception.AppException.BusinessException;
 import com.fastfood.integration.payment.GatewayCallback;
 import com.fastfood.integration.payment.MockPaymentGateway;
-import com.fastfood.model.entity.Order;
-import com.fastfood.model.entity.OrderItem;
+import com.fastfood.model.entity.OrderEntities.Order;
+import com.fastfood.model.entity.OrderEntities.OrderItem;
 import com.fastfood.service.customer.CartService;
 import com.fastfood.service.kitchen.KitchenService;
 import com.fastfood.service.customer.CustomerOrderService;
@@ -28,13 +28,6 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/**
- * Toàn bộ vòng đời một đơn đặt trước, chạy thật qua tầng Service.
- * <p>
- * Đây là bài test nói lên giá trị cốt lõi của hệ thống: đơn đã thanh toán vẫn <b>nằm chờ</b>,
- * chỉ tới sát giờ hẹn mới xuống bếp. Nếu chỗ này hỏng thì món ra sớm và nguội, còn cả bộ chỉ
- * số đúng hẹn mất ý nghĩa.
- */
 @DisplayName("Vòng đời đơn đặt trước, từ giỏ hàng tới lúc giao món")
 class OnlinePreorderFlowIT extends IntegrationTestBase {
 
@@ -50,21 +43,17 @@ class OnlinePreorderFlowIT extends IntegrationTestBase {
     @BeforeEach
     void freshCustomer() {
         customerId = userId(CUSTOMER_2);
-        // Mỗi lúc chỉ cho một đơn chờ thanh toán, nên phải dọn đơn dở của bài trước.
         exec("UPDATE dbo.Orders SET order_status = 'EXPIRED', expired_at = ? " +
              "WHERE customer_id = ? AND order_status = 'PENDING_PAYMENT'", LocalDateTime.now(), customerId);
         exec("DELETE ci FROM dbo.CartItem ci JOIN dbo.Cart c ON c.cart_id = ci.cart_id WHERE c.user_id = ?",
              customerId);
     }
 
-    // ------------------------------------------------------------------ luồng đầy đủ
-
     @Test
     @DisplayName("Đi hết một vòng: đặt → trả tiền → chờ → xuống bếp → xong → giao món")
     void fullHappyPath() {
         Order order = placeAndPay();
 
-        // --- sau khi trả tiền: đã xác nhận, có mã nhận hàng, NHƯNG bếp chưa thấy ---
         assertEquals("CONFIRMED", statusOf(order.getOrderId()));
         assertNotNull(pickupCodeOf(order.getOrderId()), "Trả tiền xong phải có mã nhận hàng");
         assertNull(releasedAtOf(order.getOrderId()),
@@ -77,12 +66,10 @@ class OnlinePreorderFlowIT extends IntegrationTestBase {
         assertEquals(pickup.minusMinutes(20), plannedRelease,
                 "Kế hoạch vào bếp phải bằng giờ hẹn trừ thời gian chuẩn bị (BR-08)");
 
-        // --- tới giờ: bộ hẹn giờ đưa xuống bếp ---
         dueNow(order.getOrderId());
         assertTrue(scheduleService.releaseDueOrders() >= 1);
         assertNotNull(releasedAtOf(order.getOrderId()), "Tới giờ thì bếp phải thấy đơn");
 
-        // --- bếp làm món ---
         OrderItem item = staffOrders.findById(order.getOrderId()).getItems().get(0);
         kitchenService.claim(item.getOrderItemId(), userId(KITCHEN_1));
         assertEquals("PREPARING", statusOf(order.getOrderId()),
@@ -95,15 +82,11 @@ class OnlinePreorderFlowIT extends IntegrationTestBase {
                 "SELECT ready_at FROM dbo.Orders WHERE order_id = ?", order.getOrderId()),
                 "ready_at là mẫu số của chỉ số đúng hẹn, thiếu là hỏng cả báo cáo");
 
-        // --- bàn giao hai đầu: bếp đưa món ra quầy, quầy xác nhận đã cầm ---
-        // Tách làm hai bước là có lý do: mỗi bên tự xác nhận phần việc của mình, nên khi phát
-        // hiện thiếu món thì biết ngay món dừng lại ở đâu.
         kitchenService.handOverToCounter(item.getOrderItemId(), userId(KITCHEN_1));
         staffOrders.receiveAtCounter(item.getOrderItemId(), userId(CASHIER_1));
         assertEquals("READY", statusOf(order.getOrderId()),
                 "Cầm món từ bếp không đổi trạng thái đơn — món vẫn chưa ra khỏi cửa hàng");
 
-        // --- giao món cho khách ---
         String code = pickupCodeOf(order.getOrderId());
         staffOrders.handoff(order.getOrderId(), userId(CASHIER_1), code);
 
@@ -114,8 +97,6 @@ class OnlinePreorderFlowIT extends IntegrationTestBase {
                 "SELECT handoff_by_user_id FROM dbo.Orders WHERE order_id = ?", order.getOrderId()),
                 "Phải truy được ai đã đưa món ra khỏi cửa hàng (BR-16)");
     }
-
-    // ------------------------------------------------------------------ chống trùng
 
     @Test
     @DisplayName("Cổng thanh toán gửi kết quả về hai lần: không thu tiền hai lần (NFR-06)")
@@ -136,12 +117,6 @@ class OnlinePreorderFlowIT extends IntegrationTestBase {
                 cb.externalId), "Một mã giao dịch chỉ ghi được đúng một lần");
     }
 
-    /**
-     * Với cổng thu bằng chuyển khoản, số tiền do chính khách gõ vào ứng dụng ngân hàng: mã QR
-     * điền sẵn 200.000đ không ngăn được ai đó sửa thành 10.000đ rồi chuyển với đúng nội dung
-     * ấy. Nếu "đã có tiền về" là đủ để xác nhận đơn thì đó là cách mua hàng giá bao nhiêu
-     * cũng được.
-     */
     @Test
     @DisplayName("Tiền về không đúng số tiền của đơn thì đơn không được xác nhận")
     void wrongAmountDoesNotConfirmTheOrder() {
@@ -166,7 +141,6 @@ class OnlinePreorderFlowIT extends IntegrationTestBase {
                 "Khoản tiền vẫn phải nằm lại trong sổ đối soát, và nằm dưới đúng tên của nó: "
                         + "tiền đã thật sự rời tài khoản khách, chỉ là không đúng số");
 
-        // Trả đúng số tiền sau đó vẫn xác nhận được đơn như thường
         assertEquals(PaymentService.CallbackResult.PAID, paymentService.handleCallback(dung.toGateway()));
         assertEquals("CONFIRMED", statusOf(order.getOrderId()));
     }
@@ -211,7 +185,6 @@ class OnlinePreorderFlowIT extends IntegrationTestBase {
     void readyNotificationIsSentOnce() {
         Order order = readyOrder();
 
-        // Gọi lại việc tổng hợp trạng thái: mọi lần sau đều không được sinh thêm tin nhắn
         OrderItem item = staffOrders.findById(order.getOrderId()).getItems().get(0);
         assertThrows(BusinessException.class,
                 () -> kitchenService.markReady(item.getOrderItemId(), userId(KITCHEN_1)),
@@ -221,8 +194,6 @@ class OnlinePreorderFlowIT extends IntegrationTestBase {
                         "WHERE order_id = ? AND event_type = 'ORDER_READY'", order.getOrderId()),
                 "Khách không được nhận tin trùng");
     }
-
-    // ------------------------------------------------------------------ điều kiện giao món
 
     @Test
     @DisplayName("Mã nhận hàng sai thì không giao món, và lần thử được ghi lại")
@@ -323,13 +294,11 @@ class OnlinePreorderFlowIT extends IntegrationTestBase {
                 "Phải phân biệt 'chưa từng thu' với 'đã thu rồi hoàn': " + e.getMessage());
     }
 
-    // ------------------------------------------------------------------ giờ hẹn
-
     @Test
     @DisplayName("Giờ hẹn quá gần thì bị từ chối (BR-05)")
     void pickupTimeTooSoonIsRejected() {
         cartService.addProduct(customerId, anyOrderableProductId(), 1);
-        assertThrows(com.fastfood.common.exception.ValidationException.class,
+        assertThrows(com.fastfood.common.exception.AppException.ValidationException.class,
                 () -> customerOrders.createOnlineOrder(customerId, LocalDateTime.now().plusMinutes(5), null));
     }
 
@@ -338,17 +307,11 @@ class OnlinePreorderFlowIT extends IntegrationTestBase {
     void pickupTimeOutsideOpeningHoursIsRejected() {
         cartService.addProduct(customerId, anyOrderableProductId(), 1);
         LocalDateTime threeAm = LocalDateTime.now().toLocalDate().plusDays(1).atTime(3, 0);
-        assertThrows(com.fastfood.common.exception.ValidationException.class,
+        assertThrows(com.fastfood.common.exception.AppException.ValidationException.class,
                 () -> customerOrders.createOnlineOrder(customerId, threeAm, null),
                 "Không có ràng buộc này thì bộ hẹn giờ đẩy đơn xuống bếp lúc 2 giờ 40 sáng");
     }
 
-    // ------------------------------------------------------------------ dựng dữ liệu
-
-    /**
-     * Giờ hẹn luôn hợp lệ bất kể test chạy lúc nào trong ngày: trưa hôm sau nằm gọn trong
-     * giờ mở cửa và cách hiện tại thừa thời gian.
-     */
     private static LocalDateTime safePickupTime() {
         return LocalDateTime.now().toLocalDate().plusDays(1).atTime(12, 0);
     }
@@ -361,12 +324,6 @@ class OnlinePreorderFlowIT extends IntegrationTestBase {
         return order;
     }
 
-    /**
-     * Đơn đã sẵn sàng và quầy đã cầm đủ món — tức là sẵn sàng giao cho khách.
-     * <p>
-     * Đi qua đúng bốn bước thật chứ không sửa thẳng trạng thái trong cơ sở dữ liệu: bếp làm
-     * xong, bếp bàn giao ra quầy, quầy xác nhận đã cầm, rồi mới tới lượt khách.
-     */
     private Order readyOrder() {
         Order order = readyAtCounter();
         for (OrderItem item : staffOrders.findById(order.getOrderId()).getItems()) {
@@ -375,7 +332,6 @@ class OnlinePreorderFlowIT extends IntegrationTestBase {
         return order;
     }
 
-    /** Bếp đã bàn giao món ra quầy nhưng thu ngân chưa xác nhận cầm. */
     private Order readyAtCounter() {
         Order order = readyButStillInKitchen();
         for (OrderItem item : staffOrders.findById(order.getOrderId()).getItems()) {
@@ -384,7 +340,6 @@ class OnlinePreorderFlowIT extends IntegrationTestBase {
         return order;
     }
 
-    /** Bếp đã nấu xong nhưng món vẫn còn trong bếp, chưa bàn giao ra quầy. */
     private Order readyButStillInKitchen() {
         Order order = placeAndPay();
         dueNow(order.getOrderId());
@@ -395,7 +350,6 @@ class OnlinePreorderFlowIT extends IntegrationTestBase {
         return order;
     }
 
-    /** Kéo kế hoạch vào bếp về quá khứ để bộ hẹn giờ nhặt được ngay, khỏi phải chờ thật. */
     private void dueNow(int orderId) {
         exec("UPDATE dbo.Orders SET kitchen_release_at = ? WHERE order_id = ?",
              LocalDateTime.now().minusMinutes(1), orderId);
@@ -431,17 +385,8 @@ class OnlinePreorderFlowIT extends IntegrationTestBase {
                 "SELECT released_to_kds_at FROM dbo.Orders WHERE order_id = ?", orderId);
     }
 
-    /** Kết quả cổng thanh toán gửi về, dựng lại từ chính địa chỉ mà cổng trả ra. */
     private record Callback(int paymentId, String externalId, BigDecimal amount, String signature) {
 
-        /**
-         * Cùng lần thanh toán ấy nhưng cổng báo về một số tiền khác.
-         * <p>
-         * Ký lại bằng chính cổng chứ không sửa tay số tiền trong bản cũ: sửa tay thì chữ ký hỏng
-         * và bài test chỉ chứng minh được rằng chữ ký hoạt động — điều đã có bài khác lo. Cái
-         * cần dựng lại ở đây là một lệnh gọi về <b>hợp lệ về mọi mặt</b> mà số tiền vẫn không
-         * khớp, đúng như khi khách sửa số tiền ngay trong ứng dụng ngân hàng.
-         */
         Callback withAmount(int orderId, BigDecimal other) {
             String url = new MockPaymentGateway()
                     .initiate(paymentId, orderId, other, "http://test").getRedirectUrl();

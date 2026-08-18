@@ -1,15 +1,15 @@
 package com.fastfood.service.staff;
 
-import com.fastfood.common.constant.AuditAction;
-import com.fastfood.common.constant.BusinessRule;
-import com.fastfood.common.constant.OrderItemStatus;
-import com.fastfood.common.constant.OrderSource;
-import com.fastfood.common.constant.OrderStatus;
-import com.fastfood.common.constant.PaymentMethod;
-import com.fastfood.common.constant.PaymentStatus;
-import com.fastfood.common.exception.BusinessException;
-import com.fastfood.common.exception.NotFoundException;
-import com.fastfood.common.exception.ValidationException;
+import com.fastfood.common.constant.Constants.AuditAction;
+import com.fastfood.common.constant.Constants.BusinessRule;
+import com.fastfood.common.constant.Constants.OrderItemStatus;
+import com.fastfood.common.constant.Constants.OrderSource;
+import com.fastfood.common.constant.Constants.OrderStatus;
+import com.fastfood.common.constant.Constants.PaymentMethod;
+import com.fastfood.common.constant.Constants.PaymentStatus;
+import com.fastfood.common.exception.AppException.BusinessException;
+import com.fastfood.common.exception.AppException.NotFoundException;
+import com.fastfood.common.exception.AppException.ValidationException;
 import com.fastfood.common.util.DateTimeUtil;
 import com.fastfood.config.AppConfig;
 import com.fastfood.dao.shared.OrderDAO;
@@ -18,15 +18,15 @@ import com.fastfood.dao.shared.PaymentDAO;
 import com.fastfood.dao.shared.ProductDAO;
 import com.fastfood.dao.shared.TransactionDAO;
 import com.fastfood.dao.staff.ShiftDAO;
-import com.fastfood.model.dto.Page;
-import com.fastfood.model.dto.PosCartLine;
-import com.fastfood.model.dto.PosLine;
-import com.fastfood.model.entity.Order;
-import com.fastfood.model.entity.OrderItem;
-import com.fastfood.model.entity.Payment;
-import com.fastfood.model.entity.Product;
-import com.fastfood.model.entity.Shift;
-import com.fastfood.model.entity.Transaction;
+import com.fastfood.model.dto.Dtos.Page;
+import com.fastfood.model.dto.Dtos.PosCartLine;
+import com.fastfood.model.dto.Dtos.PosLine;
+import com.fastfood.model.entity.OrderEntities.Order;
+import com.fastfood.model.entity.OrderEntities.OrderItem;
+import com.fastfood.model.entity.OrderEntities.Payment;
+import com.fastfood.model.entity.MenuEntities.Product;
+import com.fastfood.model.entity.OperationEntities.Shift;
+import com.fastfood.model.entity.OrderEntities.Transaction;
 import com.fastfood.service.Tx;
 import com.fastfood.service.shared.AuditService;
 import com.fastfood.service.shared.NotificationService;
@@ -38,25 +38,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-/**
- * Nghiệp vụ đơn hàng <b>phía thu ngân</b> — bán tại quầy, điều phối đơn, nhận món từ bếp,
- * giao món cho khách.
- * <p>
- * Bán tại quầy khác đặt trước ở chỗ tiền thu ngay tại chỗ, nên đặt hàng - thanh toán - xác nhận
- * - đưa xuống bếp diễn ra trong cùng một giao dịch; không có giờ hẹn và không có mã nhận hàng.
- * Đường đặt trước nằm ở {@code service.customer.CustomerOrderService}, phần dùng chung của hai
- * đường nằm ở {@link OrderCoreService}.
- * <p>
- * Servlet gọi lớp này: {@code PosServlet} · {@code OrderDashboardServlet} ·
- * {@code OrderDetailServlet} · {@code CounterServlet} · {@code StaffHistoryServlet}.
- */
 public class StaffOrderService {
 
-    /**
-     * Tên "cổng thanh toán" ghi vào nhật ký đối soát cho khoản thu bằng thẻ hoặc mã QR tại quầy.
-     * Không phải cổng trực tuyến: tiền chạy qua máy thanh toán đặt ở quầy, hệ thống chỉ lưu
-     * lại mã giao dịch in trên biên lai để sau này đối chiếu với sao kê.
-     */
     private static final String POS_TERMINAL = "POS_TERMINAL";
 
     private final OrderDAO orderDAO = new OrderDAO();
@@ -69,27 +52,6 @@ public class StaffOrderService {
     private final NotificationService notificationService = new NotificationService();
     private final OrderCoreService orderCore = new OrderCoreService();
 
-    // ============================================================ bán tại quầy
-
-    /**
-     * Thu ngân lập đơn cho khách tại quầy.
-     * <p>
-     * Toàn bộ đặt hàng - thanh toán - xác nhận - đưa xuống bếp diễn ra trong cùng một giao dịch.
-     * Khách đứng đợi nên không có giờ hẹn và không cần mã nhận hàng.
-     * <p>
-     * Hai hình thức thu tiền được xác nhận theo hai cách khác nhau:
-     * <ul>
-     *   <li><b>Tiền mặt</b> — thu ngân đếm tiền, không có gì để đối chiếu về sau ngoài chính
-     *       bản ghi này.</li>
-     *   <li><b>Thẻ hoặc mã QR</b> — tiền chạy qua máy thanh toán ở quầy chứ không qua hệ thống,
-     *       nên bản ghi "đã thu" ở đây chỉ là lời khai của thu ngân. Vì vậy bắt buộc phải nhập
-     *       mã giao dịch in trên biên lai, và mã đó được ghi vào nhật ký đối soát. Ràng buộc
-     *       duy nhất trên mã khiến một biên lai không thể dùng cho hai đơn — chặn đúng tình
-     *       huống thu ngân lỡ tay lập lại đơn cho một lần quẹt thẻ.</li>
-     * </ul>
-     *
-     * @param terminalReference mã giao dịch trên biên lai máy thanh toán; bỏ trống khi trả tiền mặt
-     */
     public Order createPosOrder(int cashierId, List<PosLine> lines, PaymentMethod method,
                                 String terminalReference) {
         if (lines == null || lines.isEmpty()) {
@@ -107,33 +69,24 @@ public class StaffOrderService {
 
         return Tx.write(con -> {
             Order order = new Order();
-            order.setCustomerId(null);              // khách vãng lai, không cần tài khoản
+            order.setCustomerId(null);
             order.setCreatedByUserId(cashierId);
-            // Gắn đơn vào ca đang mở, nếu có. Chưa mở ca vẫn bán được — chặn lại chỉ làm thu
-            // ngân kẹt giữa giờ cao điểm vì một thủ tục. Đơn không thuộc ca nào thì nằm ngoài
-            // bảng đối soát cuối ca, và màn hình quầy có cảnh báo để không ai bỏ sót chuyện đó.
             Shift openShift = shiftDAO.findOpenOf(con, cashierId);
             order.setShiftId(openShift == null ? null : openShift.getShiftId());
             order.setOrderSource(OrderSource.POS.name());
             order.setOrderStatus(OrderStatus.CONFIRMED.name());
             order.setCreatedAt(now);
-            order.setReleasedToKdsAt(now);          // bếp thấy đơn ngay lập tức
+            order.setReleasedToKdsAt(now);
             order.setTotalAmount(BigDecimal.ZERO);
             orderDAO.insert(con, order);
 
             BigDecimal total = BigDecimal.ZERO;
             for (PosLine line : lines) {
-                // Phiếu tạm nằm trong phiên của thu ngân nhưng số lượng vẫn do trình duyệt gửi lên,
-                // nên vẫn phải kiểm ở đây chứ không tin vào giới hạn của ô nhập. Cùng ngưỡng với
-                // giỏ hàng của khách — xem BusinessRule.MAX_QUANTITY_PER_LINE.
                 if (line.getQuantity() <= 0 || line.getQuantity() > BusinessRule.MAX_QUANTITY_PER_LINE) {
                     throw new ValidationException("Số lượng mỗi món phải từ 1 đến "
                             + BusinessRule.MAX_QUANTITY_PER_LINE + ".");
                 }
                 Product product = productDAO.findForCheckout(con, line.getProductId());
-                // Gọi tên món ra. Câu "món đã chọn hiện không còn phục vụ" đúng nhưng vô dụng:
-                // phiếu mười dòng thì thu ngân phải thử bỏ từng dòng để tìm ra thủ phạm, trong
-                // lúc khách đứng đợi ở quầy.
                 if (product == null) {
                     throw new BusinessException("Trong phiếu có món không còn trong hệ thống. "
                             + "Hãy bỏ món đó ra rồi thu tiền lại.");
@@ -168,9 +121,6 @@ public class StaffOrderService {
             paymentDAO.insert(con, payment);
             order.setLatestPayment(payment);
 
-            // Khoản thu qua máy thanh toán phải để lại dấu vết đối soát. Ghi mã biên lai vào
-            // cùng bảng với giao dịch của cổng trực tuyến, nên báo cáo đối soát chỉ cần đọc
-            // một nơi, và ràng buộc duy nhất bảo vệ cả hai đường thu tiền như nhau.
             if (method == PaymentMethod.ONLINE_GATEWAY) {
                 Transaction txn = transactionDAO.newTransaction(payment.getPaymentId(), POS_TERMINAL,
                         reference, "SUCCESS", "Thu tại quầy, mã biên lai do thu ngân nhập.", now);
@@ -191,17 +141,6 @@ public class StaffOrderService {
         });
     }
 
-    /**
-     * Dựng phiếu tính tiền để hiển thị, từ giỏ tạm nằm trong phiên làm việc của thu ngân.
-     * <p>
-     * Đọc qua đúng câu truy vấn mà {@link #createPosOrder} dùng lúc thu tiền
-     * ({@code findForCheckout}, có tính cả nhóm món đã tắt), nên những gì màn hình nói được về
-     * một món là đúng thứ sẽ xảy ra khi bấm nút — không còn cảnh phiếu hiện bình thường rồi
-     * thanh toán mới báo món không phục vụ nữa.
-     * <p>
-     * Mỗi dòng một lượt truy vấn. Giỏ của một khách đứng ở quầy chỉ vài dòng nên chấp nhận được,
-     * và đổi lại là bỏ được lượt nạp toàn bộ thực đơn mà bản trước phải làm chỉ để tra tên món.
-     */
     public List<PosCartLine> describeCart(Map<Integer, Integer> cart) {
         if (cart == null || cart.isEmpty()) {
             return List.of();
@@ -219,20 +158,15 @@ public class StaffOrderService {
         });
     }
 
-    // ============================================================ đọc
-
-    /** Đơn kèm món và lần thanh toán gần nhất — màn hình chi tiết đơn của thu ngân. */
     public Order findById(int orderId) {
         return orderCore.findById(orderId);
     }
 
-    /** Bốn tab trên màn hình đơn hàng của thu ngân. */
     public List<Order> dashboard(String tab) {
         return Tx.read(con -> orderDAO.findForDashboard(con, tab, DateTimeUtil.now(),
                 AppConfig.pickupOverdueMinutes()));
     }
 
-    /** Một trang đơn khớp bộ lọc, dùng cho màn hình lịch sử của thu ngân. */
     public Page<Order> search(String source, String status,
                               LocalDateTime from, LocalDateTime to, int pageNo) {
         int page = Page.safePage(pageNo);
@@ -243,7 +177,6 @@ public class StaffOrderService {
                 orderDAO.countSearch(con, source, status, from, to)));
     }
 
-    /** Tra đơn theo mã nhận hàng khi khách tới quầy. */
     public Order findByPickupCode(String code) {
         String normalized = code == null ? "" : code.trim().toUpperCase();
         if (normalized.isEmpty()) {
@@ -263,18 +196,6 @@ public class StaffOrderService {
         return order;
     }
 
-    // ============================================================ huỷ đơn
-
-    /**
-     * Thu ngân đóng đơn.
-     * <p>
-     * Khác đường huỷ của khách ở chỗ đóng được cả đơn đang nấu dở và đơn đã sẵn sàng mà
-     * khách không tới lấy. Đây là lối thoát duy nhất cho ba tình huống trước đây không có
-     * cách xử lý: khách không đến, bếp báo hết nguyên liệu, và khách gọi điện xin huỷ muộn.
-     * <p>
-     * Lý do huỷ bắt buộc phải có và được ghi vào nhật ký thao tác — đây là thao tác duy nhất
-     * làm mất doanh thu đã ghi nhận, nên phải truy được ai quyết định và vì sao.
-     */
     public void cancelByStaff(int orderId, int staffId, String reason) {
         String note = reason == null ? "" : reason.trim();
         if (note.isEmpty()) {
@@ -300,26 +221,14 @@ public class StaffOrderService {
         });
     }
 
-    // ============================================================ quầy nhận món từ bếp
-
-    /** Món bếp đã đưa ra quầy mà chưa ai xác nhận cầm. */
     public List<OrderItem> awaitingCounter() {
         return Tx.read(orderItemDAO::findAwaitingCounter);
     }
 
-    /** Số món đang nằm chờ trên quầy — hiện thành cảnh báo trên màn hình điều phối. */
     public int countAwaitingCounter() {
         return Tx.read(orderItemDAO::countAwaitingCounter);
     }
 
-    /**
-     * Đơn chờ khách tới lấy, kèm danh sách món, để màn hình quầy nói được đơn nào còn thiếu món.
-     * <p>
-     * {@link #dashboard} không nạp món vì bốn tab của nó chỉ hiện dòng tóm tắt. Ở đây thì cần,
-     * nên phải có phương thức riêng — mỗi đơn một lượt truy vấn món. Danh sách này bị chặn bởi
-     * số đơn thật sự đang nằm chờ ở một quầy, tức là vài đơn, nên chấp nhận được; nếu về sau
-     * nó dài ra thì đây là chỗ cần gộp thành một câu truy vấn.
-     */
     public List<Order> readyOrdersForCounter() {
         return Tx.read(con -> {
             List<Order> orders = orderDAO.findForDashboard(con, "READY", DateTimeUtil.now(),
@@ -331,13 +240,6 @@ public class StaffOrderService {
         });
     }
 
-    /**
-     * Thu ngân xác nhận đã cầm món tại quầy.
-     * <p>
-     * Không đổi trạng thái đơn: đây là bàn giao nội bộ giữa hai vị trí trong cửa hàng, khách
-     * chưa nhận được gì. Trạng thái đơn chỉ đổi khi món thật sự ra khỏi cửa hàng — xem
-     * {@link #handoff}.
-     */
     public void receiveAtCounter(int orderItemId, int cashierId) {
         LocalDateTime now = DateTimeUtil.now();
         Tx.writeVoid(con -> {
@@ -347,8 +249,6 @@ public class StaffOrderService {
             }
             int changed = orderItemDAO.receiveAtCounter(con, orderItemId, cashierId, now);
             if (changed == 0) {
-                // Đọc lại để nói đúng lý do thay vì một câu chung chung khiến thu ngân
-                // bấm đi bấm lại một nút không bao giờ ăn.
                 if (item.isReceived()) {
                     throw new BusinessException("Món này đã được nhận rồi.");
                 }
@@ -359,19 +259,6 @@ public class StaffOrderService {
         });
     }
 
-    // ============================================================ giao món cho khách
-
-    /**
-     * Giao món cho khách.
-     * <p>
-     * Bốn điều kiện phải cùng đúng: món đã sẵn sàng, quầy đã nhận đủ món từ bếp, tiền đã thu,
-     * và với đơn đặt trước thì mã khách đưa phải khớp. Kiểm tra ở phía máy chủ chứ không dựa
-     * vào giao diện, vì đây là bước quyết định món ra khỏi cửa hàng.
-     * <p>
-     * Lần đưa sai mã được ghi lại ở <b>giao dịch riêng</b>. Ghi chung với giao dịch chính thì
-     * bản ghi bị huỷ cùng lúc với thao tác bị từ chối, và chuyện đáng theo dõi nhất — ai đó
-     * đứng ở quầy thử hết mã này tới mã khác — lại là chuyện duy nhất không để lại dấu vết.
-     */
     public Order handoff(int orderId, int cashierId, String presentedCode) {
         LocalDateTime now = DateTimeUtil.now();
         try {
@@ -383,13 +270,12 @@ public class StaffOrderService {
         }
     }
 
-    /** Mã khách đưa không khớp. Chỉ dùng trong nội bộ lớp này để thoát khỏi giao dịch. */
     private static final class PickupCodeMismatch extends RuntimeException {
         private final transient String expected;
         private final transient String given;
 
         PickupCodeMismatch(String expected, String given) {
-            super(null, null, false, false);   // không cần vết ngăn xếp, đây là luồng nghiệp vụ
+            super(null, null, false, false);
             this.expected = expected;
             this.given = given;
         }
@@ -404,8 +290,6 @@ public class StaffOrderService {
             if (!OrderStatus.READY.name().equals(order.getOrderStatus())) {
                 throw new BusinessException("Đơn chưa sẵn sàng để giao.");
             }
-            // Đơn sẵn sàng chỉ nghĩa là bếp đã nấu xong. Món có thể vẫn còn trong bếp, và giao
-            // cho khách trước khi quầy cầm được món là cách chắc chắn nhất để phát thiếu món.
             int notReceived = orderItemDAO.countNotReceived(con, orderId);
             if (notReceived > 0) {
                 throw new BusinessException("Còn " + notReceived + " món chưa được nhận tại quầy. "
@@ -413,9 +297,6 @@ public class StaffOrderService {
             }
             Payment paid = paymentDAO.findPaidByOrder(con, orderId);
             if (paid == null) {
-                // Phân biệt hai chuyện khác hẳn nhau: chưa từng thu được tiền, và đã thu rồi
-                // hoàn lại. Gộp làm một thì nhân viên tưởng cứ thu tiền là giao được, trong khi
-                // đơn đã hoàn tiền phải lập lại từ đầu.
                 Payment latest = paymentDAO.findLatestByOrder(con, orderId);
                 if (latest != null && PaymentStatus.REFUNDED.name().equals(latest.getPaymentStatus())) {
                     throw new BusinessException("Đơn này đã được hoàn tiền nên không giao được. "
@@ -427,9 +308,6 @@ public class StaffOrderService {
                 String expected = order.getPickupCode();
                 String given = presentedCode == null ? "" : presentedCode.trim().toUpperCase();
                 if (expected == null || !expected.equals(given)) {
-                    // KHÔNG ghi nhật ký ở đây: câu lệnh tiếp theo huỷ cả giao dịch, và bản ghi
-                    // nhật ký sẽ bị huỷ theo. Ném ra ngoài rồi ghi ở giao dịch riêng — xem
-                    // khối catch bên trên.
                     throw new PickupCodeMismatch(expected, given);
                 }
                 auditService.log(con, cashierId, "ORDER", orderId,

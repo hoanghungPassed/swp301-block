@@ -4,10 +4,8 @@
 
   <%@ include file="/WEB-INF/views/layout/flash.jspf" %>
 
-  <%-- Tra mã đặt trên cùng: khách đứng ở quầy là việc gấp nhất trong màn hình này. --%>
   <div class="card">
     <form method="get" action="${ctx}/staff/orders" class="form-row">
-      <%-- Giữ tab đang mở, nếu không thì tra một mã xong lại quay về tab mặc định. --%>
       <input type="hidden" name="tab" value="${tab}">
       <div class="field">
         <label for="code">Mã nhận hàng</label>
@@ -65,8 +63,6 @@
     </c:if>
   </div>
 
-  <%-- Món đang nằm trên quầy là việc phải làm ngay: món để lâu thì nguội, và đơn không giao
-       được cho khách chừng nào quầy chưa nhận đủ món. --%>
   <c:if test="${awaitingCounterCount > 0}">
     <div class="alert alert-info">
       Bếp vừa bàn giao <strong>${awaitingCounterCount} món</strong> ra quầy mà chưa ai xác nhận
@@ -147,9 +143,6 @@
                   <a class="btn touch btn-primary" href="${ctx}/staff/order/detail?orderId=${o.orderId}">Mở</a>
                 </td>
               </tr>
-              <%-- Ghi chú điều phối nằm ngay dưới dòng đơn thay vì một cột riêng: nội dung là
-                   câu văn, nhét vào cột sẽ ép cả bảng hẹp lại. Hàng này chỉ hiện khi có ghi chú
-                   hoặc khi đang sửa, nên bảng vẫn gọn với đơn không có gì đặc biệt. --%>
               <c:set var="notes" value="${notesByOrder[o.orderId]}" />
               <tr class="note-row">
                 <td colspan="8">

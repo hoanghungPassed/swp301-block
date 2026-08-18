@@ -1,12 +1,12 @@
 package com.fastfood.flow;
 
-import com.fastfood.common.constant.RoleName;
-import com.fastfood.common.exception.NotFoundException;
-import com.fastfood.common.exception.ValidationException;
+import com.fastfood.common.constant.Constants.RoleName;
+import com.fastfood.common.exception.AppException.NotFoundException;
+import com.fastfood.common.exception.AppException.ValidationException;
 import com.fastfood.filter.AuthenticationFilter;
 import com.fastfood.filter.RoleAuthorizationFilter;
-import com.fastfood.model.dto.Page;
-import com.fastfood.model.entity.User;
+import com.fastfood.model.dto.Dtos.Page;
+import com.fastfood.model.entity.UserEntities.User;
 import com.fastfood.service.admin.AdminService;
 import com.fastfood.service.auth.AuthService;
 import com.fastfood.testsupport.FakeHttp;
@@ -22,24 +22,10 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/**
- * Vai trò gán cho tài khoản — phần phân quyền nằm ở tầng nghiệp vụ.
- * <p>
- * {@code RoleAuthorizationFilterTest} kiểm một vai trò <i>đi được tới đâu</i>. Bài này kiểm vế
- * còn lại: <b>vai trò đó được gán ra sao</b>. Cả hai đều là cửa vào khu vực đặc quyền, và cửa
- * thứ hai dễ bị bỏ quên hơn vì trông như một ô chọn bình thường trên biểu mẫu.
- * <p>
- * Điều cần chứng minh ở đây là màn hình quản trị <b>không phải</b> rào chắn: ô chọn vai trò trên
- * trang tạo tài khoản đã ẩn mục "Khách hàng", nhưng ẩn một mục trong thẻ {@code select} chỉ đổi
- * cái người dùng nhìn thấy — chuỗi gửi lên máy chủ thì ai cũng sửa được. Rào chắn thật phải nằm
- * ở tầng dịch vụ, đúng như ghi chú trên {@code RoleName}.
- */
 @DisplayName("Gán vai trò cho tài khoản")
 class AdminRoleAssignmentIT extends IntegrationTestBase {
 
     private final AdminService adminService = new AdminService();
-
-    // ================================================================== tạo tài khoản
 
     @Nested
     @DisplayName("Tạo tài khoản nhân viên")
@@ -103,8 +89,6 @@ class AdminRoleAssignmentIT extends IntegrationTestBase {
         }
     }
 
-    // ================================================================== đổi vai trò
-
     @Nested
     @DisplayName("Đổi vai trò của tài khoản")
     class ChangeRole {
@@ -155,8 +139,6 @@ class AdminRoleAssignmentIT extends IntegrationTestBase {
         }
     }
 
-    // ================================================================== trạng thái tài khoản
-
     @Nested
     @DisplayName("Trạng thái tài khoản")
     class Status {
@@ -187,16 +169,6 @@ class AdminRoleAssignmentIT extends IntegrationTestBase {
         }
     }
 
-    // ================================================================== lọc theo vai trò
-
-    /**
-     * Vế còn lại của cùng một câu hỏi. Hai nhóm trên kiểm vai trò lúc <b>ghi</b>; nhóm này kiểm
-     * vai trò lúc <b>đọc</b> — tên vai trò trên thanh địa chỉ cũng là chuỗi người dùng sửa được.
-     * <p>
-     * Ở đây một giá trị lạ không được phép thành lỗi: nó phải hiểu thành "không lọc". Trả về
-     * bảng rỗng thì màn hình nói dối — trống vì lọc trượt trông y hệt trống vì chưa có tài khoản
-     * nào, và quản trị viên sẽ đi tìm những tài khoản vẫn đang nằm nguyên đó.
-     */
     @Nested
     @DisplayName("Lọc danh sách theo vai trò")
     class LocTheoVaiTro {
@@ -236,10 +208,6 @@ class AdminRoleAssignmentIT extends IntegrationTestBase {
                     adminService.listUsers("   ", null, null, 1).getTotalItems());
         }
 
-        /**
-         * Số đếm và danh sách phải đi qua cùng một bộ lọc. Lệch nhau thì thanh phân trang hứa
-         * hẹn những trang không có gì trong đó.
-         */
         @Test
         @DisplayName("Số tổng và danh sách cùng đếm trên một bộ lọc")
         void countAndItemsAgree() {
@@ -249,14 +217,6 @@ class AdminRoleAssignmentIT extends IntegrationTestBase {
         }
     }
 
-    // ================================================================== bảng Role và enum RoleName
-
-    /**
-     * Vai trò tồn tại ở hai nơi: bốn hàng trong bảng {@code Role}, và bốn hằng số trong enum
-     * {@link RoleName}. Bảng quyết định gán được cái gì; enum quyết định vào được đâu. Hai bên
-     * lệch nhau thì không có gì báo lỗi — chỉ có những tài khoản đăng nhập được mà bị chặn ở
-     * mọi khu vực, đúng nhánh "vai trò lạ → 403" mà {@code RoleAuthorizationFilterTest} đã kiểm.
-     */
     @Nested
     @DisplayName("Bảng Role khớp với enum RoleName")
     class DuLieuVaiTro {
@@ -274,11 +234,6 @@ class AdminRoleAssignmentIT extends IntegrationTestBase {
                             + "nhập được nhưng bị chặn ở khắp nơi");
         }
 
-        /**
-         * Bài trên canh <i>dữ liệu</i> trong bảng; bài này canh <i>cái khoá</i> giữ cho dữ liệu
-         * đó không lệch được. Đây cũng là lý do {@code AdminService.requireRole} chỉ kiểm mã vai
-         * trò có thật chứ không kiểm thêm tên: một tên ngoài bốn cái đã biết không vào nổi bảng.
-         */
         @Test
         @DisplayName("Vai trò thứ năm không lọt được vào bảng, dù gửi thẳng câu lệnh")
         void aFifthRoleCannotEvenEnterTheTable() {
@@ -291,8 +246,6 @@ class AdminRoleAssignmentIT extends IntegrationTestBase {
         }
     }
 
-    // ================================================================== hiệu lực của vai trò mới
-
     @Nested
     @DisplayName("Vai trò mới có hiệu lực ngay trong phiên đang mở")
     class HieuLucNgay {
@@ -300,12 +253,6 @@ class AdminRoleAssignmentIT extends IntegrationTestBase {
         private final AuthenticationFilter authFilter = new AuthenticationFilter();
         private final RoleAuthorizationFilter roleFilter = new RoleAuthorizationFilter();
 
-        /**
-         * Hai bài đã có ở nơi khác mỗi bài chứng minh một nửa: {@code AuthGuardIT} chứng minh
-         * phiên nhận được vai trò mới, {@code RoleAuthorizationFilterTest} chứng minh vai trò
-         * sai thì bị chặn. Bài này nối hai nửa lại — vì câu mà người dùng thật sự quan tâm
-         * ("hạ quyền là chặn được ngay") chỉ đúng khi cả hai cùng chạy đúng thứ tự.
-         */
         @Test
         @DisplayName("Hạ thu ngân xuống khách thì họ mất luôn đường vào màn hình quầy")
         void demotedCashierLosesTheCounterScreenImmediately() throws Exception {
@@ -315,8 +262,6 @@ class AdminRoleAssignmentIT extends IntegrationTestBase {
 
             adminService.setUserRole(userId(ADMIN), target, roleId("CUSTOMER"));
 
-            // Bộ lọc đăng nhập chạy trước và đồng bộ lại bản chụp trong phiên; bộ lọc phân quyền
-            // chạy sau và đọc chính bản chụp đó. Đúng thứ tự khai báo trong web.xml.
             authFilter.doFilter(FakeHttp.request("/staff/pos").in(session).method("POST").build(),
                     FakeHttp.response().build(), FakeHttp.chain().build());
 
@@ -331,8 +276,6 @@ class AdminRoleAssignmentIT extends IntegrationTestBase {
             assertEquals(HttpServletResponse.SC_FORBIDDEN, resp.status());
         }
     }
-
-    // ------------------------------------------------------------------ tiện ích
 
     private static String newEmail() {
         return "test-vaitro-" + System.nanoTime() + "@fastfood.vn";

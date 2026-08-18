@@ -1,6 +1,6 @@
 package com.fastfood.dao.shared;
 
-import com.fastfood.model.entity.Payment;
+import com.fastfood.model.entity.OrderEntities.Payment;
 
 import java.sql.*;
 import java.time.LocalDateTime;
@@ -8,7 +8,6 @@ import java.util.ArrayList;
 import java.util.List;
 import com.fastfood.dao.JdbcSupport;
 
-/** Truy vấn bảng Payment. */
 public class PaymentDAO {
 
     private static final String COLS =
@@ -36,7 +35,6 @@ public class PaymentDAO {
         return p.getPaymentId();
     }
 
-    /** Số thứ tự cho lần thanh toán tiếp theo của đơn. */
     public int nextAttemptNo(Connection con, int orderId) throws SQLException {
         try (PreparedStatement ps = con.prepareStatement(
                 "SELECT ISNULL(MAX(attempt_no), 0) + 1 FROM dbo.Payment WHERE order_id = ?")) {
@@ -47,11 +45,6 @@ public class PaymentDAO {
         }
     }
 
-    /**
-     * Ghi nhận thanh toán thành công.
-     * Điều kiện trạng thái trong câu lệnh khiến cổng thanh toán gọi lại lần hai
-     * không ghi nhận tiền thêm lần nữa.
-     */
     public int markPaid(Connection con, int paymentId, LocalDateTime now) throws SQLException {
         String sql = "UPDATE dbo.Payment SET payment_status = 'PAID', paid_at = ? " +
                      "WHERE payment_id = ? AND payment_status IN ('PENDING', 'UNPAID')";
@@ -71,7 +64,6 @@ public class PaymentDAO {
         }
     }
 
-    /** Hoàn tiền toàn phần. Không có hoàn một phần trong phạm vi hệ thống này. */
     public int markRefunded(Connection con, int paymentId, LocalDateTime now) throws SQLException {
         String sql = "UPDATE dbo.Payment SET payment_status = 'REFUNDED', refunded_at = ? " +
                      "WHERE payment_id = ? AND payment_status = 'PAID'";
@@ -106,7 +98,6 @@ public class PaymentDAO {
         }
     }
 
-    /** Lần thanh toán thành công của đơn, nếu có. */
     public Payment findPaidByOrder(Connection con, int orderId) throws SQLException {
         try (PreparedStatement ps = con.prepareStatement(
                 "SELECT " + COLS + "FROM dbo.Payment p WHERE p.order_id = ? AND p.payment_status = 'PAID'")) {
@@ -117,7 +108,6 @@ public class PaymentDAO {
         }
     }
 
-    /** Lần thanh toán gần nhất, dùng để hiển thị trạng thái cho khách. */
     public Payment findLatestByOrder(Connection con, int orderId) throws SQLException {
         try (PreparedStatement ps = con.prepareStatement(
                 "SELECT TOP 1 " + COLS + "FROM dbo.Payment p WHERE p.order_id = ? ORDER BY p.attempt_no DESC")) {

@@ -1,7 +1,7 @@
 package com.fastfood.dao.shared;
 
 import com.fastfood.dao.JdbcSupport;
-import com.fastfood.model.entity.PasswordResetToken;
+import com.fastfood.model.entity.UserEntities.PasswordResetToken;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -10,13 +10,6 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.time.LocalDateTime;
 
-/**
- * Truy vấn bảng PasswordResetToken.
- * <p>
- * Mọi phương thức nhận vào <b>bản băm</b> của mã, không bao giờ nhận mã gốc — băm là việc của
- * {@code PasswordResetService}, và giữ nó ngoài tầng này là cách chắc chắn không có câu lệnh
- * nào lỡ tay ghi mã gốc xuống bảng.
- */
 public class PasswordResetTokenDAO {
 
     private static final String BASE =
@@ -51,16 +44,6 @@ public class PasswordResetTokenDAO {
         }
     }
 
-    /**
-     * Đánh dấu đã dùng, và chỉ khi mã còn chưa dùng.
-     * <p>
-     * Điều kiện {@code used_at IS NULL} nằm trong chính câu lệnh chứ không kiểm ở tầng trên:
-     * hai yêu cầu gửi cùng lúc bằng cùng một liên kết đều đọc thấy "chưa dùng" rồi cùng đi
-     * tiếp. Để cơ sở dữ liệu phân xử thì đúng một trong hai đổi được số dòng, và tầng trên
-     * biết mình có phải là người thắng hay không.
-     *
-     * @return true nếu chính lần gọi này đánh dấu được
-     */
     public boolean markUsed(Connection con, long tokenId, LocalDateTime usedAt) throws SQLException {
         try (PreparedStatement ps = con.prepareStatement(
                 "UPDATE dbo.PasswordResetToken SET used_at = ? WHERE token_id = ? AND used_at IS NULL")) {
@@ -70,15 +53,6 @@ public class PasswordResetTokenDAO {
         }
     }
 
-    /**
-     * Vô hiệu hoá mọi mã còn hiệu lực của một tài khoản.
-     * <p>
-     * Gọi ở hai chỗ: khi cấp mã mới, và mỗi khi mật khẩu đổi bằng bất kỳ đường nào khác. Thiếu
-     * chỗ thứ hai thì một liên kết xin từ trước vẫn dùng được sau khi chủ tài khoản đã đổi mật
-     * khẩu — đúng tình huống người ta đổi mật khẩu để phòng, mà cửa cũ thì vẫn mở.
-     * <p>
-     * Đánh dấu đã dùng chứ không xoá: dòng nhật ký vẫn còn để về sau tra lại.
-     */
     public int invalidateAllFor(Connection con, int userId, LocalDateTime at) throws SQLException {
         try (PreparedStatement ps = con.prepareStatement(
                 "UPDATE dbo.PasswordResetToken SET used_at = ? WHERE user_id = ? AND used_at IS NULL")) {
@@ -88,7 +62,6 @@ public class PasswordResetTokenDAO {
         }
     }
 
-    /** Số lần tài khoản này đã xin đặt lại mật khẩu kể từ {@code since}. */
     public int countRequestsSince(Connection con, int userId, LocalDateTime since) throws SQLException {
         try (PreparedStatement ps = con.prepareStatement(
                 "SELECT COUNT(*) FROM dbo.PasswordResetToken WHERE user_id = ? AND created_at >= ?")) {

@@ -15,13 +15,6 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/**
- * Chất lượng của chuỗi bí mật dùng cho mã chống giả mạo và mã đặt lại mật khẩu.
- * <p>
- * Cả hai cơ chế đứng vững trên đúng một giả định: <b>người ngoài không đoán được chuỗi này</b>.
- * Giả định đó không có màn hình nào kiểm chứng hộ — mã sinh kém vẫn trông y hệt mã sinh tốt,
- * và hệ thống vẫn chạy đúng cho tới ngày có người thử đoán.
- */
 @DisplayName("Mã bí mật dùng một lần")
 class CsrfTokenTest {
 
@@ -38,7 +31,6 @@ class CsrfTokenTest {
             }
         }
 
-        /** 32 byte ngẫu nhiên: quá rộng để dò hết trong khoảng thời gian mã còn hạn. */
         @Test
         @DisplayName("Đủ dài để không dò hết được")
         void longEnough() {
@@ -47,7 +39,6 @@ class CsrfTokenTest {
                     "Ma chi dai " + token.length() + " ky tu — 32 byte ma hoa base64 phai ra 43");
         }
 
-        /** Mã đi trong địa chỉ và trong ô ẩn của biểu mẫu, nên không được cần mã hoá thêm. */
         @Test
         @DisplayName("Chỉ gồm ký tự an toàn cho địa chỉ URL")
         void urlSafe() {
@@ -77,12 +68,6 @@ class CsrfTokenTest {
             assertNotEquals(SecureToken.hash("a"), SecureToken.hash("b"));
         }
 
-        /**
-         * {@code String.equals} dừng ngay ở ký tự đầu tiên khác nhau, nên thời gian trả lời tiết
-         * lộ mình đã đoán đúng được mấy ký tự — đó là cách bẻ khoá từng ký tự một. Bài test không
-         * đo được thời gian một cách đáng tin, nhưng kiểm được rằng kết quả đúng ở mọi trường hợp
-         * biên mà cách so sánh này hay làm sai.
-         */
         @Test
         @DisplayName("So khớp đúng ở mọi trường hợp biên")
         void comparisonEdgeCases() {
@@ -116,10 +101,6 @@ class CsrfTokenTest {
                     CsrfUtil.token(FakeHttp.request("/menu").build()));
         }
 
-        /**
-         * Gọi ngay sau khi đăng nhập. Phiên cũ đã bị huỷ nên mã cũ phải bỏ theo — mang sang phiên
-         * mới thì mã mà kẻ tấn công đọc được từ phiên trước vẫn còn dùng được.
-         */
         @Test
         @DisplayName("Cấp lại mã thì mã cũ hết giá trị")
         void rotateReplacesTheToken() {

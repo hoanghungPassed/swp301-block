@@ -1,7 +1,7 @@
 package com.fastfood.dao.shared;
 
 import com.fastfood.dao.JdbcSupport;
-import com.fastfood.model.entity.EmailVerificationToken;
+import com.fastfood.model.entity.UserEntities.EmailVerificationToken;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -10,13 +10,6 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.time.LocalDateTime;
 
-/**
- * Truy vấn bảng EmailVerificationToken.
- * <p>
- * Mọi phương thức nhận vào <b>bản băm</b> của mã, không bao giờ nhận mã gốc — băm là việc của
- * {@code EmailVerificationService}, và giữ nó ngoài tầng này là cách chắc chắn không có câu
- * lệnh nào lỡ tay ghi mã gốc xuống bảng. Cùng một quy ước với {@link PasswordResetTokenDAO}.
- */
 public class EmailVerificationTokenDAO {
 
     private static final String BASE =
@@ -51,16 +44,6 @@ public class EmailVerificationTokenDAO {
         }
     }
 
-    /**
-     * Đánh dấu đã dùng, và chỉ khi mã còn chưa dùng.
-     * <p>
-     * Điều kiện {@code used_at IS NULL} nằm trong chính câu lệnh chứ không kiểm ở tầng trên:
-     * trình duyệt và các bộ quét liên kết trong hộp thư đều có thói quen tải trước đường dẫn
-     * trong thư, nên lượt bấm thật của người dùng rất hay là lượt thứ hai. Để cơ sở dữ liệu
-     * phân xử thì đúng một lượt đổi được số dòng.
-     *
-     * @return true nếu chính lần gọi này đánh dấu được
-     */
     public boolean markUsed(Connection con, long tokenId, LocalDateTime usedAt) throws SQLException {
         try (PreparedStatement ps = con.prepareStatement(
                 "UPDATE dbo.EmailVerificationToken SET used_at = ? WHERE token_id = ? AND used_at IS NULL")) {
@@ -70,14 +53,6 @@ public class EmailVerificationTokenDAO {
         }
     }
 
-    /**
-     * Vô hiệu hoá mọi mã còn hiệu lực của một tài khoản.
-     * <p>
-     * Gọi khi cấp mã mới và ngay sau khi xác thực xong. Thiếu chỗ thứ hai thì những lá thư gửi
-     * trước đó vẫn còn mã dùng được, nằm lại trong hộp thư mà chẳng để làm gì.
-     * <p>
-     * Đánh dấu đã dùng chứ không xoá: dòng nhật ký vẫn còn để về sau tra lại.
-     */
     public int invalidateAllFor(Connection con, int userId, LocalDateTime at) throws SQLException {
         try (PreparedStatement ps = con.prepareStatement(
                 "UPDATE dbo.EmailVerificationToken SET used_at = ? WHERE user_id = ? AND used_at IS NULL")) {
@@ -87,7 +62,6 @@ public class EmailVerificationTokenDAO {
         }
     }
 
-    /** Số lần tài khoản này đã xin thư xác thực kể từ {@code since}. */
     public int countRequestsSince(Connection con, int userId, LocalDateTime since) throws SQLException {
         try (PreparedStatement ps = con.prepareStatement(
                 "SELECT COUNT(*) FROM dbo.EmailVerificationToken WHERE user_id = ? AND created_at >= ?")) {

@@ -25,10 +25,6 @@
               </td>
               <td class="center">
                 <a class="btn btn-sm" href="${ctx}/admin/categories?edit=${cat.categoryId}">Sửa</a>
-                <%-- Ẩn một nhóm đang có món là thao tác nhìn thấy hậu quả ngay trên thực đơn của
-                     khách, nên phải hỏi lại và nói rõ bao nhiêu món sẽ biến mất. Nhóm rỗng thì
-                     không hỏi: hỏi cho mọi thứ là cách nhanh nhất khiến người dùng bấm Đồng ý
-                     theo phản xạ, kể cả đúng lúc lẽ ra phải dừng lại. --%>
                 <form method="post" action="${ctx}/admin/categories" class="inline-form"
                       <c:if test="${cat.active and cat.productCount > 0}">data-confirm="Ẩn nhóm này? ${cat.productCount} món trong nhóm sẽ không còn hiện trên thực đơn."</c:if>>
                   <input type="hidden" name="_csrf" value="${csrfToken}">
@@ -61,9 +57,6 @@
           <label for="displayOrder">Thứ tự hiển thị</label>
           <input type="number" id="displayOrder" name="displayOrder" value="${empty editing ? 0 : editing.displayOrder}">
         </div>
-        <%-- Không có ô tick trạng thái ở đây: ẩn/hiện nhóm là nút riêng trên từng dòng của
-             bảng bên trái. Để chung form thì mỗi lần sửa tên nhóm lại ghi đè trạng thái, và
-             một lần quên tick là cả nhóm rời thực đơn mà không ai chủ ý làm vậy. --%>
         <button type="submit" class="btn btn-primary btn-block">
           ${empty editing ? 'Thêm nhóm' : 'Lưu thay đổi'}
         </button>

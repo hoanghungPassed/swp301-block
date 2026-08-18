@@ -13,6 +13,7 @@ hẹn 20 phút — đủ để món vừa xong khi khách tới, không sớm t�
 | [docs/STRUCTURE.md](docs/STRUCTURE.md) | Kiến trúc, luồng nghiệp vụ, bảng địa chỉ |
 | [docs/DATABASE-PLAN.md](docs/DATABASE-PLAN.md) | Thiết kế cơ sở dữ liệu và lý do từng quyết định |
 | [database/README.md](database/README.md) | Cách dựng cơ sở dữ liệu |
+| [docs/GIT.md](docs/GIT.md) | Quy tắc làm việc trên Git — đọc trước khi commit |
 
 ## Công nghệ
 

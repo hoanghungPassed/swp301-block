@@ -5,15 +5,6 @@ import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
 import java.util.Locale;
 
-/**
- * Định dạng tiền Việt: 55000 -> "55.000 đ".
- * <p>
- * {@link DecimalFormat} giữ trạng thái nội bộ trong lúc định dạng nên không dùng chung
- * được giữa nhiều luồng: hai người cùng mở một trang có bảng giá thì chuỗi trả về có thể
- * lẫn chữ số của nhau, hoặc ném lỗi ngay giữa lúc dựng trang. Mỗi luồng vì vậy giữ một
- * bản riêng qua {@link ThreadLocal} — vẫn tái sử dụng được, mà không phải tạo mới
- * cho từng lần gọi.
- */
 public final class MoneyUtil {
 
     private static final DecimalFormatSymbols SYMBOLS;

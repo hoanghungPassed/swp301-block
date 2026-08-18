@@ -10,17 +10,9 @@ import java.util.Set;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/**
- * Mã nhận hàng.
- * <p>
- * Đây là thứ duy nhất chứng minh người đứng ở quầy đúng là chủ đơn, nên nó phải đủ khó đoán.
- * Nhưng nhân viên cũng phải gõ tay được mã này khi khách không quét được mã vạch — nên bảng
- * chữ cái bỏ hết các ký tự dễ đọc nhầm.
- */
 @DisplayName("Mã nhận hàng")
 class PickupCodeGeneratorTest {
 
-    /** Ký tự bị loại vì trên màn hình và trên giấy in nhiệt rất dễ đọc nhầm sang nhau. */
     private static final String CONFUSABLE = "01OI";
 
     @Test
@@ -66,8 +58,6 @@ class PickupCodeGeneratorTest {
             }
         }
 
-        // 32^4 ≈ 1,05 triệu tổ hợp mỗi ngày. Vài lần trùng trên 2000 mẫu là bình thường về
-        // mặt xác suất, và hệ thống vốn đã sinh lại tối đa 5 lần khi gặp mã trùng.
         assertTrue(collisions < 20,
                 "Trùng " + collisions + "/2000 lần là quá nhiều, nguồn ngẫu nhiên có vấn đề");
     }

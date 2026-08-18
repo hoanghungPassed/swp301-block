@@ -77,17 +77,7 @@
         </div>
       </div>
 
-      <%-- Chọn giờ nằm ngay dưới giỏ chứ không ở trang riêng: khách sửa số lượng rồi đặt
-           luôn, không phải đi tới đi lui giữa hai trang. --%>
       <c:choose>
-        <%--
-          Chưa xác thực email thì không dựng biểu mẫu chọn giờ ra. Dựng ra rồi để máy chủ từ
-          chối lúc bấm nút là bắt khách chọn giờ, đọc điều khoản, rồi mới biết mình không đặt
-          được — trong khi lý do đã biết từ trước cả lúc mở trang.
-
-          Chốt chặn thật nằm ở CustomerOrderService.createOnlineOrder; nhánh này chỉ nói trước.
-          Dải nhắc kèm nút gửi lại thư nằm ở khung dùng chung, ngay trên đầu trang này.
-        --%>
         <c:when test="${not me.emailVerified}">
           <div class="card">
             <h2>Chọn giờ đến lấy</h2>
@@ -124,7 +114,6 @@
             </div>
 
             <div class="field">
-              <%-- Không phải <label>: đây là tiêu đề của một khối thông tin, không gắn với ô nhập nào. --%>
               <span class="field-label">Phương thức thanh toán</span>
               <div class="card card-inset">
                 <div class="row-between">

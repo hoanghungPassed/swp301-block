@@ -1,7 +1,7 @@
 package com.fastfood.dao.staff;
 
 import com.fastfood.dao.JdbcSupport;
-import com.fastfood.model.entity.Shift;
+import com.fastfood.model.entity.OperationEntities.Shift;
 
 import java.math.BigDecimal;
 import java.sql.Connection;
@@ -13,7 +13,6 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
-/** Truy vấn bảng Shift — ca làm việc và số liệu đối soát tiền mặt của nó. */
 public class ShiftDAO {
 
     private static final String BASE =
@@ -51,7 +50,6 @@ public class ShiftDAO {
         }
     }
 
-    /** Ca đang mở của một thu ngân. Chỉ có tối đa một — xem {@code UX_Shift_openPerCashier}. */
     public Shift findOpenOf(Connection con, int cashierId) throws SQLException {
         try (PreparedStatement ps = con.prepareStatement(
                 BASE + "WHERE s.cashier_id = ? AND s.status = 'OPEN'")) {
@@ -61,7 +59,6 @@ public class ShiftDAO {
         }
     }
 
-    /** Lịch sử ca của một thu ngân, mới nhất trước. */
     public List<Shift> findByCashier(Connection con, int cashierId, int limit) throws SQLException {
         try (PreparedStatement ps = con.prepareStatement(
                 BASE.replaceFirst("SELECT", "SELECT TOP (" + limit + ")") +
@@ -97,10 +94,6 @@ public class ShiftDAO {
         }
     }
 
-    /**
-     * Thu hồi ca mở nhầm. Điều kiện "chưa có đơn nào" nằm ngay trong câu lệnh: kiểm tra trước
-     * rồi mới ghi thì giữa hai bước đó một đơn có thể vừa được gắn vào ca.
-     */
     public int cancel(Connection con, int shiftId, int cashierId) throws SQLException {
         String sql = "UPDATE dbo.Shift SET status = 'CANCELLED' " +
                      "WHERE shift_id = ? AND cashier_id = ? AND status = 'OPEN' " +
@@ -113,24 +106,6 @@ public class ShiftDAO {
         }
     }
 
-    /**
-     * Số tiền mặt lẽ ra phải có trong két của ca này.
-     * <p>
-     * Cả hai vế đều <b>chỉ tính đơn thuộc chính ca này</b>, và đây là điểm quan trọng: phạm vi
-     * theo ca, không theo khoảng thời gian. Trừ mọi khoản hoàn tiền mặt xảy ra trong giờ của ca
-     * sẽ kéo cả khoản hoàn của thu ngân khác — hai người bán cùng lúc ở hai két thì két này gánh
-     * khoản chi của két kia.
-     * <p>
-     * Trong phạm vi đó, vế thu và vế hoàn vẫn đếm theo <b>hai mốc thời gian riêng</b> —
-     * {@code paid_at} và {@code refunded_at} — cùng bài học với báo cáo doanh thu. Lọc vế thu
-     * theo trạng thái {@code PAID} mới là sai: một khoản đã thu rồi hoàn sẽ biến mất khỏi vế thu
-     * nhưng vẫn còn ở vế hoàn, tức là bị trừ hai lần.
-     * <p>
-     * <b>Giới hạn đã biết:</b> khoản hoàn cho đơn của ca trước, chi ra từ két của ca này, không
-     * được tính vào đây. Bảng {@code Payment} không lưu ai thực hiện việc hoàn tiền nên hệ thống
-     * không quy được nó về đúng két; quy bừa theo thời gian còn sai hơn. Dấu vết vẫn còn đủ
-     * trong nhật ký thao tác ({@code PAYMENT_REFUNDED} có người thực hiện) để đối chiếu tay.
-     */
     public BigDecimal expectedCash(Connection con, int shiftId) throws SQLException {
         String sql =
             "SELECT s.opening_cash " +

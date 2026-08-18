@@ -1,8 +1,8 @@
 package com.fastfood.dao.staff;
 
 import com.fastfood.dao.JdbcSupport;
-import com.fastfood.model.entity.PosHold;
-import com.fastfood.model.entity.PosHoldItem;
+import com.fastfood.model.entity.OperationEntities.PosHold;
+import com.fastfood.model.entity.OperationEntities.PosHoldItem;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -15,21 +15,17 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-/** Truy vấn hai bảng PosHold và PosHoldItem — phiếu treo tại quầy. */
 public class PosHoldDAO {
 
     private static final String BASE =
             "SELECT h.hold_id, h.cashier_id, h.label, h.note, h.created_at, h.updated_at " +
             "FROM dbo.PosHold h ";
 
-    /** Dòng món kèm tên, giá và tình trạng bán — ba thứ đọc mới, không lưu trong bảng. */
     private static final String ITEM_BASE =
             "SELECT i.hold_item_id, i.hold_id, i.product_id, i.quantity, " +
             "       p.name AS product_name, p.price, p.is_available, p.status AS product_status " +
             "FROM dbo.PosHoldItem i " +
             "JOIN dbo.Product p ON p.product_id = i.product_id ";
-
-    // ============================================================ phiếu
 
     public int insert(Connection con, PosHold hold) throws SQLException {
         String sql = "INSERT INTO dbo.PosHold (cashier_id, label, note, created_at) " +
@@ -49,7 +45,6 @@ public class PosHoldDAO {
         return hold.getHoldId();
     }
 
-    /** Phiếu kèm đủ dòng món. Trả về null nếu không có phiếu nào mang mã đó. */
     public PosHold findById(Connection con, int holdId) throws SQLException {
         PosHold hold;
         try (PreparedStatement ps = con.prepareStatement(BASE + "WHERE h.hold_id = ?")) {
@@ -64,12 +59,6 @@ public class PosHoldDAO {
         return hold;
     }
 
-    /**
-     * Phiếu treo của một thu ngân, mới nhất trước, kèm đủ dòng món.
-     * <p>
-     * Món lấy trong <b>một</b> lượt truy vấn cho cả danh sách rồi mới gom theo phiếu. Hỏi từng
-     * phiếu một thì mỗi lần mở màn bán hàng lại thành mấy lượt đi lại chỉ để dựng một khối phụ.
-     */
     public List<PosHold> findByCashier(Connection con, int cashierId) throws SQLException {
         List<PosHold> holds;
         try (PreparedStatement ps = con.prepareStatement(
@@ -120,8 +109,6 @@ public class PosHoldDAO {
         }
     }
 
-    /** Chỉ đánh dấu vừa sửa. Tách khỏi {@link #updateHeader} để việc sửa dòng món không phải
-     *  ghi đè lại tên phiếu — ghi đè bằng null sẽ vi phạm CK_PosHold_label. */
     public int touch(Connection con, int holdId, LocalDateTime now) throws SQLException {
         try (PreparedStatement ps = con.prepareStatement(
                 "UPDATE dbo.PosHold SET updated_at = ? WHERE hold_id = ?")) {
@@ -131,10 +118,6 @@ public class PosHoldDAO {
         }
     }
 
-    /**
-     * Xoá hẳn phiếu. Dòng món tự đi theo nhờ {@code ON DELETE CASCADE} — phiếu treo là bản
-     * nháp, không phải dữ liệu giao dịch cần giữ vết.
-     */
     public int delete(Connection con, int holdId, int cashierId) throws SQLException {
         try (PreparedStatement ps = con.prepareStatement(
                 "DELETE FROM dbo.PosHold WHERE hold_id = ? AND cashier_id = ?")) {
@@ -144,8 +127,6 @@ public class PosHoldDAO {
         }
     }
 
-    // ============================================================ dòng món
-
     public List<PosHoldItem> findItems(Connection con, int holdId) throws SQLException {
         try (PreparedStatement ps = con.prepareStatement(
                 ITEM_BASE + "WHERE i.hold_id = ? ORDER BY i.hold_item_id")) {
@@ -154,13 +135,6 @@ public class PosHoldDAO {
         }
     }
 
-    /**
-     * Thêm món vào phiếu; đã có thì cộng dồn số lượng.
-     * <p>
-     * Gộp cả hai trường hợp vào một câu {@code MERGE} thay vì đọc trước rồi quyết định: giữa hai
-     * bước đó một tab khác của cùng thu ngân có thể vừa thêm đúng món ấy, và ràng buộc
-     * {@code UQ_PosHoldItem} sẽ chặn lượt ghi sau bằng một lỗi khó hiểu.
-     */
     public void addItem(Connection con, int holdId, int productId, int quantity) throws SQLException {
         String sql =
             "MERGE dbo.PosHoldItem AS dich " +
@@ -196,8 +170,6 @@ public class PosHoldDAO {
             return ps.executeUpdate();
         }
     }
-
-    // ============================================================ dựng đối tượng
 
     private List<PosHold> collect(PreparedStatement ps) throws SQLException {
         List<PosHold> list = new ArrayList<>();

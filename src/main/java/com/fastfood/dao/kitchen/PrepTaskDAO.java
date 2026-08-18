@@ -1,7 +1,7 @@
 package com.fastfood.dao.kitchen;
 
 import com.fastfood.dao.JdbcSupport;
-import com.fastfood.model.entity.PrepTask;
+import com.fastfood.model.entity.OperationEntities.PrepTask;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -13,7 +13,6 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
-/** Truy vấn bảng PrepTask — kế hoạch chuẩn bị sẵn của bếp. */
 public class PrepTaskDAO {
 
     private static final String BASE =
@@ -24,12 +23,6 @@ public class PrepTaskDAO {
             "JOIN dbo.Product p ON p.product_id = pt.product_id " +
             "JOIN dbo.Users u   ON u.user_id    = pt.created_by ";
 
-    /**
-     * Lập một dòng kế hoạch. Ném lỗi trùng khoá khi món đó đã có kế hoạch trong ngày —
-     * xem {@code UX_PrepTask_date_product}. Tầng Service bắt lỗi đó và đổi thành thông báo
-     * đọc được thay vì chặn bằng một lượt đọc trước, vì giữa đọc và ghi người khác có thể
-     * vừa lập xong dòng cho đúng món ấy.
-     */
     public int insert(Connection con, PrepTask task) throws SQLException {
         String sql = "INSERT INTO dbo.PrepTask (product_id, prep_date, planned_qty, done_qty, " +
                      "note, created_by, created_at, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
@@ -60,7 +53,6 @@ public class PrepTaskDAO {
         }
     }
 
-    /** Kế hoạch của một ngày, món còn thiếu nhiều xếp lên trước để bếp biết làm gì tiếp theo. */
     public List<PrepTask> findByDate(Connection con, LocalDate date) throws SQLException {
         try (PreparedStatement ps = con.prepareStatement(BASE +
                 "WHERE pt.prep_date = ? AND pt.status <> 'CANCELLED' " +
@@ -70,12 +62,6 @@ public class PrepTaskDAO {
         }
     }
 
-    /**
-     * Sửa số lượng dự kiến, số đã làm và ghi chú.
-     * <p>
-     * Điều kiện "còn đang lập" nằm ngay trong câu lệnh chứ không kiểm tra trước rồi mới ghi:
-     * giữa hai bước đó người khác có thể vừa chốt hoặc vừa thu hồi dòng này.
-     */
     public int update(Connection con, int prepTaskId, int plannedQty, int doneQty,
                       String note, LocalDateTime now) throws SQLException {
         String sql = "UPDATE dbo.PrepTask SET planned_qty = ?, done_qty = ?, note = ?, updated_at = ? " +
@@ -90,7 +76,6 @@ public class PrepTaskDAO {
         }
     }
 
-    /** Chốt kế hoạch đã làm xong. Chốt rồi thì không sửa được nữa — xem {@link #update}. */
     public int markDone(Connection con, int prepTaskId, LocalDateTime now) throws SQLException {
         String sql = "UPDATE dbo.PrepTask SET status = 'DONE', updated_at = ? " +
                      "WHERE prep_task_id = ? AND status = 'PLANNED'";
@@ -101,10 +86,6 @@ public class PrepTaskDAO {
         }
     }
 
-    /**
-     * Thu hồi dòng lập nhầm. Chỉ người lập mới thu hồi được — cùng quy tắc với sự cố bếp,
-     * và điều kiện đó nằm trong chính câu lệnh.
-     */
     public int cancel(Connection con, int prepTaskId, int userId, LocalDateTime now) throws SQLException {
         String sql = "UPDATE dbo.PrepTask SET status = 'CANCELLED', updated_at = ? " +
                      "WHERE prep_task_id = ? AND status = 'PLANNED' AND created_by = ?";

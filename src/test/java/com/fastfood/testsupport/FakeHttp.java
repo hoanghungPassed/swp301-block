@@ -1,7 +1,7 @@
 package com.fastfood.testsupport;
 
 import com.fastfood.common.util.WebUtil;
-import com.fastfood.model.entity.User;
+import com.fastfood.model.entity.UserEntities.User;
 
 import javax.servlet.FilterChain;
 import javax.servlet.RequestDispatcher;
@@ -13,19 +13,6 @@ import java.lang.reflect.Proxy;
 import java.util.HashMap;
 import java.util.Map;
 
-/**
- * Yêu cầu, phản hồi và chuỗi bộ lọc giả — đủ để chạy một bộ lọc mà không cần máy chủ.
- * <p>
- * <b>Vì sao dựng tay thay vì thêm thư viện giả lập.</b> Dự án cố ý giữ số thư viện ngoài ở mức
- * tối thiểu, và cả bộ lọc phân quyền chỉ gọi tới bảy phương thức của Servlet API. Thêm một thư
- * viện nữa vào tệp {@code pom.xml} cho bảy phương thức là cái giá đắt hơn tệp này.
- * <p>
- * <b>Vì sao dùng lớp uỷ nhiệm động.</b> {@link HttpServletRequest} có hơn sáu mươi phương thức;
- * viết tay lớp cài đặt đầy đủ là hai trăm dòng thân rỗng, và người đọc phải lướt hết chúng để
- * tìm ra bảy dòng thật sự có nội dung. Phương thức chưa dựng thì <b>ném lỗi kèm đúng tên nó</b>
- * chứ không lặng lẽ trả {@code null}: bài test sau này cần thêm một phương thức sẽ đọc được
- * ngay phải bổ sung gì, thay vì đi tìm một giá trị rỗng không rõ từ đâu ra.
- */
 public final class FakeHttp {
 
     private FakeHttp() {
@@ -35,21 +22,10 @@ public final class FakeHttp {
         return new Request(servletPath, null);
     }
 
-    /**
-     * Yêu cầu tới servlet có ánh xạ dạng tiền tố, nơi máy chủ tách địa chỉ làm hai phần.
-     * Dùng để kiểm rằng bộ lọc ghép lại đúng đường dẫn mà máy chủ sắp gọi tới.
-     */
     public static Request request(String servletPath, String pathInfo) {
         return new Request(servletPath, pathInfo);
     }
 
-    /**
-     * Một phiên trình duyệt dùng lại được qua nhiều yêu cầu.
-     * <p>
-     * Cần thiết cho mọi thứ liên quan tới <i>thời gian</i>: nhịp soi lại tài khoản, mã chống giả
-     * mạo giữ nguyên giữa hai lần tải trang, phiên bị huỷ khi tài khoản bị khoá. Mỗi yêu cầu một
-     * phiên riêng thì những hành vi đó không có chỗ nào thể hiện ra.
-     */
     public static Session session() {
         return new Session();
     }
@@ -62,9 +38,6 @@ public final class FakeHttp {
         return new Chain();
     }
 
-    // ------------------------------------------------------------------ phiên
-
-    /** Trạng thái phiên, sống lâu hơn một yêu cầu — xem {@link FakeHttp#session()}. */
     public static final class Session {
 
         private Map<String, Object> attributes = new HashMap<>();
@@ -85,7 +58,6 @@ public final class FakeHttp {
             return (User) attributes.get(WebUtil.SESSION_USER);
         }
 
-        /** Phiên còn sống không. Bị huỷ rồi thì người dùng phải đăng nhập lại. */
         public boolean alive() {
             return alive;
         }
@@ -94,8 +66,6 @@ public final class FakeHttp {
             return invalidations;
         }
     }
-
-    // ------------------------------------------------------------------ yêu cầu
 
     public static final class Request {
 
@@ -113,7 +83,6 @@ public final class FakeHttp {
             this.pathInfo = pathInfo;
         }
 
-        /** Gửi yêu cầu này bằng một phiên đã có, thay vì mở phiên mới. */
         public Request in(Session existing) {
             this.session = existing;
             return this;
@@ -134,13 +103,11 @@ public final class FakeHttp {
             return this;
         }
 
-        /** Gắn một người dùng vào phiên, đúng cách {@link WebUtil#currentUser} đọc ra. */
         public Request signedInAs(User user) {
             session.signedInAs(user);
             return this;
         }
 
-        /** Người dùng có vai trò cho trước; các trường khác không ảnh hưởng tới phân quyền. */
         public Request signedInAs(String roleName) {
             User user = new User();
             user.setUserId(1);
@@ -150,7 +117,6 @@ public final class FakeHttp {
             return signedInAs(user);
         }
 
-        /** Đặt sẵn một giá trị trong phiên, ví dụ mã chống giả mạo đã cấp từ lần tải trang trước. */
         public Request sessionAttribute(String name, Object value) {
             session.alive = true;
             session.attributes.put(name, value);
@@ -193,9 +159,6 @@ public final class FakeHttp {
                     session.attributes.remove((String) args[0]);
                     yield null;
                 }
-                // Huỷ phiên theo đúng nghĩa của máy chủ thật: dữ liệu cũ mất hẳn, và lần xin
-                // phiên tiếp theo nhận một phiên trắng. Giữ lại bản đồ cũ thì bài test về xoay
-                // phiên lúc đăng nhập sẽ xanh trong khi mã phiên thật ra không hề đổi.
                 case "invalidate" -> {
                     session.attributes = new HashMap<>();
                     session.alive = false;
@@ -216,7 +179,6 @@ public final class FakeHttp {
             });
         }
 
-        /** Trang JSP mà bộ lọc đã chuyển tiếp sang, hoặc null nếu không chuyển tiếp đi đâu. */
         public String forwardedTo() {
             return forwardedTo;
         }
@@ -225,18 +187,14 @@ public final class FakeHttp {
             return attributes.get(name);
         }
 
-        /** Giá trị còn lại trong phiên sau khi bộ lọc chạy xong. */
         public Object sessionValue(String name) {
             return session.attributes.get(name);
         }
 
-        /** Số lần phiên bị huỷ — dùng để chứng minh việc xoay phiên lúc đăng nhập có thật xảy ra. */
         public int invalidations() {
             return session.invalidations;
         }
     }
-
-    // ------------------------------------------------------------------ phản hồi
 
     public static final class Response {
 
@@ -263,19 +221,11 @@ public final class FakeHttp {
             return status;
         }
 
-        /** Địa chỉ đã chuyển hướng tới, hoặc null nếu không chuyển hướng. */
         public String redirectedTo() {
             return redirectedTo;
         }
     }
 
-    // ------------------------------------------------------------------ chuỗi bộ lọc
-
-    /**
-     * Mắt xích tiếp theo của chuỗi. Điều đáng kiểm nhất ở một bộ lọc phân quyền là nó có
-     * <b>đi tiếp hay không</b>: chặn mà vẫn gọi tiếp thì servlet vẫn chạy và dữ liệu vẫn ra,
-     * chỉ khác là kèm theo một mã lỗi không ai đọc.
-     */
     public static final class Chain {
 
         private boolean ran;
@@ -295,9 +245,6 @@ public final class FakeHttp {
         }
     }
 
-    // ------------------------------------------------------------------ bộ khung
-
-    /** Dấu hiệu "phương thức này chưa dựng" — xem ghi chú ở đầu lớp. */
     private static final Object UNHANDLED = new Object();
 
     @FunctionalInterface

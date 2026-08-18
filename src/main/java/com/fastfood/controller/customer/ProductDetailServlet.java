@@ -3,7 +3,7 @@ package com.fastfood.controller.customer;
 import com.fastfood.common.exception.AppException;
 import com.fastfood.common.util.WebUtil;
 import com.fastfood.controller.BaseServlet;
-import com.fastfood.model.entity.User;
+import com.fastfood.model.entity.UserEntities.User;
 import com.fastfood.service.customer.FavouriteService;
 import com.fastfood.service.customer.ReviewService;
 import com.fastfood.service.shared.MenuService;
@@ -14,16 +14,6 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 
-/**
- * Chi tiết một món, kèm <b>đánh giá của khách</b> và nút đánh dấu <b>món quen</b>.
- * <p>
- * Trang công khai: ai cũng đọc được đánh giá, kể cả khi chưa đăng nhập — đó chính là lúc người
- * ta cần đọc nhất, trước khi quyết định có đặt hay không. Nhưng chỉ khách <b>đã nhận món</b> mới
- * viết được; chốt chặn đó nằm ở {@code ReviewService}.
- * <p>
- * Vì trang nằm ngoài {@code AuthenticationFilter}, mọi yêu cầu ghi đều đi qua {@link #userOrLogin}
- * thay vì {@code requireUser} — cùng lý do đã ghi ở {@link MenuServlet}.
- */
 @WebServlet("/product/detail")
 public class ProductDetailServlet extends BaseServlet {
 
@@ -48,9 +38,6 @@ public class ProductDetailServlet extends BaseServlet {
             req.setAttribute("canReview", reviewService.canReview(productId, customerId));
             req.setAttribute("editingReview", WebUtil.getBoolean(req, "editReview"));
 
-            /* Món quen đánh dấu được ngay tại đây, không chỉ trên lưới thực đơn. Trang này mới
-               là chỗ khách đọc mô tả và đánh giá rồi quyết định là mình thích món — bắt họ quay
-               ra lưới để bấm một ngôi sao là chặn đúng lúc họ vừa muốn bấm. */
             req.setAttribute("isFavourite",
                     favouriteService.favouriteProductIds(customerId).contains(productId));
 
@@ -62,7 +49,6 @@ public class ProductDetailServlet extends BaseServlet {
         }
     }
 
-    /** Ba thao tác trên đánh giá của chính khách. */
     @Override
     protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws IOException {
         int productId = WebUtil.getInt(req, "productId", 0);

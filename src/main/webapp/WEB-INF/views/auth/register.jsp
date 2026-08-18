@@ -21,7 +21,7 @@
       </div>
       <div class="field">
         <label for="phone">Số điện thoại <span class="hint">(không bắt buộc)</span></label>
-        <input type="text" id="phone" name="phone" value="<c:out value="${phone}"/>" placeholder="0901234567">
+        <input type="text" id="phone" name="phone" value="<c:out value="${phone}"/>">
       </div>
       <div class="field">
         <label for="password">Mật khẩu <span class="hint">(tối thiểu 8 ký tự, có cả chữ và số)</span></label>

@@ -9,8 +9,6 @@
 
   <%@ include file="/WEB-INF/views/layout/flash.jspf" %>
 
-  <%-- Hai câu hỏi lúc giao ca — "cả bếp làm được gì" và "tôi làm được gì" — chỉ khác nhau ở
-       một điều kiện, nên bộ lọc cũng chỉ là hai liên kết chứ không phải một biểu mẫu. --%>
   <div class="tabs">
     <a href="${ctx}/kitchen/history" class="${mineOnly ? '' : 'active'}"
        ${mineOnly ? '' : 'aria-current="page"'}>Cả bếp</a>
@@ -27,8 +25,6 @@
       <tbody>
         <c:forEach var="item" items="${pageData.items}">
           <tr>
-            <%-- Dẫn về chi tiết món: đối chiếu một dòng trễ hẹn hầu như luôn kéo theo câu hỏi
-                 "lúc đó có sự cố gì", mà câu trả lời nằm ở trang chi tiết. --%>
             <td><a href="${ctx}/kitchen/item?id=${item.orderItemId}"><c:out
                  value="${item.productNameSnapshot}"/></a></td>
             <td>#${item.orderId}</td>
@@ -61,8 +57,6 @@
     <%@ include file="/WEB-INF/views/layout/pager.jspf" %>
   </div>
 
-  <%-- Sổ bàn giao ca. Nằm cùng trang với danh sách món đã xong vì lúc giao ca người ta hỏi hai
-       thứ liền nhau: ca vừa rồi làm được bao nhiêu, và có chuyện gì ca sau cần biết. --%>
   <div class="card pad0 table-wrap">
     <div class="card-head"><h2>Sổ bàn giao ca (7 ngày gần nhất)</h2></div>
     <table>
@@ -82,9 +76,6 @@
             <td class="small"><c:out value="${n.content}"/></td>
             <td class="small"><c:out value="${n.authorName}"/></td>
             <td class="center">
-              <%-- Mọi đường đi và đường về đều mang theo bộ lọc đang mở. Sổ bàn giao không liên
-                   quan gì tới bộ lọc của bảng trên, nhưng làm mất nó thì bảng trên nhảy về
-                   "cả bếp" sau mỗi thao tác và người dùng tưởng ô lọc tự tắt. --%>
               <c:if test="${n.authorId eq me.userId}">
                 <a class="btn btn-sm" href="${ctx}/kitchen/history?editNote=${n.kitchenNoteId}<c:if
                    test="${mineOnly}">&amp;mine=1</c:if>">Sửa</a>

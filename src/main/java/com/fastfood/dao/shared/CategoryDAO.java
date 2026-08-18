@@ -1,12 +1,11 @@
 package com.fastfood.dao.shared;
 
-import com.fastfood.model.entity.Category;
+import com.fastfood.model.entity.MenuEntities.Category;
 
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
 
-/** Truy vấn bảng Category. */
 public class CategoryDAO {
 
     public List<Category> findActive(Connection con) throws SQLException {
@@ -15,7 +14,6 @@ public class CategoryDAO {
         return query(con, sql);
     }
 
-    /** Danh sách đầy đủ kèm số món, dùng cho màn hình quản trị. */
     public List<Category> findAllWithCount(Connection con) throws SQLException {
         String sql = "SELECT c.category_id, c.name, c.status, c.display_order, " +
                      "       (SELECT COUNT(*) FROM dbo.Product p WHERE p.category_id = c.category_id) AS product_count " +
@@ -68,11 +66,6 @@ public class CategoryDAO {
         }
     }
 
-    /**
-     * Đổi riêng trạng thái hiển thị — đây là thao tác Xoá của màn hình quản trị nhóm món.
-     * Tách khỏi {@link #update} cùng lý do với {@code ProductDAO}: sửa tên nhóm không được
-     * kéo theo việc cả nhóm biến mất khỏi thực đơn.
-     */
     public void updateStatus(Connection con, int categoryId, String status) throws SQLException {
         try (PreparedStatement ps = con.prepareStatement(
                 "UPDATE dbo.Category SET status = ? WHERE category_id = ?")) {

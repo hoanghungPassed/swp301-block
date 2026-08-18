@@ -1,8 +1,8 @@
 package com.fastfood.flow;
 
-import com.fastfood.common.exception.NotFoundException;
-import com.fastfood.common.exception.ValidationException;
-import com.fastfood.model.entity.User;
+import com.fastfood.common.exception.AppException.NotFoundException;
+import com.fastfood.common.exception.AppException.ValidationException;
+import com.fastfood.model.entity.UserEntities.User;
 import com.fastfood.service.admin.AdminService;
 import com.fastfood.service.auth.AuthService;
 import com.fastfood.testsupport.IntegrationTestBase;
@@ -14,20 +14,11 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/**
- * Quản trị tài khoản (BR-23) và các rào tự hạ quyền.
- * <p>
- * Mật khẩu do quản trị viên đặt hộ là mật khẩu <b>ít nhất hai người biết</b>, và thường còn
- * phải đọc qua điện thoại. Vì vậy tài khoản bị đánh dấu buộc đổi, và bộ lọc giữ nó ở màn hình
- * tài khoản cho tới khi chủ nhân tự đặt lại.
- */
 @DisplayName("Quản trị tài khoản và mật khẩu đặt hộ")
 class AdminAccountIT extends IntegrationTestBase {
 
     private final AdminService adminService = new AdminService();
     private final AuthService authService = new AuthService();
-
-    // ------------------------------------------------------------------ mật khẩu đặt hộ
 
     @Test
     @DisplayName("Quản trị viên đặt lại mật khẩu thì tài khoản bị buộc đổi ở lần vào sau")
@@ -93,8 +84,6 @@ class AdminAccountIT extends IntegrationTestBase {
                 "Tự đặt lại rồi tự bị chặn ở trang tài khoản là vòng luẩn quẩn vô nghĩa");
     }
 
-    // ------------------------------------------------------------------ chống tự hạ quyền
-
     @Test
     @DisplayName("Quản trị viên không tự khoá tài khoản của chính mình")
     void adminCannotLockThemselves() {
@@ -121,7 +110,7 @@ class AdminAccountIT extends IntegrationTestBase {
 
         adminService.setUserStatus(userId(ADMIN), target, "LOCKED");
 
-        assertThrows(com.fastfood.common.exception.BusinessException.class,
+        assertThrows(com.fastfood.common.exception.AppException.BusinessException.class,
                 () -> authService.login(email, "MatKhauGoc7"));
     }
 
@@ -134,8 +123,6 @@ class AdminAccountIT extends IntegrationTestBase {
         assertEquals(1, count("SELECT COUNT(*) FROM dbo.Users WHERE user_id = ?", target),
                 "Xoá tài khoản sẽ làm mồ côi mọi đơn mà người đó từng xử lý");
     }
-
-    // ------------------------------------------------------------------ sửa thông tin
 
     @Test
     @DisplayName("Quản trị viên sửa được họ tên và số điện thoại của nhân viên")
@@ -205,9 +192,6 @@ class AdminAccountIT extends IntegrationTestBase {
                 "Nhật ký cần cả hai đầu để đối chứng, không chỉ giá trị mới");
     }
 
-    // ------------------------------------------------------------------ tiện ích
-
-    /** Một tài khoản nhân viên mới toanh cho mỗi bài, để các bài không giẫm lên nhau. */
     private int newStaff() {
         String email = "test-staff-" + System.nanoTime() + "@fastfood.vn";
         Integer cashierRole = scalar(Integer.class, "SELECT role_id FROM dbo.Role WHERE name = 'CASHIER'");

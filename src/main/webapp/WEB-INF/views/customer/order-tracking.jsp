@@ -16,10 +16,7 @@
       </span>
     </div>
 
-    <%-- Tiến trình đơn. Bước hiện tại tô đậm để khách biết đang ở đâu. --%>
     <c:if test="${order.orderStatus ne 'CANCELLED' and order.orderStatus ne 'EXPIRED'}">
-      <%-- Danh sách có thứ tự chứ không phải các ô rời: tiến trình đơn vốn là một chuỗi
-           các bước nối tiếp, và trình đọc màn hình cần biết đang ở bước mấy trên mấy. --%>
       <ol class="steps" aria-label="Tiến trình đơn hàng">
         <c:set var="s" value="${order.orderStatus}" />
         <li class="step ${s ne 'PENDING_PAYMENT' ? 'done' : 'current'}"
@@ -133,10 +130,6 @@
     </table>
   </div>
 
-  <%-- Tin đã gửi cho khách về chính đơn này. Đặt ngay dưới danh sách món chứ không để riêng ở
-       hộp thông báo: khi khách thắc mắc "sao đơn của tôi thành ra thế này", họ mở đơn ra xem
-       chứ không đi tìm hộp thư, và câu trả lời — huỷ vì lý do gì, tiền đã hoàn chưa — nằm
-       trong mấy dòng này. --%>
   <c:if test="${not empty notifications}">
     <div class="card pad0">
       <div class="card-head"><h2>Tin đã gửi cho bạn</h2></div>
@@ -187,7 +180,6 @@
     </div>
   </c:if>
 
-  <%-- Dấu hiệu để app.js tự cập nhật trạng thái, khách không phải bấm tải lại khi đang chờ món. --%>
   <c:if test="${order.orderStatus eq 'CONFIRMED' or order.orderStatus eq 'PREPARING'}">
     <noscript>
       <div class="alert alert-info">

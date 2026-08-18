@@ -63,19 +63,19 @@ swp301-block/
 ├── docs/                            Tài liệu phân tích và thiết kế
 └── src/main/
     ├── java/com/fastfood/
-    │   ├── common/constant/   11  Hằng số và kiểu liệt kê nghiệp vụ
-    │   ├── common/exception/   7  Ngoại lệ mang sẵn thông báo cho người dùng
-    │   ├── common/util/       12  Tiện ích, đáng chú ý là DateTimeUtil, ViewFunctions, CsrfUtil
-    │   ├── config/             3  Kết nối cơ sở dữ liệu và tham số vận hành
-    │   ├── model/entity/      28  27 lớp ánh xạ đúng 27 bảng
-    │   ├── model/dto/         10  Dữ liệu đã gộp sẵn cho tầng hiển thị
-    │   ├── dao/               31  24 lớp truy vấn chia theo vai trò + JdbcSupport, xem §2.2
-    │   ├── service/           35  25 lớp nghiệp vụ chia theo vai trò + Tx, xem §2.1
+    │   ├── common/constant/    1  Constants — 8 kiểu liệt kê + AuditAction + BusinessRule
+    │   ├── common/exception/   1  AppException — cả họ ngoại lệ, xem §2.4
+    │   ├── common/util/       11  Tiện ích, đáng chú ý là DateTimeUtil, ViewFunctions, CsrfUtil
+    │   ├── config/             2  Kết nối cơ sở dữ liệu và tham số vận hành
+    │   ├── model/entity/       4  27 lớp ánh xạ đúng 27 bảng, gom theo nhóm — xem §2.4
+    │   ├── model/dto/          1  Dtos — 9 lớp dữ liệu đã gộp sẵn cho tầng hiển thị
+    │   ├── dao/               25  24 lớp truy vấn chia theo vai trò + JdbcSupport, xem §2.2
+    │   ├── service/           28  27 lớp nghiệp vụ chia theo vai trò + Tx, xem §2.1
     │   ├── integration/       10  Cổng thanh toán, kênh gửi tin (giả lập và SMTP)
-    │   ├── filter/             6  Bốn bộ lọc chạy theo thứ tự + RequestPath dùng chung
-    │   ├── listener/           3  Vòng đời ứng dụng
-    │   ├── scheduler/          3  Hai công việc chạy nền
-    │   └── controller/        39  32 servlet chia theo vai trò
+    │   ├── filter/             5  Bốn bộ lọc chạy theo thứ tự + RequestPath dùng chung
+    │   ├── listener/           2  Vòng đời ứng dụng
+    │   ├── scheduler/          2  Hai công việc chạy nền
+    │   └── controller/        35  34 servlet chia theo vai trò + BaseServlet
     ├── resources/                  db.properties · app.properties
     └── webapp/
         ├── assets/css/main.css
@@ -199,6 +199,94 @@ dùng nó.
 
 Ranh giới vai trò thật sự vẫn nằm ở tầng Service: **không controller nào import DAO.** Muốn đọc
 trọn một vai trò từ địa chỉ URL xuống tới tên bảng thì dùng bản đồ ở §4.1.
+
+### 2.3 Ghi chú thiết kế theo gói
+
+Những quyết định chỉ đọc ra được khi mở đúng gói đó, gom lại một chỗ.
+
+**`controller/customer` — vì sao dùng `userOrLogin` chứ không `requireUser`.** Hai trong số các
+servlet ở đây (`MenuServlet`, `ProductDetailServlet`) phục vụ **trang công khai**, nằm ngoài
+`AuthenticationFilter`. Mọi yêu cầu gửi tới đó đều lọt qua, kể cả yêu cầu ghi dữ liệu của người
+chưa đăng nhập. `userOrLogin` đưa khách sang trang đăng nhập rồi trả về đúng chỗ đang xem, thay
+vì ném lỗi 401 cho một việc hoàn toàn hợp lệ mà chỉ làm sớm một bước.
+
+**`service/customer` — vì sao ba lớp cuối nhận `Integer` chứ không `int`.** `FavouriteService`,
+`ReviewService` và `OrderTemplateService` phục vụ hai trang công khai nói trên, nơi
+`WebUtil.currentUser` có thể trả về null. Các phương thức chỉ đọc vì vậy nhận `Integer` và trả về
+rỗng khi chưa đăng nhập: người xem không đăng nhập là chuyện bình thường trên trang công khai,
+không phải một lỗi.
+
+**`service/kitchen` — vì sao ghi chú không dùng lại sự cố bếp.** Số sự cố đang mở điều khiển bốn
+chỗ cảnh báo đỏ trên màn hình thu ngân. Một dòng "khách dặn ít cay" đi vào bảng `KitchenIssue` sẽ
+hiện thành sự cố chưa xử lý và làm cảnh báo mất ý nghĩa — nên `KitchenNoteService` đứng riêng.
+`PrepService` cũng đứng riêng vì đó là phần việc duy nhất của bếp **không bắt nguồn từ đơn nào**
+và cũng không làm đổi trạng thái đơn nào.
+
+**`service/staff` — phiếu treo không phá nguyên tắc "giỏ POS không ghi xuống cơ sở dữ liệu".**
+Giỏ tạm vẫn nằm trong phiên làm việc. Treo đơn là một thao tác cố ý — thu ngân phải đặt tên cho
+phiếu thì mới treo được — nên bấm nhầm không sinh ra bản ghi nào.
+
+**`dao/customer` — vì sao `hasCompletedPurchase` nằm ở `ReviewDAO`.** Truy vấn này ghép qua
+`Orders` và `OrderItem` chứ không thuộc bảng `Review`. Nó ở đây vì chỉ đánh giá cần tới nó, và vì
+ràng buộc "đã mua và đã nhận" không đặt được ở tầng dữ liệu: `CHECK` trong SQL Server không nhìn
+sang bảng khác.
+
+**`dao/kitchen` — ghi chú là dữ liệu duy nhất ngoài giỏ hàng được xoá hẳn.** Nó không dính tiền,
+không đổi trạng thái đơn, và không có dòng nhật ký nào trỏ về nó. `PrepTaskDAO` cũng đáng chú ý:
+bảng duy nhất của bếp **không tham chiếu `OrderItem`** — bếp làm sẵn theo dự đoán chứ không đợi
+đơn, nên nó trỏ thẳng tới `Product`.
+
+**`dao/admin` — hai lớp cố ý không gọi lẫn nhau.** Mức đã đạt của một chỉ tiêu do
+`RevenueTargetService` lấy từ `ReportService`, để cả hệ thống chỉ có **một** công thức tính doanh
+thu thuần. Viết thêm một câu tính doanh thu trong `RevenueTargetDAO` sẽ đặt hai con số cạnh nhau
+trên cùng màn hình và sớm muộn chúng lệch nhau.
+
+**`controller/admin` — `AuditServlet` chỉ có `doGet`, và sẽ mãi như vậy.** Một nhật ký kiểm toán
+mà quản trị viên sửa được thì không còn giá trị làm bằng chứng. Đó cũng là lý do chỉ tiêu doanh
+thu được gắn vào bảng điều khiển: đó là màn hình duy nhất của quản trị viên còn chỗ cho một thực
+thể mới.
+
+**`filter` — chuỗi bộ lọc chạy theo thứ tự tên:** bảng mã → đăng nhập → CSRF → phân quyền. Toàn
+bộ trang JSP nằm trong `WEB-INF` nên không mở trực tiếp được; mọi đường vào đều phải qua servlet
+và do đó qua chuỗi này.
+
+**`common/util` — `DateTimeUtil` là nguồn thời gian duy nhất** của hệ thống, dùng thay cho đồng
+hồ của SQL Server để lịch vào bếp không sai khi hai máy chủ lệch giờ.
+
+### 2.4 Lớp lồng: bốn nhóm gom vào ít tệp
+
+Bốn nhóm dưới đây gồm toàn lớp nhỏ, mỗi lớp vài chục dòng, và luôn được đọc theo cụm chứ không
+đọc lẻ. Để mỗi lớp một tệp thì riêng chúng đã chiếm gần một nửa số tệp Java của dự án.
+
+| Tệp | Chứa | Trước |
+|---|---|---|
+| `common/exception/AppException.java` | `ValidationException` · `AccessDeniedException` · `NotFoundException` · `BusinessException` · `DataAccessException` | 6 tệp |
+| `common/constant/Constants.java` | 8 kiểu liệt kê + `AuditAction` + `BusinessRule` | 11 tệp |
+| `model/dto/Dtos.java` | 9 lớp DTO | 9 tệp |
+| `model/entity/*Entities.java` | 27 entity chia 4 nhóm: `UserEntities` (5) · `MenuEntities` (4) · `OrderEntities` (10) · `OperationEntities` (8) | 27 tệp |
+
+Chúng là **lớp lồng tĩnh**, nên nơi dùng vẫn viết tên đơn giản y như cũ — chỉ dòng `import` đổi:
+
+```java
+import com.fastfood.common.constant.Constants.OrderStatus;   // trước: ...constant.OrderStatus
+import com.fastfood.model.entity.OrderEntities.Order;        // trước: ...entity.Order
+import com.fastfood.common.exception.AppException.NotFoundException;
+
+if (order.getStatus() == OrderStatus.CONFIRMED) { ... }      // thân hàm không đổi một chữ
+```
+
+**Phân tầng MVC không đổi.** Gộp chỉ xảy ra trong cùng một tầng và giữa các lớp cùng loại —
+không có servlet nào bị gộp với service, không có service nào bị gộp với DAO. `controller/`,
+`service/` và `dao/` vẫn tách theo vai trò đúng như §2.1 và §2.2.
+
+**Vì sao không gộp tiếp thành "một tệp cho một màn hình".** Tầng service và DAO dùng chung quá
+nhiều để chia được theo màn: `ProductDAO` bị 14 lớp gọi, `KitchenService` 15, `AuditService` 20,
+`Tx` 27. Ép mỗi màn một tệp thì hoặc phải nhân bản chúng ra nhiều bản — sửa một quy tắc phải sửa
+nhiều chỗ, đúng thứ §2.1 đã bác — hoặc phải để servlet gọi thẳng xuống DAO, phá nguyên tắc số 1
+ở §1.
+
+**`BeanNamingTest` đi xuống lớp lồng** khi quét quy ước đặt tên, nên `getX`/`isX` của entity và
+DTO vẫn bị canh y như trước.
 
 ---
 

@@ -1,8 +1,8 @@
 package com.fastfood.flow;
 
-import com.fastfood.common.exception.BusinessException;
-import com.fastfood.common.exception.NotFoundException;
-import com.fastfood.common.exception.ValidationException;
+import com.fastfood.common.exception.AppException.BusinessException;
+import com.fastfood.common.exception.AppException.NotFoundException;
+import com.fastfood.common.exception.AppException.ValidationException;
 import com.fastfood.service.kitchen.KitchenService;
 import com.fastfood.service.customer.CustomerOrderService;
 import com.fastfood.service.staff.StaffOrderService;
@@ -16,13 +16,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
-/**
- * Quy tắc huỷ đơn (BR-12).
- * <p>
- * Mốc chặn là <b>bếp đã bắt đầu làm hay chưa</b>, không phải <b>đơn đã xuống bếp hay chưa</b>.
- * Hai thời điểm này cách nhau 20 phút, và suốt khoảng đó có thể chưa đầu bếp nào nhận việc —
- * từ chối huỷ lúc ấy là bắt khách trả tiền cho một món chưa ai động tới.
- */
 @DisplayName("Khách huỷ đơn: chặn theo việc bếp đã bắt tay chưa")
 class CancelRuleIT extends IntegrationTestBase {
 
@@ -33,7 +26,7 @@ class CancelRuleIT extends IntegrationTestBase {
     @Test
     @DisplayName("Đơn đã xuống bếp nhưng chưa ai nhận việc: vẫn huỷ được")
     void releasedButUntouchedOrderCanStillBeCancelled() {
-        Fixture f = confirmedOrder(true);   // đã xuống bếp
+        Fixture f = confirmedOrder(true);
 
         customerOrders.cancelByCustomer(f.orderId, f.customerId);
 
@@ -87,7 +80,6 @@ class CancelRuleIT extends IntegrationTestBase {
         payFor(f.orderId);
         customerOrders.cancelByCustomer(f.orderId, f.customerId);
 
-        // Đơn đã hoàn rồi; đường hoàn tiền sót phải nhận ra và từ chối
         BusinessException e = assertThrows(BusinessException.class,
                 () -> new com.fastfood.service.shared.PaymentService()
                         .refund(f.orderId, userId(CASHIER_1), "thu ngan bam nham lan hai"));
@@ -136,12 +128,9 @@ class CancelRuleIT extends IntegrationTestBase {
                 "Lý do phải nằm trong nhật ký, không chỉ hiện trên màn hình");
     }
 
-    // ------------------------------------------------------------------ dựng dữ liệu
-
     private record Fixture(int orderId, int orderItemId, int customerId) {
     }
 
-    /** Đơn đặt trước đã xác nhận, một món đang chờ bếp. */
     private Fixture confirmedOrder(boolean releasedToKitchen) {
         int customerId = userId(CUSTOMER_1);
         LocalDateTime pickup = LocalDateTime.now().plusHours(3);

@@ -1,23 +1,12 @@
 package com.fastfood.service;
 
 import com.fastfood.common.exception.AppException;
-import com.fastfood.common.exception.DataAccessException;
+import com.fastfood.common.exception.AppException.DataAccessException;
 import com.fastfood.config.DBContext;
 
 import java.sql.Connection;
 import java.sql.SQLException;
 
-/**
- * Quản lý giao dịch cơ sở dữ liệu cho tầng Service.
- * <p>
- * Đặt ở đây thay vì rải try/catch trong từng phương thức, để mọi thao tác nhiều bước đều
- * chắc chắn có commit hoặc rollback. Đây là điều kiện bắt buộc với các nghiệp vụ như
- * ghi nhận thanh toán rồi xác nhận đơn: nếu bước sau hỏng mà bước trước đã lưu thì
- * khách mất tiền nhưng đơn không được nhận.
- * <p>
- * Lỗi nghiệp vụ ({@link AppException}) được ném tiếp nguyên vẹn để tầng trên hiển thị
- * thông báo cho người dùng; lỗi SQL được bọc lại để tầng trên không phải phụ thuộc java.sql.
- */
 public final class Tx {
 
     @FunctionalInterface
@@ -33,7 +22,6 @@ public final class Tx {
     private Tx() {
     }
 
-    /** Chỉ đọc: không cần giao dịch, trả kết nối về pool ngay sau khi xong. */
     public static <T> T read(Work<T> work) {
         try (Connection con = DBContext.getConnection()) {
             return work.run(con);
@@ -42,7 +30,6 @@ public final class Tx {
         }
     }
 
-    /** Ghi nhiều bước: tự commit khi thành công, tự rollback khi có bất kỳ lỗi nào. */
     public static <T> T write(Work<T> work) {
         Connection con = null;
         try {
@@ -55,7 +42,6 @@ public final class Tx {
             rollback(con);
             throw new DataAccessException("Lỗi ghi dữ liệu.", e);
         } catch (RuntimeException e) {
-            // Bao gồm cả lỗi nghiệp vụ do Service chủ động ném ra giữa chừng
             rollback(con);
             throw e;
         } finally {
@@ -75,7 +61,6 @@ public final class Tx {
             try {
                 con.rollback();
             } catch (SQLException ignored) {
-                // Kết nối đã hỏng; pool sẽ loại bỏ nó khi đóng
             }
         }
     }
@@ -86,7 +71,6 @@ public final class Tx {
                 con.setAutoCommit(true);
                 con.close();
             } catch (SQLException ignored) {
-                // Không còn gì làm được ở đây
             }
         }
     }

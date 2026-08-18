@@ -7,9 +7,6 @@
 
   <%@ include file="/WEB-INF/views/layout/flash.jspf" %>
 
-  <%-- Ca làm việc nằm ngay trên màn bán hàng chứ không chỉ ở trang Lịch sử. Đơn bán khi chưa
-       mở ca vẫn ghi nhận bình thường nhưng không vào được bảng đối soát tiền cuối ca; một cảnh
-       báo đặt ở trang mà thu ngân chỉ mở lúc cuối ca thì đã muộn mất một ca. --%>
   <c:choose>
     <c:when test="${empty currentShift}">
       <div class="alert alert-warn">
@@ -93,8 +90,6 @@
                     <div class="small muted">${ff:money(line.unitPrice)} × ${line.quantity}</div>
                   </c:when>
                   <c:otherwise>
-                    <%-- Dòng ở lại phiếu thay vì lặng lẽ biến mất: ô số lượng bên cạnh chính là
-                         chỗ đặt về 0 để bỏ nó ra. --%>
                     <div class="small"><span class="tag tag-red">Không còn phục vụ</span>
                       <span class="muted">— đặt số lượng về 0 để bỏ ra</span></div>
                   </c:otherwise>
@@ -105,8 +100,6 @@
                   <input type="hidden" name="_csrf" value="${csrfToken}">
                   <input type="hidden" name="action" value="setQty">
                   <input type="hidden" name="productId" value="${line.productId}">
-                  <%-- max phải bằng đúng BusinessRule.MAX_QUANTITY_PER_LINE. Để 99 như bản
-                       trước thì ô nhập nhận một con số mà máy chủ chắc chắn từ chối. --%>
                   <input type="number" name="quantity" value="${line.quantity}" min="0" max="50"
                          class="qty-input" data-autosubmit
                          aria-label="Số lượng của <c:out value="${line.productName}"/>">
@@ -122,9 +115,6 @@
           </div>
 
           <c:choose>
-            <%-- Còn một món không bán được thì cả phiếu bị máy chủ từ chối lúc lập đơn. Giấu nút
-                 thu tiền đi và nói rõ vì sao, thay vì để thu ngân bấm rồi nhận lỗi khi khách đã
-                 rút ví ra. Treo phiếu và xoá giỏ vẫn dùng được — đó là hai lối thoát ở đây. --%>
             <c:when test="${posUnavailable}">
               <div class="alert alert-error mt" role="alert">
                 <strong>Chưa thu tiền được.</strong> Phiếu đang có món không còn phục vụ. Đặt số
@@ -134,9 +124,6 @@
             <c:otherwise>
               <h3 class="mt">Thu tiền</h3>
               <div class="stack">
-                <%-- Ô "khách đưa" không có thuộc tính name nên không gửi lên máy chủ: nó chỉ là
-                     cái máy tính tay để khỏi nhẩm tiền thối. Số tiền thối không phải dữ liệu
-                     nghiệp vụ — hệ thống ghi nhận khoản thu đúng bằng tổng đơn. --%>
                 <form method="post" action="${ctx}/staff/pos"
                       data-change-form data-total="${posTotal}">
                   <input type="hidden" name="_csrf" value="${csrfToken}">
@@ -251,9 +238,6 @@
                     <button type="submit" class="btn btn-sm btn-primary">Lấy ra tính tiền</button>
                   </form>
                   <a class="btn btn-sm" href="${ctx}/staff/pos?editHold=${h.holdId}">Sửa tên</a>
-                  <%-- data-confirm chứ không phải onsubmit="confirm(...)": hộp thoại gốc của
-                       trình duyệt có ô "chặn không cho trang này hỏi nữa", tick nhầm một lần là
-                       từ đó bỏ phiếu không hỏi lại câu nào. Xem bindConfirm trong app.js. --%>
                   <form method="post" action="${ctx}/staff/pos" class="inline-form"
                         data-confirm="Bỏ hẳn phiếu &quot;${fn:escapeXml(h.label)}&quot;?">
                     <input type="hidden" name="_csrf" value="${csrfToken}">

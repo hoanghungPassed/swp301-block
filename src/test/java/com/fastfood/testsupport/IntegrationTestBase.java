@@ -12,12 +12,6 @@ import java.sql.SQLException;
 import static org.junit.jupiter.api.Assertions.fail;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
-/**
- * Nền chung cho các bài test chạy thật xuống SQL Server.
- * <p>
- * Nếu máy không có máy chủ cơ sở dữ liệu thì cả nhóm này được <b>bỏ qua</b> chứ không báo đỏ:
- * đỏ phải có nghĩa là mã nguồn sai, không phải là môi trường thiếu thứ gì đó.
- */
 public abstract class IntegrationTestBase {
 
     @BeforeAll
@@ -26,9 +20,6 @@ public abstract class IntegrationTestBase {
                 () -> "Bo qua: khong ket noi duoc SQL Server test — " + TestDatabase.unavailableReason());
     }
 
-    // ------------------------------------------------------------------ tiện ích SQL
-
-    /** Chạy một câu lệnh ghi, trả về số dòng bị ảnh hưởng. */
     protected static int exec(String sql, Object... params) {
         try (Connection con = DBContext.getConnection();
              PreparedStatement ps = con.prepareStatement(sql)) {
@@ -39,7 +30,6 @@ public abstract class IntegrationTestBase {
         }
     }
 
-    /** Đọc một ô duy nhất. Trả null nếu không có dòng nào. */
     protected static <T> T scalar(Class<T> type, String sql, Object... params) {
         try (Connection con = DBContext.getConnection();
              PreparedStatement ps = con.prepareStatement(sql)) {
@@ -65,12 +55,6 @@ public abstract class IntegrationTestBase {
         return scalar(BigDecimal.class, sql, params);
     }
 
-    /**
-     * Chạy một câu lệnh và <b>bắt buộc</b> nó phải hỏng, rồi trả về thông báo lỗi.
-     * <p>
-     * Dùng để kiểm chứng các ràng buộc: điều cần chứng minh là cơ sở dữ liệu <i>từ chối</i>
-     * dữ liệu sai, nên bài test chỉ có nghĩa khi câu lệnh thật sự bị chặn.
-     */
     protected static String expectSqlFailure(String sql, Object... params) {
         try (Connection con = DBContext.getConnection();
              PreparedStatement ps = con.prepareStatement(sql)) {
@@ -80,7 +64,7 @@ public abstract class IntegrationTestBase {
             return e.getMessage();
         }
         fail("Cau lenh dang le phai bi chan nhung lai chay duoc: " + sql);
-        return null;   // không tới được
+        return null;
     }
 
     private static void bind(PreparedStatement ps, Object... params) throws SQLException {
@@ -89,9 +73,6 @@ public abstract class IntegrationTestBase {
         }
     }
 
-    // ------------------------------------------------------------------ dữ liệu mẫu
-
-    /** Mã tài khoản theo email — dùng dữ liệu mẫu thay vì gán cứng số. */
     protected static int userId(String email) {
         Integer id = scalar(Integer.class, "SELECT user_id FROM dbo.Users WHERE email = ?", email);
         if (id == null) {
@@ -100,7 +81,6 @@ public abstract class IntegrationTestBase {
         return id;
     }
 
-    /** Một món đang bán được, lấy từ dữ liệu mẫu. */
     protected static int anyOrderableProductId() {
         Integer id = scalar(Integer.class,
                 "SELECT TOP 1 p.product_id FROM dbo.Product p " +
@@ -113,7 +93,6 @@ public abstract class IntegrationTestBase {
         return id;
     }
 
-    /** Một món KHÔNG bán được — dữ liệu mẫu cố ý giữ sẵn cả món hết hàng lẫn món đã ngừng bán. */
     protected static int unavailableProductId() {
         Integer id = scalar(Integer.class,
                 "SELECT TOP 1 product_id FROM dbo.Product " +

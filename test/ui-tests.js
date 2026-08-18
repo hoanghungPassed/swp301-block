@@ -1,11 +1,3 @@
-/*
-  Kiểm thử giao diện trong trình duyệt thật.
-
-  Bộ test bằng curl chỉ đọc được HTML máy chủ gửi ra; những thứ chỉ tồn tại sau khi
-  JavaScript chạy — thẻ trên màn hình bếp được vẽ lại, nút mở menu, ảnh hỏng đổi về nền
-  giữ chỗ, hộp xác nhận, chống bấm trùng — thì phải mở bằng trình duyệt mới thấy.
-*/
-
 const { chromium } = require('playwright');
 
 const BASE = process.env.BASE || 'http://localhost:8081';
@@ -28,7 +20,6 @@ async function login(page, email) {
     const browser = await chromium.launch({ channel: 'chrome' });
     const errors = [];
 
-    // ---------------------------------------------------------------- khách hàng
     {
         const ctx = await browser.newContext();
         const page = await ctx.newPage();
@@ -44,8 +35,6 @@ async function login(page, email) {
 
         check('Tiêu đề trang đúng', (await page.title()) === 'Thực đơn · Fast Food');
 
-        // Ảnh trỏ ra ngoài; nếu tải được thì vẫn là <img>, nếu hỏng thì app.js phải đổi
-        // về nền giữ chỗ. Cả hai đều đúng — điều sai duy nhất là còn lại ô ảnh vỡ.
         const thumbs = await page.evaluate(() => {
             const cards = Array.from(document.querySelectorAll('.product'));
             return cards.map(c => {
@@ -94,7 +83,6 @@ async function login(page, email) {
         await ctx.close();
     }
 
-    // ---------------------------------------------------------------- bếp
     {
         const ctx = await browser.newContext();
         const page = await ctx.newPage();
@@ -108,11 +96,6 @@ async function login(page, email) {
         let polls = 0;
         page.on('response', r => { if (r.url().includes('/api/kds/queue')) polls++; });
 
-        // Đánh dấu các nút hiện có rồi chờ qua vài nhịp hỏi. Nếu hàng chờ không đổi thì
-        // đúng ra không nút nào bị dựng lại — đó chính là điều bản cũ làm sai khi nó
-        // tải lại cả trang mỗi 5 giây.
-        // Đánh dấu chính các NÚT, không phải thẻ: điều thật sự quan trọng là nút "Nhận món"
-        // không bị dựng lại dưới ngón tay đầu bếp, kể cả khi nhãn giờ hẹn đếm lùi thay đổi.
         await page.evaluate(() => {
             document.querySelectorAll('#kds-grid .kds-card').forEach((c, i) => {
                 c.dataset.mark = 'card' + i;
@@ -152,8 +135,6 @@ async function login(page, email) {
             await page.evaluate(() => document.getElementById('kds-offline').hidden === true));
 
         console.log('\n════ H. Vẽ thẻ từ dữ liệu giả ════');
-        // Ép máy chủ trả về một hàng chờ dựng sẵn để kiểm tra đúng phần vẽ thẻ, không phụ
-        // thuộc vào việc lúc chạy test trong bếp có món hay không.
         await page.route('**/api/kds/queue', r => r.fulfill({
             status: 200,
             contentType: 'application/json;charset=UTF-8',
@@ -224,7 +205,6 @@ async function login(page, email) {
         await ctx.close();
     }
 
-    // ---------------------------------------------------------------- thu ngân
     {
         const ctx = await browser.newContext();
         const page = await ctx.newPage();
@@ -236,7 +216,6 @@ async function login(page, email) {
 
         const addBtn = page.locator('form.product button[type=submit]').first();
         if (await addBtn.count() > 0) {
-            // Chặn lần gửi để trang đứng yên, mới xem được nút sau khi bấm.
             await page.route('**/staff/pos', route =>
                 route.request().method() === 'POST' ? route.fulfill({ status: 204 }) : route.continue());
             await addBtn.click({ noWaitAfter: true });
@@ -248,7 +227,6 @@ async function login(page, email) {
             check('Bấm gửi xong nút bị khoá lại', state.disabled === true);
             check(`Nút đổi nhãn báo đang xử lý ("${state.label}")`, state.label === 'Đang xử lý…');
 
-            // Bấm thêm lần nữa: phải không gửi thêm yêu cầu nào.
             let extraPosts = 0;
             page.on('request', r => { if (r.method() === 'POST' && r.url().includes('/staff/pos')) extraPosts++; });
             await addBtn.click({ noWaitAfter: true, force: true }).catch(() => {});
@@ -275,7 +253,6 @@ async function login(page, email) {
         await ctx.close();
     }
 
-    // ---------------------------------------------------------------- quản trị
     {
         const ctx = await browser.newContext();
         const page = await ctx.newPage();
@@ -304,7 +281,6 @@ async function login(page, email) {
         check('Bấm "Không" thì hộp đóng và vẫn không gửi',
             await page.locator('#confirm-dialog[open]').count() === 0 && posted === 0);
 
-        // Bấm "Đồng ý" thì phải gửi thật — chặn lại để không đổi mật khẩu của dữ liệu mẫu.
         await page.route('**/admin/users', r =>
             r.request().method() === 'POST' ? r.fulfill({ status: 204 }) : r.continue());
         await resetBtn.click({ noWaitAfter: true });
@@ -337,10 +313,6 @@ async function login(page, email) {
 
         console.log('\n════ N. Xem trước ảnh trong trang quản trị ════');
         await page.goto(`${BASE}/admin/products`, { waitUntil: 'networkidle' });
-        // Chờ đúng điều kiện chứ không chờ theo giây: ảnh lấy từ máy chủ ngoài nên thời
-        // gian về không đoán trước được, đặt cứng bao nhiêu giây cũng có lúc trượt.
-        // Ảnh nhúng thẳng trong địa chỉ data: chứ không gọi ra mạng — phép thử này kiểm tra
-        // cơ chế xem trước, không phải kiểm tra một dịch vụ ảnh bên ngoài có sống hay không.
         const LIVE_IMG = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'"
             + "%20width='40'%20height='30'%3E%3Crect%20width='40'%20height='30'%20fill='%23ccc'/%3E%3C/svg%3E";
         await page.fill('#imageUrl', LIVE_IMG);

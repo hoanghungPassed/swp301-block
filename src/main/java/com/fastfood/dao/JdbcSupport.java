@@ -7,12 +7,6 @@ import java.sql.SQLException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
-/**
- * Hàm dùng chung cho tầng DAO: đọc và ghi giá trị có thể null.
- * <p>
- * JDBC trả về 0 cho số nguyên null và ném lỗi khi đọc thời gian null, nên mọi cột
- * cho phép bỏ trống đều phải đi qua các hàm ở đây thay vì gọi thẳng {@code rs.getInt()}.
- */
 public final class JdbcSupport {
 
     private JdbcSupport() {
@@ -70,20 +64,10 @@ public final class JdbcSupport {
         return value == null ? BigDecimal.ZERO : value;
     }
 
-    /**
-     * Vi phạm ràng buộc duy nhất trong SQL Server.
-     * Dùng để nhận biết callback thanh toán bị gọi lại, hoặc khách bấm đặt hàng hai lần —
-     * cả hai đều là tình huống bình thường cần bỏ qua chứ không phải lỗi hệ thống.
-     */
     public static boolean isUniqueViolation(SQLException e) {
         return e.getErrorCode() == 2627 || e.getErrorCode() == 2601;
     }
 
-    /**
-     * Như trên nhưng lần theo cả chuỗi nguyên nhân.
-     * Tầng Service bọc lỗi SQL lại thành lỗi của riêng nó, nên khi bắt ở ngoài ranh giới
-     * giao dịch thì {@link SQLException} gốc đã nằm sâu bên trong.
-     */
     public static boolean isUniqueViolation(Throwable t) {
         for (Throwable cause = t; cause != null; cause = cause.getCause()) {
             if (cause instanceof SQLException && isUniqueViolation((SQLException) cause)) {

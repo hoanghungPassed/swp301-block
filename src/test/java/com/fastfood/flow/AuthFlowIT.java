@@ -1,10 +1,10 @@
 package com.fastfood.flow;
 
-import com.fastfood.common.constant.AuditAction;
-import com.fastfood.common.exception.BusinessException;
-import com.fastfood.common.exception.ValidationException;
+import com.fastfood.common.constant.Constants.AuditAction;
+import com.fastfood.common.exception.AppException.BusinessException;
+import com.fastfood.common.exception.AppException.ValidationException;
 import com.fastfood.integration.notification.NotificationSender;
-import com.fastfood.model.entity.User;
+import com.fastfood.model.entity.UserEntities.User;
 import com.fastfood.service.admin.AdminService;
 import com.fastfood.service.auth.AuthService;
 import com.fastfood.service.auth.PasswordResetService;
@@ -25,35 +25,18 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/**
- * Đăng nhập, chống dò mật khẩu, và luồng quên mật khẩu — chạy thật xuống cơ sở dữ liệu.
- * <p>
- * Bài này bổ sung cho {@code AdminAccountIT}: ở đó là mật khẩu do quản trị viên đặt hộ, ở đây là
- * đường người dùng tự đi. Ba chỗ được soi kỹ, vì cả ba đều là loại lỗi <b>không lộ ra trên màn
- * hình</b> — hệ thống vẫn chạy đúng với người dùng bình thường trong khi rào chắn thì không có:
- * <ul>
- *   <li>Cửa có thật sự khoá lại sau nhiều lần thử sai, và khoá đúng cặp email + máy.</li>
- *   <li>Mã đặt lại mật khẩu có thật sự chỉ dùng được một lần, và có hết hiệu lực khi mật khẩu
- *       đổi bằng đường khác.</li>
- *   <li>Trang quên mật khẩu có im lặng như nhau với email có thật và email không tồn tại.</li>
- * </ul>
- */
 @DisplayName("Đăng nhập, chống dò mật khẩu và quên mật khẩu")
 class AuthFlowIT extends IntegrationTestBase {
 
     private static final String BASE_URL = "http://localhost:8080/fastfood";
 
-    /** Cấp địa chỉ máy cho từng lần gọi {@link #ip()} — xem ghi chú ở đó. */
     private static final AtomicInteger IP_COUNTER = new AtomicInteger();
 
     private final AuthService authService = new AuthService();
     private final AdminService adminService = new AdminService();
 
-    /** Hộp thư giả: giữ lại tin cuối cùng để bài test đọc được liên kết trong đó. */
     private final Inbox inbox = new Inbox();
     private final PasswordResetService resetService = new PasswordResetService(inbox);
-
-    // ------------------------------------------------------------------ đăng nhập
 
     @Nested
     @DisplayName("Đăng nhập")
@@ -103,11 +86,6 @@ class AuthFlowIT extends IntegrationTestBase {
                     acc.id(), AuditAction.LOGIN_FAILED, acc.email()));
         }
 
-        /**
-         * Nhật ký của một lần thất bại phải sống sót. Ghi nó trong cùng giao dịch với thao tác
-         * bị từ chối là tự xoá bằng chứng — giao dịch bị huỷ, dòng nhật ký huỷ theo, và chuyện
-         * đáng ghi nhất lại là chuyện duy nhất không để lại dấu vết.
-         */
         @Test
         @DisplayName("Email không tồn tại vẫn để lại dấu vết, dù không gắn được vào tài khoản nào")
         void unknownEmailStillLeavesATrace() {
@@ -121,8 +99,6 @@ class AuthFlowIT extends IntegrationTestBase {
                     AuditAction.LOGIN_FAILED, unknown));
         }
     }
-
-    // ------------------------------------------------------------------ chống dò
 
     @Nested
     @DisplayName("Chống dò mật khẩu")
@@ -147,10 +123,6 @@ class AuthFlowIT extends IntegrationTestBase {
                     "Moi dot chi ghi mot dong LOGIN_BLOCKED, khong ghi lai o moi lan thu");
         }
 
-        /**
-         * Khoá theo mình email thì bất kỳ ai cũng vô hiệu hoá được tài khoản người khác bằng
-         * cách gõ sai năm lần — cơ chế bảo vệ trở thành cơ chế phá hoại.
-         */
         @Test
         @DisplayName("Máy khác vẫn đăng nhập được sau khi một máy bị khoá")
         void lockIsPerMachine() {
@@ -167,8 +139,6 @@ class AuthFlowIT extends IntegrationTestBase {
         }
     }
 
-    // ------------------------------------------------------------------ quên mật khẩu
-
     @Nested
     @DisplayName("Quên mật khẩu")
     class ForgotPassword {
@@ -184,11 +154,6 @@ class AuthFlowIT extends IntegrationTestBase {
             assertNotNull(resetService.findAccountFor(token));
         }
 
-        /**
-         * Mã nằm trong liên kết gửi cho người dùng. Lưu nguyên văn xuống bảng nghĩa là bất kỳ ai
-         * đọc được bảng — bản sao lưu, ảnh chụp màn hình lúc trình bày — đều chiếm được tài khoản
-         * trong thời gian mã còn hạn.
-         */
         @Test
         @DisplayName("Bảng chỉ giữ bản băm, không giữ mã mở được liên kết")
         void tableStoresOnlyTheHash() {
@@ -225,11 +190,6 @@ class AuthFlowIT extends IntegrationTestBase {
             assertEquals(0, liveTokens(acc.id()));
         }
 
-        /**
-         * Hạn 15 phút là thứ thu hẹp khoảng thời gian một liên kết bị lộ còn giá trị — hộp thư
-         * mở trên máy dùng chung, ảnh chụp màn hình, thư chuyển tiếp nhầm. Không có bài test thì
-         * cột {@code expires_at} chỉ là một cột dữ liệu đẹp mà chưa chắc có ai đọc tới.
-         */
         @Test
         @DisplayName("Quá hạn thì mã hết tác dụng, dù chưa ai dùng tới nó")
         void expiredTokenIsRejected() {
@@ -237,7 +197,6 @@ class AuthFlowIT extends IntegrationTestBase {
             String token = requestAndCapture(acc);
             assertNotNull(resetService.findAccountFor(token), "Ma phai con dung duoc truoc khi het han");
 
-            // Đẩy hạn về quá khứ thay vì chờ 15 phút thật
             exec("UPDATE dbo.PasswordResetToken SET expires_at = DATEADD(MINUTE, -1, SYSDATETIME()) "
                     + "WHERE user_id = ?", acc.id());
 
@@ -246,11 +205,6 @@ class AuthFlowIT extends IntegrationTestBase {
                     () -> resetService.complete(token, "MatKhauMoi9", "MatKhauMoi9", ip()));
         }
 
-        /**
-         * Xin liên kết xong rồi mới bị khoá tài khoản. Không kiểm lại lúc dùng thì một liên kết
-         * xin ra trước thời điểm khoá vẫn mở được cửa sau đó — đúng cánh cửa mà việc khoá tài
-         * khoản sinh ra để đóng.
-         */
         @Test
         @DisplayName("Tài khoản bị khoá sau khi đã cấp mã thì mã đó cũng không dùng được")
         void tokenDiesWithTheAccount() {
@@ -342,10 +296,6 @@ class AuthFlowIT extends IntegrationTestBase {
                     "Nguoi dung vua tu dat mat khau cua chinh ho — dung viec ma co do dang cho");
         }
 
-        /**
-         * Đổi mật khẩu là lúc người dùng muốn đóng mọi đường vào cũ. Một liên kết xin từ trước
-         * mà vẫn dùng được sau đó thì đúng cánh cửa họ vừa khoá lại là cánh cửa còn mở.
-         */
         @Test
         @DisplayName("Tự đổi mật khẩu ở trang tài khoản thì mọi liên kết còn treo hết hiệu lực")
         void changingPasswordInvalidatesOutstandingLinks() {
@@ -369,9 +319,6 @@ class AuthFlowIT extends IntegrationTestBase {
         }
     }
 
-    // ------------------------------------------------------------------ tiện ích
-
-    /** Một tài khoản khách mới toanh cho mỗi bài, để các bài không giẫm lên nhau. */
     private Account newAccount() {
         String email = "test-auth-" + System.nanoTime() + "@gmail.com";
         String password = "MatKhauGoc7";
@@ -379,12 +326,6 @@ class AuthFlowIT extends IntegrationTestBase {
         return new Account(created.getUserId(), email, password);
     }
 
-    /**
-     * Xin một mã và lấy lại mã gốc từ tin vừa gửi.
-     * <p>
-     * Không đọc được từ cơ sở dữ liệu, và đó chính là điều đang cần: ở bảng chỉ có bản băm.
-     * Đường duy nhất còn lại đúng bằng đường của người dùng thật — mở tin, lấy liên kết.
-     */
     private String requestAndCapture(Account acc) {
         inbox.clear();
         resetService.request(acc.email(), BASE_URL, ip());
@@ -393,7 +334,6 @@ class AuthFlowIT extends IntegrationTestBase {
         return token;
     }
 
-    /** Số mã còn dùng được của một tài khoản. */
     private static int liveTokens(int userId) {
         return count("SELECT COUNT(*) FROM dbo.PasswordResetToken "
                 + "WHERE user_id = ? AND used_at IS NULL AND expires_at > SYSDATETIME()", userId);
@@ -410,16 +350,6 @@ class AuthFlowIT extends IntegrationTestBase {
         return Boolean.TRUE.equals(flag);
     }
 
-    /**
-     * Mỗi lần gọi một địa chỉ riêng, để bộ đếm số lần thử sai của bài này không dính sang bài khác.
-     * <p>
-     * Đếm tăng dần chứ không lấy theo đồng hồ. Bản cũ dùng {@code System.nanoTime() % 250} cho cả
-     * hai nhóm số, mà hai lần đọc đồng hồ cách nhau vài nano thì gần như luôn cho cùng phần dư —
-     * nên xác suất hai địa chỉ trùng nhau không phải 1/62500 như hình thức của nó gợi ra, mà là
-     * khoảng 1/250. Trùng một lần là {@code lockIsPerMachine} đỏ: "máy khác" hoá ra lại chính là
-     * máy vừa bị khoá. Một bài test chập chờn còn tệ hơn không có bài nào, vì lần đỏ tiếp theo
-     * sẽ bị cho qua như một lần chập chờn nữa.
-     */
     private static String ip() {
         int n = IP_COUNTER.getAndIncrement();
         return "10.90." + (n / 250 % 250) + "." + (n % 250);
@@ -437,13 +367,6 @@ class AuthFlowIT extends IntegrationTestBase {
     private record Account(int id, String email, String password) {
     }
 
-    /**
-     * Hộp thư giả thay cho kênh gửi tin thật.
-     * <p>
-     * Giữ lại nội dung tin cuối cùng để bài test lấy được liên kết trong đó — đúng thao tác của
-     * người dùng khi họ mở thư. Đây cũng là bài kiểm tra ngầm cho chính nội dung tin: liên kết
-     * phải có thật trong đó và phải dùng được, chứ không chỉ có mã nằm đâu đó trong bảng.
-     */
     private static final class Inbox implements NotificationSender {
 
         private static final Pattern LINK = Pattern.compile("/reset-password\\?token=([A-Za-z0-9_-]+)");
@@ -465,7 +388,6 @@ class AuthFlowIT extends IntegrationTestBase {
             lastContent = null;
         }
 
-        /** Mã nằm trong liên kết của tin cuối cùng, hoặc null nếu không có tin nào. */
         String tokenInLink() {
             if (lastContent == null) {
                 return null;

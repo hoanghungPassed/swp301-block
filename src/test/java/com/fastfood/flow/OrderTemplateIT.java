@@ -1,10 +1,10 @@
 package com.fastfood.flow;
 
-import com.fastfood.common.exception.BusinessException;
-import com.fastfood.common.exception.NotFoundException;
-import com.fastfood.common.exception.ValidationException;
-import com.fastfood.model.dto.TemplateApplyResult;
-import com.fastfood.model.entity.OrderTemplate;
+import com.fastfood.common.exception.AppException.BusinessException;
+import com.fastfood.common.exception.AppException.NotFoundException;
+import com.fastfood.common.exception.AppException.ValidationException;
+import com.fastfood.model.dto.Dtos.TemplateApplyResult;
+import com.fastfood.model.entity.OrderEntities.OrderTemplate;
 import com.fastfood.service.customer.OrderTemplateService;
 import com.fastfood.testsupport.IntegrationTestBase;
 import org.junit.jupiter.api.DisplayName;
@@ -19,18 +19,11 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/**
- * Mẫu đặt nhanh của khách, trên trang lịch sử đơn.
- * <p>
- * Dùng {@code customer2} cho phần lớn bài test vì dữ liệu mẫu đã lưu sẵn hai mẫu cho
- * {@code customer1}, và một trong hai cố ý chứa món đã ngừng bán.
- */
 @DisplayName("Mẫu đặt nhanh của khách")
 class OrderTemplateIT extends IntegrationTestBase {
 
     private final OrderTemplateService templateService = new OrderTemplateService();
 
-    /** Một đơn đã đặt của chính khách này, lấy từ dữ liệu mẫu. */
     private int donCuaKhach(int customerId) {
         Integer id = scalar(Integer.class,
                 "SELECT TOP 1 o.order_id FROM dbo.Orders o " +
@@ -168,7 +161,6 @@ class OrderTemplateIT extends IntegrationTestBase {
             int don = donCuaKhach(khach);
             OrderTemplate mau = templateService.saveFromOrder(khach, don, "Mẫu toàn món hết");
             int id = mau.getTemplateId();
-            // Bỏ hết món còn bán, chỉ chừa lại một món đã ngừng phục vụ.
             templateService.addItem(id, khach, unavailableProductId(), 1);
             for (var item : mau.getItems()) {
                 templateService.setQuantity(id, khach, item.getProductId(), 0);

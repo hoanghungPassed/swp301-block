@@ -1,26 +1,19 @@
 package com.fastfood.service.customer;
 
-import com.fastfood.common.constant.BusinessRule;
-import com.fastfood.common.exception.BusinessException;
-import com.fastfood.common.exception.NotFoundException;
+import com.fastfood.common.constant.Constants.BusinessRule;
+import com.fastfood.common.exception.AppException.BusinessException;
+import com.fastfood.common.exception.AppException.NotFoundException;
 import com.fastfood.common.util.DateTimeUtil;
 import com.fastfood.common.util.ValidationUtil;
 import com.fastfood.dao.customer.CartDAO;
 import com.fastfood.dao.shared.ProductDAO;
-import com.fastfood.model.dto.CartView;
-import com.fastfood.model.entity.CartItem;
-import com.fastfood.model.entity.Product;
+import com.fastfood.model.dto.Dtos.CartView;
+import com.fastfood.model.entity.OrderEntities.CartItem;
+import com.fastfood.model.entity.MenuEntities.Product;
 import com.fastfood.service.Tx;
 
 import java.util.List;
 
-/**
- * Giỏ hàng của khách đặt trước.
- * <p>
- * Giỏ chỉ là bản nháp: giá trong giỏ luôn đọc mới từ bảng món chứ không lưu lại,
- * nên khách nhìn thấy giá hiện hành ngay cả khi để giỏ qua đêm. Giá thật chỉ được
- * chốt và sao chép lại vào lúc đặt hàng.
- */
 public class CartService {
 
     private final CartDAO cartDAO = new CartDAO();
@@ -37,23 +30,10 @@ public class CartService {
         });
     }
 
-    /** Số món trên biểu tượng giỏ hàng ở thanh điều hướng. */
     public int countItems(int userId) {
         return Tx.read(con -> cartDAO.countItems(con, userId));
     }
 
-    /**
-     * Thêm món vào giỏ. Món đã có thì <b>cộng dồn</b> vào dòng cũ chứ không tạo dòng thứ hai.
-     * <p>
-     * Vì cộng dồn, giới hạn số lượng phải xét trên <b>tổng sau khi cộng</b>, không phải trên con
-     * số của riêng lần bấm này. Xét lần bấm thì mỗi yêu cầu đều mang số 1 và đều hợp lệ, trong
-     * khi dòng trong giỏ cứ thế lớn lên không có trần — bấm "thêm vào giỏ" đủ nhiều là vượt qua
-     * đúng cái ngưỡng vừa dựng lên để chặn. Đường bán tại quầy đã xét theo tổng ngay từ đầu
-     * ({@code PosServlet}), nên xét khác đi ở đây còn làm hai đường đặt hàng lệch nhau.
-     * <p>
-     * Đọc số đang có nằm trong cùng giao dịch với lúc ghi, để hai yêu cầu gần như cùng lúc không
-     * cùng đọc thấy một con số cũ rồi cùng cộng thêm.
-     */
     public void addProduct(int userId, int productId, int quantity) {
         ValidationUtil.requirePositive(quantity, "Số lượng");
         requireSaneQuantity(quantity);
@@ -72,11 +52,6 @@ public class CartService {
         });
     }
 
-    /**
-     * Ô nhập trên giao diện đã giới hạn số lượng, nhưng đó chỉ là gợi ý cho người dùng — gửi
-     * thẳng một con số khổng lồ lên vẫn được nhận. Chặn ở đây để thành tiền không vượt quá sức
-     * chứa của cột tiền trong cơ sở dữ liệu và làm hỏng cả lượt đặt hàng.
-     */
     private void requireSaneQuantity(int quantity) {
         if (quantity > BusinessRule.MAX_QUANTITY_PER_LINE) {
             throw new BusinessException("Mỗi món chỉ đặt được tối đa "
@@ -85,7 +60,6 @@ public class CartService {
         }
     }
 
-    /** Đặt lại số lượng; về 0 thì bỏ món khỏi giỏ. */
     public void updateQuantity(int userId, int cartItemId, int quantity) {
         requireSaneQuantity(quantity);
         Tx.writeVoid(con -> {
@@ -107,7 +81,6 @@ public class CartService {
         });
     }
 
-    /** Bỏ khỏi giỏ những món vừa hết hàng, để khách đi tiếp được mà không phải xoá từng dòng. */
     public int removeUnavailable(int userId) {
         return Tx.write(con -> {
             int cartId = cartDAO.getOrCreateCartId(con, userId, DateTimeUtil.now());

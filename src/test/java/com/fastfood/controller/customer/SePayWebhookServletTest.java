@@ -11,15 +11,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/**
- * Hai chỗ phiên dịch dữ liệu của webhook SePay: bóc khoá ra khỏi header, và tìm mã thanh toán
- * trong đám trường mà SePay gửi tới.
- * <p>
- * Tách khỏi phần còn lại của servlet để chạy được mà không cần máy chủ lẫn cơ sở dữ liệu. Đây
- * cũng chính là hai chỗ dễ sai nhất, vì cả hai đều làm việc với dữ liệu do bên ngoài định dạng:
- * bóc khoá sai thì mọi lần báo có tiền đều bị từ chối và không đơn nào tự xác nhận được, còn
- * tìm mã sai thì tiền được ghi cho nhầm đơn.
- */
 @DisplayName("Webhook SePay đọc dữ liệu gửi tới")
 class SePayWebhookServletTest {
 
@@ -40,8 +31,6 @@ class SePayWebhookServletTest {
         @Test
         @DisplayName("Tên lược đồ viết hoa thường kiểu gì cũng nhận")
         void schemeIsCaseInsensitive() {
-            // Tên lược đồ trong HTTP vốn không phân biệt hoa thường, và bảng điều khiển SePay
-            // cho gõ tay giá trị header nên gõ kiểu nào cũng gặp
             assertEquals("khoa-abc", SePayWebhookServlet.apiKeyFromHeader("APIKEY khoa-abc"));
             assertEquals("khoa-abc", SePayWebhookServlet.apiKeyFromHeader("apikey khoa-abc"));
             assertEquals("khoa-abc", SePayWebhookServlet.apiKeyFromHeader("  Apikey   khoa-abc  "));
@@ -64,7 +53,6 @@ class SePayWebhookServletTest {
     @DisplayName("Tìm mã thanh toán trong dữ liệu gửi tới")
     class TimMa {
 
-        /** Đúng nguyên văn ví dụ trong tài liệu SePay, chỉ đổi nội dung chuyển khoản. */
         private static final String PAYLOAD = """
                 {
                   "id": 92704,
@@ -87,11 +75,6 @@ class SePayWebhookServletTest {
             assertEquals(57, SePayWebhookServlet.firstPaymentId(gateway, json(PAYLOAD)));
         }
 
-        /**
-         * {@code code} chỉ có giá trị khi đã khai báo quy tắc bóc mã trong bảng điều khiển SePay.
-         * Khi có, nó là chỗ sạch nhất để đọc — nhưng {@code content} vẫn được thử trước, nên bài
-         * này chứng minh việc thử tiếp không dừng lại ở một {@code content} không mang mã.
-         */
         @Test
         @DisplayName("Mã nằm ở trường code cũng tìm ra")
         void fallsBackToCode() {
@@ -103,7 +86,6 @@ class SePayWebhookServletTest {
             assertEquals(57, SePayWebhookServlet.firstPaymentId(gateway, json(chiCoOCode)));
         }
 
-        /** Trường rỗng phải bị bỏ qua chứ không được làm dừng việc tìm ở những trường sau. */
         @Test
         @DisplayName("Trường rỗng không chặn mất các trường còn lại")
         void nullFieldsDoNotStopTheSearch() {

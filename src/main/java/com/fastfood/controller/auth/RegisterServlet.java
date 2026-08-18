@@ -3,7 +3,7 @@ package com.fastfood.controller.auth;
 import com.fastfood.common.exception.AppException;
 import com.fastfood.common.util.WebUtil;
 import com.fastfood.controller.BaseServlet;
-import com.fastfood.model.entity.User;
+import com.fastfood.model.entity.UserEntities.User;
 import com.fastfood.service.auth.AuthService;
 
 import javax.servlet.ServletException;
@@ -12,7 +12,6 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 
-/** Đăng ký tài khoản khách hàng. Tài khoản nhân viên do quản trị viên tạo. */
 @WebServlet("/register")
 public class RegisterServlet extends BaseServlet {
 
@@ -37,13 +36,7 @@ public class RegisterServlet extends BaseServlet {
                     WebUtil.baseUrl(req),
                     WebUtil.clientIp(req));
 
-            // Đăng ký xong là đã đăng nhập, nên phải cấp phiên mới y hệt lúc đăng nhập. Dùng lại
-            // phiên cũ ở đây thì việc chiếm phiên đã biết trước chỉ cần chuyển sang cửa này là
-            // qua được — hàng rào dựng ở /login mà bỏ trống ở /register thì không phải là hàng rào.
             String target = WebUtil.startAuthenticatedSession(req, user, "/menu");
-            // Nói ngay rằng có một lá thư đang chờ, và nói cả việc nó dùng để làm gì. Chỉ chúc
-            // mừng rồi thôi thì dải nhắc "chưa xác thực email" ở trang sau hiện ra như một lỗi
-            // vừa xảy ra, trong khi nó là bước tiếp theo hoàn toàn bình thường.
             WebUtil.flashSuccess(req, "Đăng ký thành công. Chào mừng " + user.getFullName()
                     + "! Chúng tôi vừa gửi một thư xác thực tới " + user.getEmail()
                     + " — mở thư và bấm liên kết trong đó để đặt được đơn online.");

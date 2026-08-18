@@ -1,7 +1,7 @@
 package com.fastfood.report;
 
-import com.fastfood.model.dto.DashboardKpi;
-import com.fastfood.model.dto.ReportRow;
+import com.fastfood.model.dto.Dtos.DashboardKpi;
+import com.fastfood.model.dto.Dtos.ReportRow;
 import com.fastfood.service.admin.ReportService;
 import com.fastfood.testsupport.IntegrationTestBase;
 import org.junit.jupiter.api.BeforeEach;
@@ -15,23 +15,9 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/**
- * Doanh thu thuần — bài test quan trọng nhất của cả bộ, vì đây là chỗ từng sai.
- * <p>
- * <b>Lỗi cũ:</b> vế thu lọc theo {@code payment_status = 'PAID'}. Bảng Payment chỉ có một cột
- * trạng thái và hoàn tiền ghi đè PAID thành REFUNDED, nên một khoản đã thu rồi hoàn lại sẽ
- * biến mất khỏi vế thu nhưng vẫn nằm ở vế hoàn — bị trừ hai lần. Đơn 100.000đ thu rồi hoàn
- * cho ra <b>âm</b> 100.000đ thay vì bằng không.
- * <p>
- * <b>Cách đúng:</b> mỗi vế đếm theo mốc thời gian của chính nó — thu theo {@code paid_at},
- * hoàn theo {@code refunded_at} — và không đụng tới {@code payment_status}.
- * <p>
- * Mọi dữ liệu của lớp này nằm ở năm 2031 để không lẫn với dữ liệu mẫu.
- */
 @DisplayName("Doanh thu thuần tính đúng khi có hoàn tiền")
 class RevenueReportIT extends IntegrationTestBase {
 
-    /** Khoảng thời gian báo cáo dùng trong hầu hết các bài dưới đây. */
     private static final LocalDateTime WINDOW_FROM = LocalDateTime.of(2031, 3, 1, 0, 0);
     private static final LocalDateTime WINDOW_TO = LocalDateTime.of(2031, 3, 31, 23, 59, 59);
 
@@ -41,21 +27,17 @@ class RevenueReportIT extends IntegrationTestBase {
 
     @BeforeEach
     void clearFutureData() {
-        // Chỉ dọn dữ liệu của chính lớp này. Payment không xoá được (trigger chặn hard-delete),
-        // nên đẩy các mốc thời gian ra khỏi mọi khoảng báo cáo mà bài test quan tâm.
         exec("UPDATE dbo.Payment SET paid_at = NULL, refunded_at = NULL " +
              "WHERE order_id IN (SELECT order_id FROM dbo.Orders WHERE created_at >= ?)",
              LocalDateTime.of(2031, 1, 1, 0, 0));
     }
 
-    // ------------------------------------------------------------------ các bài test
-
     @Test
     @DisplayName("Thu rồi hoàn trong cùng kỳ: doanh thu bằng 0, không phải số âm")
     void paidAndRefundedInSamePeriod_netsToZero() {
         paidOrder(AMOUNT,
-                LocalDateTime.of(2031, 3, 10, 12, 0),   // thu
-                LocalDateTime.of(2031, 3, 12, 9, 0));   // hoàn, vẫn trong kỳ
+                LocalDateTime.of(2031, 3, 10, 12, 0),
+                LocalDateTime.of(2031, 3, 12, 9, 0));
 
         DashboardKpi kpi = reportService.loadKpi(WINDOW_FROM, WINDOW_TO);
 
@@ -86,8 +68,8 @@ class RevenueReportIT extends IntegrationTestBase {
     @DisplayName("Thu kỳ này, hoàn kỳ sau: kỳ này ghi nhận đủ doanh thu")
     void refundInLaterPeriod_doesNotReduceEarlierPeriod() {
         paidOrder(AMOUNT,
-                LocalDateTime.of(2031, 3, 20, 10, 0),   // thu trong kỳ
-                LocalDateTime.of(2031, 4, 5, 10, 0));   // hoàn sang kỳ sau
+                LocalDateTime.of(2031, 3, 20, 10, 0),
+                LocalDateTime.of(2031, 4, 5, 10, 0));
 
         DashboardKpi kpi = reportService.loadKpi(WINDOW_FROM, WINDOW_TO);
 
@@ -102,8 +84,8 @@ class RevenueReportIT extends IntegrationTestBase {
     @DisplayName("Thu kỳ trước, hoàn kỳ này: kỳ này chỉ chịu khoản hoàn")
     void refundLandsInThePeriodItHappened() {
         paidOrder(AMOUNT,
-                LocalDateTime.of(2031, 2, 10, 10, 0),   // thu kỳ trước
-                LocalDateTime.of(2031, 3, 15, 10, 0));  // hoàn trong kỳ này
+                LocalDateTime.of(2031, 2, 10, 10, 0),
+                LocalDateTime.of(2031, 3, 15, 10, 0));
 
         DashboardKpi kpi = reportService.loadKpi(WINDOW_FROM, WINDOW_TO);
 
@@ -153,7 +135,6 @@ class RevenueReportIT extends IntegrationTestBase {
     @DisplayName("Khoản chưa từng thu không lọt vào doanh thu")
     void unpaidAttemptsAreIgnored() {
         int orderId = posOrder(AMOUNT);
-        // Một lần thử thất bại: có bản ghi Payment nhưng chưa bao giờ có paid_at
         exec("INSERT INTO dbo.Payment (order_id, method, amount, payment_status, attempt_no, created_at) " +
              "VALUES (?, 'CASH', ?, 'FAILED', 1, ?)",
              orderId, AMOUNT, LocalDateTime.of(2031, 3, 11, 10, 0));
@@ -164,9 +145,6 @@ class RevenueReportIT extends IntegrationTestBase {
                 "Lần thanh toán thất bại không phải doanh thu");
     }
 
-    // ------------------------------------------------------------------ dựng dữ liệu
-
-    /** Một đơn tại quầy đã thu tiền, với mốc thu và mốc hoàn do bài test chỉ định. */
     private void paidOrder(BigDecimal amount, LocalDateTime paidAt, LocalDateTime refundedAt) {
         int orderId = posOrder(amount);
         exec("INSERT INTO dbo.Payment (order_id, method, amount, payment_status, attempt_no, " +
@@ -176,7 +154,6 @@ class RevenueReportIT extends IntegrationTestBase {
              paidAt, paidAt, refundedAt);
     }
 
-    /** Đơn tại quầy tối thiểu, đặt ở năm 2031 để không lẫn với dữ liệu mẫu. */
     private int posOrder(BigDecimal amount) {
         exec("INSERT INTO dbo.Orders (customer_id, created_by_user_id, order_source, total_amount, " +
              "order_status, created_at, completed_at) VALUES (NULL, ?, 'POS', ?, 'COMPLETED', ?, ?)",

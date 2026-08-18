@@ -44,8 +44,6 @@
       </div>
     </div>
 
-    <%-- Mọi thao tác đều gửi về /kitchen/queue và mang theo returnTo để quay lại đúng trang
-         này. Trước đây hai thao tác gửi về hai địa chỉ khác nhau, một trong số đó nay đã gộp. --%>
     <div class="actions mt">
       <c:if test="${item.itemStatus eq 'WAITING'}">
         <form method="post" action="${ctx}/kitchen/queue">
@@ -98,9 +96,6 @@
     </div>
   </c:if>
 
-  <%-- Ghi chú chế biến. Cố ý đứng RIÊNG khỏi bảng sự cố ngay trên: sự cố là chuyện phải xử lý
-       và hiện thành cảnh báo đỏ ở màn thu ngân, ghi chú thì không. Gộp hai thứ vào một bảng
-       sẽ khiến con số "sự cố chưa xử lý" phồng lên vì những dòng không phải sự cố. --%>
   <div class="card pad0 table-wrap">
     <div class="card-head"><h2>Ghi chú chế biến (${fn:length(notes)})</h2></div>
     <table>
@@ -120,8 +115,6 @@
             <td class="small"><c:out value="${n.content}"/></td>
             <td class="small"><c:out value="${n.authorName}"/></td>
             <td class="center">
-              <%-- Ẩn nút với người khác cho bảng gọn; quyền thật do
-                   KitchenNoteService.requireOwnItemNote quyết định. --%>
               <c:if test="${n.authorId eq me.userId}">
                 <a class="btn btn-sm" href="${ctx}/kitchen/item?id=${item.orderItemId}&amp;editNote=${n.noteId}">Sửa</a>
                 <form method="post" action="${ctx}/kitchen/item" class="inline-form"

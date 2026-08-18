@@ -2,10 +2,6 @@ import org.apache.catalina.startup.Tomcat;
 
 import java.io.File;
 
-/**
- * Chạy ứng dụng bằng Tomcat nhúng để kiểm thử thật: trang được dựng bởi đúng Jasper và
- * đúng chuỗi bộ lọc như khi chạy trên máy chủ, không phải bản mô phỏng.
- */
 public class Boot {
 
     public static void main(String[] args) throws Exception {

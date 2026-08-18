@@ -1,9 +1,9 @@
 package com.fastfood.flow;
 
-import com.fastfood.model.dto.Page;
-import com.fastfood.model.entity.Category;
-import com.fastfood.model.entity.Product;
-import com.fastfood.model.entity.User;
+import com.fastfood.model.dto.Dtos.Page;
+import com.fastfood.model.entity.MenuEntities.Category;
+import com.fastfood.model.entity.MenuEntities.Product;
+import com.fastfood.model.entity.UserEntities.User;
 import com.fastfood.service.admin.AdminService;
 import com.fastfood.testsupport.IntegrationTestBase;
 import org.junit.jupiter.api.DisplayName;
@@ -19,24 +19,10 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/**
- * Hai danh sách của khu quản trị: món ăn và tài khoản.
- * <p>
- * Trước đây cả hai lấy về <b>toàn bộ</b> bảng rồi đổ thẳng ra trang. Điều cần chứng minh ở đây
- * là ba thứ mà cách làm cũ không có:
- * <ul>
- *   <li>chỉ lấy về một trang, nhưng vẫn biết tổng số dòng để nói "đang xem 21–40 trong 214";</li>
- *   <li>bộ lọc và số đếm dùng chung một mệnh đề — lệch nhau thì số trang không khớp số dòng;</li>
- *   <li>giá trị lọc lạ, đến từ địa chỉ người dùng gõ tay, hiểu thành "không lọc" chứ không
- *       biến thành bảng rỗng — bảng rỗng trông y hệt như cửa hàng chưa có gì.</li>
- * </ul>
- */
 @DisplayName("Danh sách quản trị: phân trang và bộ lọc")
 class AdminListingIT extends IntegrationTestBase {
 
     private final AdminService adminService = new AdminService();
-
-    // ================================================================== món ăn
 
     @Nested
     @DisplayName("Món ăn")
@@ -45,9 +31,6 @@ class AdminListingIT extends IntegrationTestBase {
         @Test
         @DisplayName("Một trang chỉ lấy đúng số dòng của trang, nhưng tổng số vẫn là tổng thật")
         void pageHoldsOnePageButCountsEverything() {
-            /* Đọc số đếm ở cả hai đầu rồi kẹp tổng số vào giữa. Bài này buộc phải nhìn toàn bảng
-               — đó chính là thứ nó kiểm — nên không khoanh vùng được như các bài dưới; kẹp hai
-               đầu là cách giữ nó đúng kể cả khi có tiến trình khác đang ghi vào database test. */
             long before = countProducts("1 = 1");
             Page<Product> first = adminService.listProducts(null, null, null, null, 1);
             long after = countProducts("1 = 1");
@@ -67,7 +50,6 @@ class AdminListingIT extends IntegrationTestBase {
         void secondPageDoesNotRepeatTheFirst() {
             Page<Product> first = adminService.listProducts(null, null, null, null, 1);
             if (first.getTotalItems() <= Page.SIZE) {
-                // Dữ liệu mẫu chưa đủ hai trang thì bài này không có gì để nói.
                 return;
             }
             Page<Product> second = adminService.listProducts(null, null, null, null, 2);
@@ -125,8 +107,6 @@ class AdminListingIT extends IntegrationTestBase {
         @Test
         @DisplayName("Không chọn tình trạng thì lấy cả món còn hàng lẫn món tạm hết")
         void noStockFilterKeepsBothSides() {
-            // Từ khoá riêng của bài: mọi con số dưới đây chỉ đếm hai món do chính bài này tạo ra,
-            // nên bài không lung lay theo dữ liệu mà bài khác để lại trong cùng database.
             String mine = "Loc Tinh Trang " + System.nanoTime();
             newNamed(mine + " con hang");
             adminService.toggleProductAvailability(userId(ADMIN), newNamed(mine + " het hang"), false);
@@ -170,8 +150,6 @@ class AdminListingIT extends IntegrationTestBase {
         }
     }
 
-    // ================================================================== nhóm món
-
     @Nested
     @DisplayName("Nhóm món")
     class Categories {
@@ -196,8 +174,6 @@ class AdminListingIT extends IntegrationTestBase {
             int productId = newProductIn(catId, "Mon Trong Nhom Da An");
             adminService.setCategoryStatus(userId(ADMIN), catId, "INACTIVE");
 
-            /* Đúng những gì trang gửi lên khi người dùng chỉ sửa tên: mọi ô của biểu mẫu,
-               trong đó ô chọn nhóm mang giá trị đang được chọn sẵn. */
             Product form = adminService.findProduct(productId);
             form.setName("Doi Ten Thoi " + System.nanoTime());
             adminService.saveProduct(userId(ADMIN), form);
@@ -206,8 +182,6 @@ class AdminListingIT extends IntegrationTestBase {
                     "Món tự nhảy sang nhóm khác sau một lần sửa tên là kiểu hỏng không ai nhìn thấy");
         }
     }
-
-    // ================================================================== tài khoản
 
     @Nested
     @DisplayName("Tài khoản")
@@ -278,8 +252,6 @@ class AdminListingIT extends IntegrationTestBase {
         }
     }
 
-    // ------------------------------------------------------------------ tiện ích
-
     private static long countProducts(String condition) {
         return count("SELECT COUNT(*) FROM dbo.Product p WHERE " + condition);
     }
@@ -330,10 +302,6 @@ class AdminListingIT extends IntegrationTestBase {
         return id;
     }
 
-    /**
-     * Một thu ngân mới mang đúng họ tên truyền vào — các bài lọc dùng chính họ tên đó làm từ
-     * khoá, nên mỗi bài chỉ đếm những tài khoản do chính nó tạo ra.
-     */
     private int newStaffAccount(String fullName) {
         String email = "thungan.test." + System.nanoTime() + "@fastfood.vn";
         int roleId = count("SELECT role_id FROM dbo.Role WHERE name = 'CASHIER'");

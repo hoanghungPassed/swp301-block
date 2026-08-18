@@ -1,8 +1,8 @@
 package com.fastfood.flow;
 
-import com.fastfood.common.exception.BusinessException;
-import com.fastfood.model.dto.Page;
-import com.fastfood.model.entity.OrderItem;
+import com.fastfood.common.exception.AppException.BusinessException;
+import com.fastfood.model.dto.Dtos.Page;
+import com.fastfood.model.entity.OrderEntities.OrderItem;
 import com.fastfood.service.kitchen.KitchenService;
 import com.fastfood.testsupport.IntegrationTestBase;
 import org.junit.jupiter.api.DisplayName;
@@ -16,19 +16,10 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/**
- * Bếp và cách trạng thái đơn được <b>suy ra</b> từ trạng thái các món (BR-11).
- * <p>
- * Không ai bấm nút "đơn đang chế biến" hay "đơn sẵn sàng". Bếp chỉ đụng vào từng món, còn
- * trạng thái của cả đơn do hệ thống tính lại. Nhờ vậy chỉ có một nguồn sự thật, và không có
- * cảnh đơn ghi là sẵn sàng trong khi còn món chưa xong.
- */
 @DisplayName("Bếp làm món và trạng thái đơn tự suy ra")
 class KitchenFlowIT extends IntegrationTestBase {
 
     private final KitchenService kitchenService = new KitchenService();
-
-    // ------------------------------------------------------------------ tổng hợp trạng thái
 
     @Test
     @DisplayName("Đơn hai món: xong một món thì đơn vẫn đang chế biến")
@@ -95,8 +86,6 @@ class KitchenFlowIT extends IntegrationTestBase {
         assertThrows(BusinessException.class,
                 () -> kitchenService.markReady(f.itemIds.get(0), userId(KITCHEN_1)));
     }
-
-    // ------------------------------------------------------------------ bàn giao ra quầy (BR-25)
 
     @Test
     @DisplayName("Món chưa làm xong thì chưa bàn giao ra quầy được")
@@ -181,15 +170,12 @@ class KitchenFlowIT extends IntegrationTestBase {
                 .anyMatch(v -> v.getItem().getOrderItemId() == itemId);
     }
 
-    /** Một đơn một món, đã nấu xong, còn nằm trong bếp. */
     private Fixture readyItem() {
         Fixture f = orderWithItems(1);
         kitchenService.claim(f.itemIds.get(0), userId(KITCHEN_1));
         kitchenService.markReady(f.itemIds.get(0), userId(KITCHEN_1));
         return f;
     }
-
-    // ------------------------------------------------------------------ sự cố bếp
 
     @Test
     @DisplayName("Sự cố đang mở KHÔNG chặn bếp hoàn thành món (BR-19)")
@@ -221,7 +207,6 @@ class KitchenFlowIT extends IntegrationTestBase {
                 "Không tắt thì khách tiếp theo vẫn đặt đúng món vừa hết, và cửa hàng nợ thêm "
                 + "một đơn không làm được");
 
-        // Trả lại tình trạng ban đầu để các bài sau vẫn có món đặt được
         exec("UPDATE dbo.Product SET is_available = 1 WHERE product_id = ?", f.productId);
     }
 
@@ -230,7 +215,7 @@ class KitchenFlowIT extends IntegrationTestBase {
     void unknownIssueTypeIsRejected() {
         Fixture f = orderWithItems(1);
 
-        assertThrows(com.fastfood.common.exception.ValidationException.class,
+        assertThrows(com.fastfood.common.exception.AppException.ValidationException.class,
                 () -> kitchenService.openIssue(f.itemIds.get(0), userId(KITCHEN_1), "LINH_TINH", "abc"));
     }
 
@@ -257,12 +242,10 @@ class KitchenFlowIT extends IntegrationTestBase {
                 "Bếp phát hiện sự cố nhưng người phải trả lời khách lại đứng ở quầy");
     }
 
-    // ------------------------------------------------------------------ tầm nhìn của bếp
-
     @Test
     @DisplayName("Bếp chỉ thấy món của đơn đã được đưa xuống")
     void kitchenOnlySeesReleasedOrders() {
-        Fixture waiting = orderWithItems(1, false);   // chưa đưa xuống bếp
+        Fixture waiting = orderWithItems(1, false);
 
         boolean visible = kitchenService.waitingQueue().stream()
                 .anyMatch(v -> v.getItem().getOrderItemId() == waiting.itemIds.get(0));
@@ -319,8 +302,6 @@ class KitchenFlowIT extends IntegrationTestBase {
                 "Việc của người này không được hiện trong danh sách của người kia");
     }
 
-    // ------------------------------------------------------------------ ô chọn món khi báo sự cố
-
     @Test
     @DisplayName("Ô chọn khi báo sự cố gồm mọi món còn trong bếp, kể cả món người khác đang làm")
     void issuePickerCoversEveryStageStillInsideTheKitchen() {
@@ -352,8 +333,6 @@ class KitchenFlowIT extends IntegrationTestBase {
                         .anyMatch(v -> v.getItem().getOrderItemId() == f.itemIds.get(0)),
                 "Món đã rời tay đầu bếp; sự cố của nó là chuyện của quầy");
     }
-
-    // ------------------------------------------------------------------ lịch sử món đã xong
 
     @Test
     @DisplayName("Lịch sử lọc theo người làm chỉ trả về món của người đó")
@@ -389,8 +368,6 @@ class KitchenFlowIT extends IntegrationTestBase {
         return page.getItems().stream().anyMatch(i -> i.getOrderItemId() == itemId);
     }
 
-    // ------------------------------------------------------------------ dựng dữ liệu
-
     private record Fixture(int orderId, List<Integer> itemIds, int productId) {
     }
 
@@ -398,7 +375,6 @@ class KitchenFlowIT extends IntegrationTestBase {
         return orderWithItems(itemCount, true);
     }
 
-    /** Đơn đặt trước đã xác nhận với n món đang chờ bếp. */
     private Fixture orderWithItems(int itemCount, boolean releasedToKitchen) {
         LocalDateTime pickup = LocalDateTime.now().plusHours(3);
         exec("INSERT INTO dbo.Orders (customer_id, order_source, total_amount, order_status, " +

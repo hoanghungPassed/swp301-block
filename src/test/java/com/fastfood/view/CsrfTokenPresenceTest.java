@@ -16,25 +16,11 @@ import java.util.stream.Stream;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/**
- * Mọi biểu mẫu gửi bằng POST đều phải mang theo ô ẩn chống giả mạo yêu cầu.
- * <p>
- * <b>Vì sao cần một bài test cho chuyện này.</b> {@code CsrfFilter} chặn theo nguyên tắc mặc
- * định là từ chối, nên quên ô ẩn <i>không</i> tạo ra lỗ hổng — nó tạo ra một cái nút bấm vào
- * thì hiện trang 403. Nhưng lỗi đó chỉ lộ ra khi có người mở đúng màn hình đó và bấm đúng nút
- * đó trên trình duyệt, và với 83 biểu mẫu trải khắp bốn vai trò thì "có người bấm thử" không
- * phải là điều chắc chắn xảy ra trước buổi trình bày. Bài test này biến nó thành lỗi đỏ ngay
- * trong {@code mvn test}.
- * <p>
- * Cùng loại với {@link JspCompileTest} và {@link BeanNamingTest}: chặn ở tầng hiển thị những
- * lỗi mà trình biên dịch Java không thể nhìn thấy.
- */
 @DisplayName("Biểu mẫu POST mang theo mã chống giả mạo")
 class CsrfTokenPresenceTest {
 
     private static final Path VIEWS = Path.of("src", "main", "webapp", "WEB-INF", "views");
 
-    /** Ô ẩn mà mọi biểu mẫu phải có. Tên tham số khớp {@code CsrfUtil.PARAM}. */
     private static final String FIELD = "name=\"_csrf\"";
 
     private static final Pattern FORM_OPEN = Pattern.compile("<form\\b");
@@ -67,11 +53,6 @@ class CsrfTokenPresenceTest {
                 "Bieu mau POST thieu <input type=\"hidden\" name=\"_csrf\" value=\"${csrfToken}\">: " + missing);
     }
 
-    /**
-     * Ô ẩn phải đọc đúng biến {@code csrfToken} — tên mà {@code CsrfFilter} đặt vào request.
-     * Gõ đúng tên tham số nhưng sai tên biến thì biểu mẫu gửi lên một chuỗi rỗng, và bài test
-     * ở trên vẫn xanh trong khi cái nút thì vẫn hỏng.
-     */
     @Test
     @DisplayName("Ô ẩn lấy giá trị từ đúng biến ${csrfToken}")
     void tokenComesFromTheRightAttribute() throws IOException {
@@ -90,8 +71,6 @@ class CsrfTokenPresenceTest {
         assertEquals(List.of(), wrong, "O an _csrf lay gia tri tu bien sai");
     }
 
-    // ------------------------------------------------------------------ tiện ích
-
     private List<Path> viewFiles() throws IOException {
         try (Stream<Path> files = Files.walk(VIEWS)) {
             return files.filter(Files::isRegularFile)
@@ -104,13 +83,6 @@ class CsrfTokenPresenceTest {
         }
     }
 
-    /**
-     * Vị trí ngay sau dấu {@code >} đóng thẻ mở.
-     * <p>
-     * Phải bỏ qua dấu {@code >} nằm trong dấu nháy <i>và</i> trong chú thích JSP. Một thẻ
-     * {@code <form>} trong dự án này có chú thích {@code <%-- ... --%>} xen giữa các thuộc tính,
-     * và dấu {@code >} cuối chú thích đó từng bị nhận nhầm là chỗ kết thúc thẻ.
-     */
     private int endOfTag(String text, int start) {
         int i = start;
         char quote = 0;
@@ -135,7 +107,6 @@ class CsrfTokenPresenceTest {
         return text.length();
     }
 
-    /** Phần thân của biểu mẫu, tính tới thẻ đóng gần nhất. */
     private String bodyOf(String text, int tagEnd) {
         int close = text.indexOf("</form>", tagEnd);
         return text.substring(tagEnd, close < 0 ? text.length() : close);

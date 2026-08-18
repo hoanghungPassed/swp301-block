@@ -3,7 +3,7 @@ package com.fastfood.controller.staff;
 import com.fastfood.common.exception.AppException;
 import com.fastfood.common.util.WebUtil;
 import com.fastfood.controller.BaseServlet;
-import com.fastfood.model.entity.User;
+import com.fastfood.model.entity.UserEntities.User;
 import com.fastfood.service.shared.AuditService;
 import com.fastfood.service.kitchen.KitchenService;
 import com.fastfood.service.staff.StaffOrderService;
@@ -15,12 +15,6 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 
-/**
- * Chi tiết đơn và các thao tác của thu ngân: giao món, huỷ đơn, hoàn tiền.
- * <p>
- * Với đơn đặt trước, việc giao món chỉ thành công khi mã khách đưa khớp với đơn — kiểm tra
- * nằm ở tầng dịch vụ chứ không ở giao diện.
- */
 @WebServlet("/staff/order/detail")
 public class OrderDetailServlet extends BaseServlet {
 
@@ -37,8 +31,6 @@ public class OrderDetailServlet extends BaseServlet {
             req.setAttribute("order", orderService.findById(orderId));
             req.setAttribute("payments", paymentService.findByOrder(orderId));
             req.setAttribute("auditLogs", auditService.findByEntity("ORDER", orderId));
-            // Con số đếm trên từng dòng món không đủ để nói chuyện với khách — phải có
-            // loại sự cố và mô tả thì nhân viên mới biết đơn đang vướng chuyện gì.
             req.setAttribute("openIssues", kitchenService.openIssuesOfOrder(orderId));
             forward(req, resp, "staff/order-detail.jsp");
         } catch (AppException e) {
@@ -63,8 +55,6 @@ public class OrderDetailServlet extends BaseServlet {
                 return;
             }
             case "cancel": {
-                // Huỷ đơn và hoàn tiền là một thao tác, không phải hai nút bấm rời nhau:
-                // tách ra thì nhân viên làm được nửa chừng và để lại đơn dở dang.
                 String reason = WebUtil.getString(req, "reason");
                 handle(req, resp, () -> orderService.cancelByStaff(orderId, staff.getUserId(), reason),
                         "Đã huỷ đơn #" + orderId + " và hoàn lại tiền nếu khách đã thanh toán.", back);

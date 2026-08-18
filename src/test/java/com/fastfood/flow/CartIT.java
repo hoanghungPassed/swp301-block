@@ -1,11 +1,11 @@
 package com.fastfood.flow;
 
-import com.fastfood.common.constant.BusinessRule;
-import com.fastfood.common.exception.BusinessException;
-import com.fastfood.common.exception.NotFoundException;
-import com.fastfood.common.exception.ValidationException;
-import com.fastfood.model.dto.CartView;
-import com.fastfood.model.entity.CartItem;
+import com.fastfood.common.constant.Constants.BusinessRule;
+import com.fastfood.common.exception.AppException.BusinessException;
+import com.fastfood.common.exception.AppException.NotFoundException;
+import com.fastfood.common.exception.AppException.ValidationException;
+import com.fastfood.model.dto.Dtos.CartView;
+import com.fastfood.model.entity.OrderEntities.CartItem;
 import com.fastfood.service.customer.CartService;
 import com.fastfood.testsupport.IntegrationTestBase;
 import org.junit.jupiter.api.BeforeEach;
@@ -20,17 +20,6 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/**
- * Giỏ hàng của khách đặt trước.
- * <p>
- * Giỏ là màn hình duy nhất của khách mà mọi con số trên đó đều đi thẳng vào đơn hàng, nên ba
- * nhóm chốt chặn dưới đây đều dẫn tới tiền: <b>số lượng</b> quyết định thành tiền, <b>tình trạng
- * món</b> quyết định đơn có đặt được không, và <b>quyền sở hữu</b> quyết định ai sửa được giỏ
- * của ai. Bài test này kiểm cả ba ở tầng dịch vụ, tức là ở đúng chỗ mà một yêu cầu HTTP tự dựng
- * tay cũng phải đi qua.
- * <p>
- * Mỗi bài tự dọn giỏ trước khi chạy, vì dữ liệu mẫu cố ý để sẵn hai giỏ có hàng.
- */
 @DisplayName("Giỏ hàng của khách")
 class CartIT extends IntegrationTestBase {
 
@@ -106,8 +95,6 @@ class CartIT extends IntegrationTestBase {
         void removeUnavailableClearsThemAtOnce() {
             int het_hang = unavailableProductId();
             int con_ban = anyOrderableProductId();
-            // Món hết hàng không thêm qua tầng dịch vụ được — đó chính là bài test bên dưới.
-            // Ở đây dựng thẳng tình huống "món còn bán lúc bỏ vào giỏ, sau đó mới hết".
             int cartId = cartService.getCart(khach).getCartId();
             exec("INSERT INTO dbo.CartItem (cart_id, product_id, quantity) VALUES (?, ?, 1)",
                     cartId, het_hang);
@@ -152,11 +139,6 @@ class CartIT extends IntegrationTestBase {
             assertEquals(0, soLuongCua(khach, mon));
         }
 
-        /**
-         * Chốt chặn thật sự của cả nhóm này. {@code addItem} cộng dồn vào dòng sẵn có, nên nếu
-         * chỉ kiểm con số của riêng lần bấm thì mỗi yêu cầu đều mang số 1 và đều hợp lệ, trong
-         * khi dòng trong giỏ lớn lên không có trần.
-         */
         @Test
         @DisplayName("Cộng dồn nhiều lần cũng không vượt được trần")
         void repeatedAddsCannotClimbOverTheCap() {
@@ -237,7 +219,6 @@ class CartIT extends IntegrationTestBase {
             cartService.addProduct(nguoi_khac, mon, 4);
             CartItem cua_ho = cartService.getCart(nguoi_khac).getItems().get(0);
 
-            // Không ném lỗi: điều kiện cart_id nằm ngay trong câu lệnh nên câu UPDATE khớp 0 dòng.
             cartService.updateQuantity(khach, cua_ho.getCartItemId(), 9);
 
             assertEquals(4, soLuongCua(nguoi_khac, mon),

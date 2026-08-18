@@ -2,8 +2,8 @@ package com.fastfood.controller.admin;
 
 import com.fastfood.common.util.WebUtil;
 import com.fastfood.controller.BaseServlet;
-import com.fastfood.model.entity.Category;
-import com.fastfood.model.entity.User;
+import com.fastfood.model.entity.MenuEntities.Category;
+import com.fastfood.model.entity.UserEntities.User;
 import com.fastfood.service.admin.AdminService;
 
 import javax.servlet.ServletException;
@@ -12,13 +12,6 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 
-/**
- * Quản lý nhóm món.
- * <p>
- * Xoá ở đây là <b>ẩn nhóm</b> khỏi thực đơn, kéo theo toàn bộ món trong nhóm — cách nhanh nhất
- * để ngừng bán cả một dòng sản phẩm. Xoá mềm vì các món vẫn trỏ tới nhóm bằng khoá ngoại.
- * Nút Ẩn đi theo nhánh {@code retire} riêng, tách khỏi form Sửa.
- */
 @WebServlet("/admin/categories")
 public class CategoryManageServlet extends BaseServlet {
 
@@ -53,7 +46,6 @@ public class CategoryManageServlet extends BaseServlet {
         form.setCategoryId(WebUtil.getInt(req, "categoryId", 0));
         form.setName(WebUtil.getString(req, "name"));
         form.setDisplayOrder(WebUtil.getInt(req, "displayOrder", 0));
-        // Trạng thái hiển thị cố ý không đọc từ form: nó thuộc về nhánh retire/restore ở trên.
 
         handle(req, resp, () -> adminService.saveCategory(admin.getUserId(), form),
                 form.getCategoryId() > 0 ? "Đã cập nhật nhóm món." : "Đã thêm nhóm món.",

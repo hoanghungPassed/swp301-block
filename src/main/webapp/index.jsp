@@ -1,4 +1,3 @@
-<%-- Điều hướng theo Role sau khi vào ứng dụng --%>
 <c:choose>
     <c:when test="${empty sessionScope.currentUser}">
         <c:redirect url="/menu"/>

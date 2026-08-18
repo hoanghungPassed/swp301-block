@@ -1,9 +1,9 @@
 package com.fastfood.service.customer;
 
-import com.fastfood.common.constant.BusinessRule;
-import com.fastfood.common.exception.BusinessException;
-import com.fastfood.common.exception.NotFoundException;
-import com.fastfood.common.exception.ValidationException;
+import com.fastfood.common.constant.Constants.BusinessRule;
+import com.fastfood.common.exception.AppException.BusinessException;
+import com.fastfood.common.exception.AppException.NotFoundException;
+import com.fastfood.common.exception.AppException.ValidationException;
 import com.fastfood.common.util.DateTimeUtil;
 import com.fastfood.dao.JdbcSupport;
 import com.fastfood.dao.customer.CartDAO;
@@ -11,12 +11,12 @@ import com.fastfood.dao.customer.OrderTemplateDAO;
 import com.fastfood.dao.shared.OrderDAO;
 import com.fastfood.dao.shared.OrderItemDAO;
 import com.fastfood.dao.shared.ProductDAO;
-import com.fastfood.model.dto.TemplateApplyResult;
-import com.fastfood.model.entity.Order;
-import com.fastfood.model.entity.OrderItem;
-import com.fastfood.model.entity.OrderTemplate;
-import com.fastfood.model.entity.OrderTemplateItem;
-import com.fastfood.model.entity.Product;
+import com.fastfood.model.dto.Dtos.TemplateApplyResult;
+import com.fastfood.model.entity.OrderEntities.Order;
+import com.fastfood.model.entity.OrderEntities.OrderItem;
+import com.fastfood.model.entity.OrderEntities.OrderTemplate;
+import com.fastfood.model.entity.OrderEntities.OrderTemplateItem;
+import com.fastfood.model.entity.MenuEntities.Product;
 import com.fastfood.service.Tx;
 
 import java.sql.Connection;
@@ -24,24 +24,8 @@ import java.sql.SQLException;
 import java.time.LocalDateTime;
 import java.util.List;
 
-/**
- * Mẫu đặt nhanh của khách — lưu một đơn cũ lại rồi lần sau nạp thẳng vào giỏ.
- * <p>
- * <b>Mẫu không lưu giá.</b> Chỉ mã món và số lượng. Giá đọc mới ở mọi chỗ hiển thị và ở lúc nạp,
- * đúng nguyên tắc đã ghi trong {@link CartService}: giá chỉ được chốt lại vào lúc đặt hàng.
- * <p>
- * <b>Nạp mẫu phải nói ra món nào bị bỏ.</b> Món trong mẫu có thể đã ngừng bán từ lần lưu tới
- * giờ. Nạp thiếu trong im lặng là kiểu hỏng tệ nhất ở đây: khách đi tiếp tới bước chọn giờ đến
- * lấy rồi mới thấy giỏ ít hơn mình tưởng, mà lúc đó không còn manh mối nào để biết vì sao. Cách
- * xử lý giống hệt {@code CartService.removeUnavailable} — làm được phần nào thì làm, rồi nói rõ
- * phần còn lại.
- * <p>
- * Xoá hẳn khỏi bảng, cùng lý do với giỏ hàng: đây là bản nháp của khách, không dính tiền và
- * không bản ghi nào trỏ tới.
- */
 public class OrderTemplateService {
 
-    /** Quá số này thì khối mẫu trên trang lịch sử đơn dài hơn chính lịch sử. */
     private static final int MAX_TEMPLATES_PER_CUSTOMER = 10;
     private static final int MAX_NAME_LENGTH = 100;
 
@@ -51,8 +35,6 @@ public class OrderTemplateService {
     private final OrderItemDAO orderItemDAO = new OrderItemDAO();
     private final CartDAO cartDAO = new CartDAO();
 
-    // ============================================================ đọc
-
     public List<OrderTemplate> listOf(int customerId) {
         return Tx.read(con -> templateDAO.findByCustomer(con, customerId));
     }
@@ -61,14 +43,6 @@ public class OrderTemplateService {
         return Tx.read(con -> requireOwn(con, templateId, customerId));
     }
 
-    // ============================================================ tạo
-
-    /**
-     * Lưu một đơn đã đặt thành mẫu.
-     * <p>
-     * Đơn phải là của chính khách đó — điều kiện này kiểm ở đây chứ không tin vào mã đơn gửi lên
-     * từ biểu mẫu, nếu không thì đổi một con số trong trang là đọc được món của người khác.
-     */
     public OrderTemplate saveFromOrder(int customerId, int orderId, String name) {
         String ten = requireName(name);
         LocalDateTime now = DateTimeUtil.now();
@@ -99,7 +73,6 @@ public class OrderTemplateService {
         }
     }
 
-    /** Lưu chính giỏ hàng đang có thành mẫu, không cần đặt hàng trước. */
     public OrderTemplate saveFromCart(int customerId, String name) {
         String ten = requireName(name);
         LocalDateTime now = DateTimeUtil.now();
@@ -126,8 +99,6 @@ public class OrderTemplateService {
         }
     }
 
-    // ============================================================ sửa
-
     public void rename(int templateId, int customerId, String name) {
         String ten = requireName(name);
         LocalDateTime now = DateTimeUtil.now();
@@ -141,10 +112,6 @@ public class OrderTemplateService {
         }
     }
 
-    /**
-     * Đặt lại số lượng một dòng; về 0 thì bỏ dòng đó. Bỏ nốt dòng cuối thì xoá luôn mẫu — một
-     * mẫu rỗng chỉ là cái tên nằm chiếm chỗ.
-     */
     public void setQuantity(int templateId, int customerId, int productId, int quantity) {
         if (quantity > 0) {
             requireSaneQuantity(quantity);
@@ -186,19 +153,6 @@ public class OrderTemplateService {
         });
     }
 
-    // ============================================================ nạp vào giỏ
-
-    /**
-     * Nạp mẫu vào giỏ hàng, bỏ qua món không còn phục vụ và <b>trả về tên những món đó</b>.
-     * <p>
-     * Mẫu <b>không</b> bị xoá sau khi nạp, khác hẳn phiếu treo ở quầy. Phiếu treo là một khách
-     * đang đứng đợi, lấy ra một lần là xong; còn mẫu sinh ra để dùng đi dùng lại — xoá sau lần
-     * nạp đầu tiên thì nó chỉ là một cách bấm "đặt lại" rườm rà.
-     * <p>
-     * Món đã có sẵn trong giỏ thì cộng dồn, do {@code UQ_CartItem} và cách viết của
-     * {@code CartDAO.addItem} quyết định — nạp mẫu hai lần là gấp đôi số lượng, đúng như khi
-     * bấm thêm món hai lần.
-     */
     public TemplateApplyResult applyToCart(int templateId, int customerId) {
         LocalDateTime now = DateTimeUtil.now();
         return Tx.write(con -> {
@@ -207,8 +161,6 @@ public class OrderTemplateService {
             int cartId = cartDAO.getOrCreateCartId(con, customerId, now);
 
             for (OrderTemplateItem item : template.getItems()) {
-                // Đi qua đúng truy vấn mà giỏ hàng dùng lúc thêm món, thay vì tin vào cờ đã đọc
-                // kèm danh sách: giữa lúc mở trang và lúc bấm nạp, bếp có thể vừa báo hết món.
                 Product product = productDAO.findForCheckout(con, item.getProductId());
                 if (product == null || !product.isOrderable()) {
                     result.skip(item.getProductName());
@@ -226,8 +178,6 @@ public class OrderTemplateService {
             return result;
         });
     }
-
-    // ============================================================ dùng chung
 
     private OrderTemplate newTemplate(Connection con, int customerId, String name,
                                       LocalDateTime now) throws SQLException {
@@ -258,7 +208,6 @@ public class OrderTemplateService {
         return template;
     }
 
-    /** Trùng tên là lỗi người dùng sửa được, nên phải nói thành lời chứ không để lộ lỗi khoá. */
     private RuntimeException asFriendly(RuntimeException e, String name) {
         if (!JdbcSupport.isUniqueViolation(e)) {
             return e;

@@ -56,10 +56,6 @@
         </c:otherwise>
       </c:choose>
 
-      <%-- Món quen nằm NGOÀI khối chọn mua ở trên, để nó còn đánh dấu được cả khi món đang
-           ngừng phục vụ: một món khách quen mà tạm hết hàng lại càng đáng nhớ, đó chính là
-           món họ sẽ hỏi khi quay lại. Biểu mẫu gửi sang /menu vì mọi thao tác món quen nằm ở
-           MenuServlet; returnTo đưa khách trở lại đúng trang này. --%>
       <c:if test="${not empty me and me.roleName eq 'CUSTOMER'}">
         <c:choose>
           <c:when test="${isFavourite}">
@@ -100,8 +96,6 @@
       </c:if>
     </div>
 
-    <%-- Ô viết đánh giá chỉ hiện cho khách đã nhận món. Ai chưa đủ điều kiện thì được nói rõ
-         vì sao, thay vì thấy một cái nút bấm vào rồi mới bị từ chối. --%>
     <c:choose>
       <c:when test="${not empty myReview}">
         <div class="alert flush mb">

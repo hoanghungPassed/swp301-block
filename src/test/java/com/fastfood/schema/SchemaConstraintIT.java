@@ -9,14 +9,6 @@ import java.time.LocalDateTime;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/**
- * Cơ sở dữ liệu tự bảo vệ được tới đâu.
- * <p>
- * Mọi bài ở đây đều ghi thẳng bằng SQL, <b>cố tình bỏ qua</b> tầng Service. Đó chính là điều
- * cần chứng minh: nếu chỉ tầng ứng dụng chặn thì một câu lệnh chạy tay, một lần sửa dữ liệu
- * lúc gấp, hay một đoạn mã mới quên kiểm tra là dữ liệu hỏng ngay. Các quy tắc liên quan tới
- * tiền và tới toàn vẹn lịch sử phải có lớp chặn nằm trong chính cơ sở dữ liệu.
- */
 @DisplayName("Ràng buộc và trigger trong cơ sở dữ liệu")
 class SchemaConstraintIT extends IntegrationTestBase {
 
@@ -245,7 +237,6 @@ class SchemaConstraintIT extends IntegrationTestBase {
                     + "trên quầy, và đó là toàn bộ nội dung màn hình quầy giao nhận");
         }
 
-        /** Một món mới, chưa qua bàn giao — tạo riêng để không đụng dữ liệu mẫu. */
         private int anyItemStillInKitchen() {
             exec("INSERT INTO dbo.Orders (customer_id, order_source, total_amount, order_status, created_at) " +
                  "VALUES (NULL, 'POS', 25000, 'READY', ?)", LocalDateTime.now());
@@ -341,8 +332,6 @@ class SchemaConstraintIT extends IntegrationTestBase {
         }
     }
 
-    // ------------------------------------------------------------------ dữ liệu dùng chung
-
     private static int firstOnlineOrderId() {
         return scalar(Integer.class,
                 "SELECT MIN(order_id) FROM dbo.Orders WHERE order_source = 'ONLINE_PREORDER'");
@@ -356,7 +345,6 @@ class SchemaConstraintIT extends IntegrationTestBase {
         return scalar(Integer.class, "SELECT MIN(payment_id) FROM dbo.Payment");
     }
 
-    /** Một đơn đặt trước đã xác nhận nhưng bếp chưa nhận — tạo riêng để không đụng dữ liệu mẫu. */
     private static int scheduledOrderId() {
         LocalDateTime pickup = LocalDateTime.now().plusHours(4);
         exec("INSERT INTO dbo.Orders (customer_id, order_source, total_amount, order_status, " +

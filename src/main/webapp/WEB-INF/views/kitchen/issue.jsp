@@ -16,8 +16,6 @@
           <tbody>
             <c:forEach var="i" items="${openIssues}">
               <tr>
-                <%-- Tên món dẫn thẳng tới chi tiết món: đọc một dòng sự cố xong, việc tiếp theo
-                     gần như luôn là mở món đó ra xem đang ở trạng thái nào. --%>
                 <td><a href="${ctx}/kitchen/item?id=${i.orderItemId}"><c:out value="${i.productName}"/></a></td>
                 <td>#${i.orderId}</td>
                 <td><span class="tag tag-red">${ff:issueType(i.issueType)}</span></td>
@@ -30,8 +28,6 @@
                     <input type="hidden" name="issueId" value="${i.issueId}">
                     <button type="submit" class="btn btn-sm btn-green">Đã xử lý</button>
                   </form>
-                  <%-- Sửa và thu hồi chỉ hiện với người đã báo. Ẩn nút ở đây là để bảng gọn;
-                       quyền thật do KitchenService.requireOwnOpenIssue quyết định. --%>
                   <c:if test="${i.createdBy eq me.userId}">
                     <a class="btn btn-sm" href="${ctx}/kitchen/issue?edit=${i.issueId}">Sửa</a>
                     <form method="post" action="${ctx}/kitchen/issue" class="inline-form"
@@ -62,8 +58,6 @@
                 <td class="small muted">${ff:dateTime(i.createdAt)}</td>
                 <td><a href="${ctx}/kitchen/item?id=${i.orderItemId}"><c:out value="${i.productName}"/></a></td>
                 <td>${ff:issueType(i.issueType)}</td>
-                <%-- Tách hai đường ra chứ không gộp thành "đã đóng": sự cố có thật đã xử lý
-                     xong và sự cố báo nhầm là hai chuyện khác hẳn khi đọc lại về sau. --%>
                 <td><span class="tag ${ff:issueStatusTag(i.status)}">${ff:issueStatus(i.status)}</span></td>
               </tr>
             </c:forEach>
@@ -76,9 +70,6 @@
     </div>
 
     <c:choose>
-    <%-- Chỉ cho sửa sự cố còn mở và do chính mình báo. Vào thẳng ?edit= của sự cố người khác
-         thì hiện lời nhắc chứ không hiện biểu mẫu — người dùng biết vì sao không sửa được,
-         thay vì gõ xong mới nhận lỗi từ tầng nghiệp vụ. --%>
     <c:when test="${not empty editing and editing.open and editing.createdBy eq me.userId}">
     <div class="card">
       <h2>Sửa sự cố #${editing.issueId}</h2>
@@ -105,8 +96,6 @@
     </c:when>
 
     <c:otherwise>
-    <%-- Bọc chung một khối: .grid-side chia đúng hai cột, để hai thẻ card rời nhau thì thẻ
-         thứ hai rơi xuống hàng mới và cột trái bị kéo hẹp lại. --%>
     <div>
     <c:if test="${not empty editing}">
       <div class="card">
@@ -118,8 +107,6 @@
     </c:if>
     <div class="card">
       <h2>Báo sự cố mới</h2>
-      <%-- Bếp rỗng thì không có món nào để báo. Hiện lời nhắc thay vì một ô chọn trống:
-           ô chọn rỗng kèm required chỉ dẫn tới một biểu mẫu bấm gửi mãi không đi. --%>
       <c:choose>
       <c:when test="${empty kitchenItems}">
         <p class="small muted">
@@ -132,9 +119,6 @@
         <input type="hidden" name="_csrf" value="${csrfToken}">
         <div class="field">
           <label for="orderItemId">Món gặp sự cố</label>
-          <%-- Ô chọn chứ không phải ô số như trước: mã món là con số nội bộ, không có trên
-               phiếu hay trên món, nên bắt đầu bếp gõ tay là bắt họ nhớ một thứ không nhìn
-               thấy được. Danh sách gồm cả món của người khác — sự cố là chuyện của cả bếp. --%>
           <select id="orderItemId" name="orderItemId" required>
             <c:forEach var="v" items="${kitchenItems}">
               <option value="${v.item.orderItemId}"

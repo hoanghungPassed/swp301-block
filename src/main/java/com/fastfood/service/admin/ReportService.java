@@ -3,20 +3,13 @@ package com.fastfood.service.admin;
 import com.fastfood.common.util.DateTimeUtil;
 import com.fastfood.config.AppConfig;
 import com.fastfood.dao.admin.ReportDAO;
-import com.fastfood.model.dto.DashboardKpi;
-import com.fastfood.model.dto.ReportRow;
+import com.fastfood.model.dto.Dtos.DashboardKpi;
+import com.fastfood.model.dto.Dtos.ReportRow;
 import com.fastfood.service.Tx;
 
 import java.time.LocalDateTime;
 import java.util.List;
 
-/**
- * Báo cáo cho quản trị viên.
- * <p>
- * Mỗi con số dùng một mốc thời gian riêng: doanh thu theo lúc tiền về, đơn hoàn tất theo lúc
- * giao món, tỷ lệ đúng hẹn theo giờ đã hẹn với khách. Dùng lẫn mốc sẽ ra những con số
- * trông hợp lý nhưng sai — chi tiết nằm trong {@link ReportDAO}.
- */
 public class ReportService {
 
     private final ReportDAO reportDAO = new ReportDAO();

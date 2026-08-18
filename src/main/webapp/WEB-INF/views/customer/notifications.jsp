@@ -6,8 +6,6 @@
       <h1>Thông báo</h1>
       <p>Những gì đã xảy ra với đơn của bạn — xác nhận, món sẵn sàng, huỷ đơn và hoàn tiền.</p>
     </div>
-    <%-- Nút chỉ hiện khi thật sự còn tin chưa đọc: bấm vào một nút không đổi được gì
-         chỉ làm người dùng nghi ngờ là mình bấm hụt. --%>
     <c:if test="${not empty unreadNotifications and unreadNotifications > 0}">
       <form method="post" action="${ctx}/notifications">
         <input type="hidden" name="_csrf" value="${csrfToken}">
@@ -41,8 +39,6 @@
                       ${ff:notificationEvent(n.eventType)}
                     </span>
                     <c:if test="${n.unread}">
-                      <%-- Chữ chứ không phải chấm màu: một chấm đỏ không đọc lên được, nên
-                           người dùng trình đọc màn hình không biết dòng nào là tin mới. --%>
                       <span class="tag tag-amber">Mới</span>
                     </c:if>
                   </div>
@@ -54,8 +50,6 @@
                     Xem đơn #${n.orderId}
                   </a>
                   <c:if test="${n.failed}">
-                    <%-- Gửi hỏng thì tin này vẫn nằm đây, nhưng khách cần biết là hộp thư của
-                         họ không có gì cả — nếu không, lần sau họ vẫn ngồi đợi thư. --%>
                     <span class="tag tag-red">Gửi tới email không thành công</span>
                   </c:if>
                 </div>

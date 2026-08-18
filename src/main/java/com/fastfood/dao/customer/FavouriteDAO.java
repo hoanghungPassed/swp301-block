@@ -1,7 +1,7 @@
 package com.fastfood.dao.customer;
 
 import com.fastfood.dao.JdbcSupport;
-import com.fastfood.model.entity.Favourite;
+import com.fastfood.model.entity.MenuEntities.Favourite;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -14,7 +14,6 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
-/** Truy vấn bảng Favourite — món quen của khách. */
 public class FavouriteDAO {
 
     private static final String BASE =
@@ -51,7 +50,6 @@ public class FavouriteDAO {
         }
     }
 
-    /** Món quen của một khách, mới đánh dấu trước. */
     public List<Favourite> findByCustomer(Connection con, int customerId) throws SQLException {
         try (PreparedStatement ps = con.prepareStatement(
                 BASE + "WHERE f.customer_id = ? ORDER BY f.created_at DESC, f.favourite_id DESC")) {
@@ -60,12 +58,6 @@ public class FavouriteDAO {
         }
     }
 
-    /**
-     * Chỉ lấy mã món đã đánh dấu, để tô dấu trên lưới thực đơn.
-     * <p>
-     * Thực đơn có hàng chục món; hỏi từng món "khách này đã đánh dấu chưa" sẽ thành hàng chục
-     * lượt truy vấn cho một lần mở trang. Một lượt lấy hết rồi tra trong bộ nhớ là đủ.
-     */
     public Set<Integer> productIdsOf(Connection con, int customerId) throws SQLException {
         Set<Integer> ids = new LinkedHashSet<>();
         try (PreparedStatement ps = con.prepareStatement(
@@ -102,7 +94,6 @@ public class FavouriteDAO {
         }
     }
 
-    /** Bỏ đánh dấu ngay từ lưới thực đơn, nơi chỉ biết mã món chứ không biết mã bản ghi. */
     public int deleteByProduct(Connection con, int customerId, int productId) throws SQLException {
         try (PreparedStatement ps = con.prepareStatement(
                 "DELETE FROM dbo.Favourite WHERE customer_id = ? AND product_id = ?")) {

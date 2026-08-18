@@ -1,6 +1,6 @@
 package com.fastfood.dao.shared;
 
-import com.fastfood.model.entity.AuditLog;
+import com.fastfood.model.entity.OperationEntities.AuditLog;
 
 import java.sql.*;
 import java.time.LocalDateTime;
@@ -8,7 +8,6 @@ import java.util.ArrayList;
 import java.util.List;
 import com.fastfood.dao.JdbcSupport;
 
-/** Truy vấn bảng AuditLog. */
 public class AuditLogDAO {
 
     public void insert(Connection con, AuditLog log) throws SQLException {
@@ -35,12 +34,6 @@ public class AuditLogDAO {
         }
     }
 
-    /**
-     * Một trang bản ghi khớp bộ lọc, mới nhất trước.
-     * <p>
-     * OFFSET/FETCH bắt buộc phải có ORDER BY: không sắp thứ tự thì "trang 2" không có
-     * nghĩa gì, và cùng một truy vấn chạy hai lần có thể trả về hai tập khác nhau.
-     */
     public List<AuditLog> search(Connection con, String entityType, String action,
                                  LocalDateTime from, LocalDateTime to,
                                  int offset, int limit) throws SQLException {
@@ -56,11 +49,9 @@ public class AuditLogDAO {
         }
     }
 
-    /** Tổng số bản ghi khớp bộ lọc, để biết có bao nhiêu trang. */
     public long countSearch(Connection con, String entityType, String action,
                             LocalDateTime from, LocalDateTime to) throws SQLException {
         List<Object> params = new ArrayList<>();
-        // Đếm không cần nối sang bảng Users: điều kiện lọc chỉ đụng tới cột của AuditLog.
         String sql = "SELECT COUNT(*) FROM dbo.AuditLog a " + where(entityType, action, from, to, params);
         try (PreparedStatement ps = con.prepareStatement(sql)) {
             bind(ps, params);
@@ -70,11 +61,6 @@ public class AuditLogDAO {
         }
     }
 
-    /**
-     * Mệnh đề lọc dùng chung cho cả câu lấy dữ liệu lẫn câu đếm.
-     * Viết hai lần thì sớm muộn hai bên cũng lệch nhau, và khi đó số trang sẽ không khớp
-     * với số dòng thật sự lấy được.
-     */
     private String where(String entityType, String action,
                          LocalDateTime from, LocalDateTime to, List<Object> params) {
         StringBuilder sql = new StringBuilder("WHERE 1 = 1 ");
@@ -97,7 +83,6 @@ public class AuditLogDAO {
         return sql.toString();
     }
 
-    /** Gán tham số lọc, trả về vị trí tham số kế tiếp còn trống. */
     private int bind(PreparedStatement ps, List<Object> params) throws SQLException {
         for (int i = 0; i < params.size(); i++) {
             ps.setObject(i + 1, params.get(i));
@@ -105,7 +90,6 @@ public class AuditLogDAO {
         return params.size() + 1;
     }
 
-    /** Các loại thao tác đã từng ghi nhận, dùng để đổ vào ô lọc. */
     public List<String> distinctActions(Connection con) throws SQLException {
         List<String> list = new ArrayList<>();
         try (PreparedStatement ps = con.prepareStatement(

@@ -1,6 +1,6 @@
 package com.fastfood.dao.customer;
 
-import com.fastfood.model.entity.CartItem;
+import com.fastfood.model.entity.OrderEntities.CartItem;
 
 import java.sql.*;
 import java.time.LocalDateTime;
@@ -8,16 +8,8 @@ import java.util.ArrayList;
 import java.util.List;
 import com.fastfood.dao.JdbcSupport;
 
-/** Truy vấn giỏ hàng. Gộp cả Cart và CartItem vì hai bảng luôn dùng cùng nhau. */
 public class CartDAO {
 
-    /**
-     * Lấy giỏ của khách, chưa có thì tạo mới. Mỗi khách chỉ có đúng một giỏ.
-     * <p>
-     * Cột user_id có ràng buộc duy nhất, nên hai yêu cầu gần như cùng lúc của cùng một khách
-     * (mở trang thực đơn trong lúc bấm thêm món chẳng hạn) đều thấy "chưa có giỏ" rồi cùng ghi.
-     * Người thứ hai đụng ràng buộc; khi đó đọc lại giỏ vừa được tạo thay vì trả lỗi ra ngoài.
-     */
     public int getOrCreateCartId(Connection con, int userId, LocalDateTime now) throws SQLException {
         Integer existing = findCartId(con, userId);
         if (existing != null) {
@@ -52,10 +44,6 @@ public class CartDAO {
         }
     }
 
-    /**
-     * Các dòng trong giỏ, kèm tên, giá và tình trạng còn bán của món.
-     * Lấy kèm để màn hình giỏ hàng cảnh báo ngay khi có món vừa hết hàng.
-     */
     public List<CartItem> findItems(Connection con, int cartId) throws SQLException {
         String sql = "SELECT ci.cart_item_id, ci.cart_id, ci.product_id, ci.quantity, " +
                      "       p.name AS product_name, p.price, p.image_url, p.is_available, " +
@@ -87,7 +75,6 @@ public class CartDAO {
         return list;
     }
 
-    /** Thêm món; nếu đã có trong giỏ thì cộng dồn số lượng thay vì tạo dòng thứ hai. */
     public void addItem(Connection con, int cartId, int productId, int quantity) throws SQLException {
         String sql = "UPDATE dbo.CartItem SET quantity = quantity + ? WHERE cart_id = ? AND product_id = ?";
         try (PreparedStatement ps = con.prepareStatement(sql)) {
@@ -117,7 +104,6 @@ public class CartDAO {
         }
     }
 
-    /** Điều kiện cart_id trong câu lệnh đảm bảo khách không xoá được dòng trong giỏ người khác. */
     public void removeItem(Connection con, int cartId, int cartItemId) throws SQLException {
         try (PreparedStatement ps = con.prepareStatement(
                 "DELETE FROM dbo.CartItem WHERE cart_item_id = ? AND cart_id = ?")) {
@@ -127,7 +113,6 @@ public class CartDAO {
         }
     }
 
-    /** Dọn giỏ sau khi đặt hàng thành công. */
     public void clear(Connection con, int cartId) throws SQLException {
         try (PreparedStatement ps = con.prepareStatement("DELETE FROM dbo.CartItem WHERE cart_id = ?")) {
             ps.setInt(1, cartId);
@@ -144,13 +129,6 @@ public class CartDAO {
         }
     }
 
-    /**
-     * Số lượng của một món đang có trong giỏ; chưa có thì 0.
-     * <p>
-     * Dùng để chặn số lượng <b>sau khi cộng dồn</b>: {@link #addItem} cộng vào dòng sẵn có, nên
-     * kiểm mỗi lần thêm mà không nhìn con số đang có thì bấm "thêm vào giỏ" nhiều lần vẫn vượt
-     * được giới hạn — xem {@code CartService.addProduct}.
-     */
     public int quantityOf(Connection con, int cartId, int productId) throws SQLException {
         try (PreparedStatement ps = con.prepareStatement(
                 "SELECT quantity FROM dbo.CartItem WHERE cart_id = ? AND product_id = ?")) {

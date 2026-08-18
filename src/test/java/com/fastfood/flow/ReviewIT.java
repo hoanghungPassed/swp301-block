@@ -1,11 +1,11 @@
 package com.fastfood.flow;
 
-import com.fastfood.common.exception.BusinessException;
-import com.fastfood.common.exception.NotFoundException;
-import com.fastfood.common.exception.ValidationException;
-import com.fastfood.model.dto.ReviewSummary;
-import com.fastfood.model.entity.Product;
-import com.fastfood.model.entity.Review;
+import com.fastfood.common.exception.AppException.BusinessException;
+import com.fastfood.common.exception.AppException.NotFoundException;
+import com.fastfood.common.exception.AppException.ValidationException;
+import com.fastfood.model.dto.Dtos.ReviewSummary;
+import com.fastfood.model.entity.MenuEntities.Product;
+import com.fastfood.model.entity.MenuEntities.Review;
 import com.fastfood.service.shared.MenuService;
 import com.fastfood.service.customer.ReviewService;
 import com.fastfood.testsupport.IntegrationTestBase;
@@ -23,24 +23,14 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/**
- * Đánh giá món trên trang chi tiết — trang công khai, viết thì phải đã mua và đã nhận.
- * <p>
- * Các bài ghi dữ liệu dùng {@code customer2}: dữ liệu mẫu sinh đánh giá từ ba cặp
- * (khách, món) đầu tiên, và cả ba đều rơi vào {@code customer1} — khách đó không còn món nào
- * đã nhận mà chưa đánh giá. {@code customer2} có hai món đã nhận và chưa đánh giá cái nào.
- */
 @DisplayName("Đánh giá món")
 class ReviewIT extends IntegrationTestBase {
 
-    /** Khách dùng để viết đánh giá trong các bài dưới đây — xem ghi chú ở đầu lớp. */
     private static final String KHACH = CUSTOMER_2;
-    /** Một tài khoản khác, để kiểm chốt chặn "chỉ người viết mới sửa được". */
     private static final String NGUOI_LA = CUSTOMER_1;
 
     private final ReviewService reviewService = new ReviewService();
 
-    /** Một món khách này đã mua và đã nhận, mà chưa đánh giá. */
     private int monDaNhanChuaDanhGia(int customerId) {
         Integer id = scalar(Integer.class,
                 "SELECT TOP 1 oi.product_id FROM dbo.Orders o " +
@@ -55,7 +45,6 @@ class ReviewIT extends IntegrationTestBase {
         return id;
     }
 
-    /** Một món khách này CHƯA từng nhận. */
     private int monChuaNhan(int customerId) {
         Integer id = scalar(Integer.class,
                 "SELECT TOP 1 p.product_id FROM dbo.Product p " +

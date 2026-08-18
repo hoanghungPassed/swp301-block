@@ -14,15 +14,6 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/**
- * Hai chỗ quyết định của việc thu tiền qua SePay, tách khỏi cơ sở dữ liệu để chạy được trong
- * {@code mvn test}: <b>đọc mã thanh toán ra từ nội dung chuyển khoản</b>, và <b>xác thực lệnh
- * gọi về</b>.
- * <p>
- * Cả hai đều là loại hỏng im lặng. Đọc sai mã thì tiền được ghi cho một đơn không liên quan mà
- * không màn hình nào báo gì; xác thực hớ hênh thì bất kỳ ai cũng tự báo mình đã trả tiền được,
- * và cũng không màn hình nào báo gì. Chỉ có bài test canh được những chuyện như vậy.
- */
 @DisplayName("Cổng thanh toán SePay")
 class SePayGatewayTest {
 
@@ -30,8 +21,6 @@ class SePayGatewayTest {
 
     private final SePayGateway gateway =
             new SePayGateway("0011223344", "Vietcombank", "CUA HANG ABC", API_KEY, "FF");
-
-    // ------------------------------------------------------------------ nội dung chuyển khoản
 
     @Nested
     @DisplayName("Đọc mã thanh toán từ nội dung chuyển khoản")
@@ -46,18 +35,12 @@ class SePayGatewayTest {
         @Test
         @DisplayName("Đọc được khi ngân hàng chèn thêm chữ quanh mã")
         void readsFromRealBankContent() {
-            // Nội dung thật về tới nơi kèm mã của SePay ở đầu và mấy chữ mô tả ở sau
             assertEquals(57, gateway.paymentIdFrom("SEVN63DC8E5C FF57 chuyen tien"));
             assertEquals(57, gateway.paymentIdFrom("NGUYEN VAN A chuyen tien FF57"));
             assertEquals(1234, gateway.paymentIdFrom("ff1234"),
                     "Nhiều ngân hàng viết hoa hoặc viết thường lại toàn bộ nội dung");
         }
 
-        /**
-         * Đây là lý do tiền tố phải chốt hai đầu. Mã SePay tự chèn là chữ số mười sáu, nên nó
-         * hoàn toàn có thể chứa đúng hai chữ "FF" ở giữa. Khớp lỏng thì khoản tiền này được ghi
-         * cho đơn số 12 — một đơn của người khác, hoàn toàn không liên quan.
-         */
         @Test
         @DisplayName("Không nhận nhầm mã nằm lọt giữa một chuỗi khác")
         void doesNotMatchInsideAnotherToken() {
@@ -68,7 +51,6 @@ class SePayGatewayTest {
         @Test
         @DisplayName("Không nhận mã dính liền chữ số phía sau")
         void doesNotTruncateALongerNumber() {
-            // "FF57" của đơn 57 và "FF5712" của đơn 5712 phải là hai thứ khác nhau
             assertEquals(5712, gateway.paymentIdFrom("FF5712"));
         }
 
@@ -88,8 +70,6 @@ class SePayGatewayTest {
                     "Không chặn thì con số này tràn kiểu int và thành một mã hợp lệ nào đó");
         }
     }
-
-    // ------------------------------------------------------------------ xác thực lệnh gọi về
 
     @Nested
     @DisplayName("Xác thực lệnh gọi về")
@@ -111,11 +91,6 @@ class SePayGatewayTest {
             assertFalse(gateway.verifySignature(callbackWithKey(null)));
         }
 
-        /**
-         * Nhánh mặc định phải là từ chối. Chưa khai báo khoá mà vẫn cho qua thì mọi máy chủ chạy
-         * cấu hình mặc định đều có một địa chỉ công khai để bất kỳ ai cũng tự xác nhận đơn của
-         * mình đã trả tiền — chỉ cần đoán mã thanh toán, mà mã thanh toán thì chạy tuần tự.
-         */
         @Test
         @DisplayName("Chưa cấu hình khoá thì từ chối tất, kể cả lệnh gọi không mang khoá")
         void rejectsAllWhenNoKeyConfigured() {
@@ -136,8 +111,6 @@ class SePayGatewayTest {
         }
     }
 
-    // ------------------------------------------------------------------ mã QR và trang thanh toán
-
     @Nested
     @DisplayName("Mã QR và trang thanh toán")
     class MaQR {
@@ -156,11 +129,6 @@ class SePayGatewayTest {
                             + "Nhận được: " + url);
         }
 
-        /**
-         * Khác cổng chuyển hướng: khách ở lại ứng dụng. Mã trả về chỗ "mã giao dịch phía cổng"
-         * là nội dung chuyển khoản, vì mã biến động số dư chưa tồn tại lúc này — nó chỉ có sau
-         * khi tiền thật sự vào tài khoản.
-         */
         @Test
         @DisplayName("Khởi tạo thanh toán dẫn về trang QR trong chính ứng dụng")
         void initiateStaysInsideTheApplication() {

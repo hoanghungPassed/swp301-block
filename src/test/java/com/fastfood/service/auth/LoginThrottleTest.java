@@ -9,14 +9,6 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/**
- * Đếm số lần đăng nhập sai.
- * <p>
- * Bài test nằm cùng gói với lớp được kiểm để dùng được hàm dựng và {@code clear()} ở mức gói.
- * Cả hai cố tình không công khai: {@link LoginThrottle} phải là <b>một</b> bản dùng chung cho
- * cả ứng dụng, và một hàm dựng công khai chính là lời mời tạo ra bản thứ hai — khi đó mỗi bản
- * chỉ thấy một nửa số lần thử, ngưỡng năm lần trên thực tế thành mười, mà không có gì báo lỗi.
- */
 @DisplayName("Chống dò mật khẩu")
 class LoginThrottleTest {
 
@@ -49,11 +41,6 @@ class LoginThrottleTest {
         assertNotNull(throttle.lockRemaining(EMAIL, IP));
     }
 
-    /**
-     * Giá trị trả về của {@code recordFailure} là tín hiệu để ghi nhật ký đúng một lần cho mỗi
-     * đợt. Trả true ở mọi lần thử tiếp theo thì bảng nhật ký đầy những dòng LOGIN_BLOCKED giống
-     * hệt nhau, và đợt tấn công thứ hai chìm mất giữa chúng.
-     */
     @Test
     @DisplayName("Chỉ báo \"vừa bị khoá\" đúng một lần cho mỗi đợt")
     void reportsTheLockOnlyOnce() {
@@ -65,10 +52,6 @@ class LoginThrottleTest {
         assertFalse(throttle.recordFailure(EMAIL, IP));
     }
 
-    /**
-     * Khoá theo mình email thì bất kỳ ai cũng vô hiệu hoá được tài khoản người khác bằng cách
-     * gõ sai năm lần — biến một cơ chế bảo vệ thành một cơ chế phá hoại.
-     */
     @Test
     @DisplayName("Khoá theo cặp email và máy: máy khác vẫn đăng nhập được")
     void locksPerMachineNotPerAccount() {
@@ -97,7 +80,6 @@ class LoginThrottleTest {
             throttle.recordFailure(EMAIL, IP);
         }
         throttle.recordSuccess(EMAIL, IP);
-        // Bốn lần sai trước đó phải biến mất hẳn, nếu không thì một lần gõ nhầm nữa là khoá.
         assertFalse(throttle.recordFailure(EMAIL, IP));
         assertFalse(throttle.isLocked(EMAIL, IP));
     }

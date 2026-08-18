@@ -1,6 +1,6 @@
 package com.fastfood.flow;
 
-import com.fastfood.model.entity.Order;
+import com.fastfood.model.entity.OrderEntities.Order;
 import com.fastfood.service.staff.StaffOrderService;
 import com.fastfood.testsupport.IntegrationTestBase;
 import org.junit.jupiter.api.DisplayName;
@@ -14,13 +14,6 @@ import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/**
- * Bốn tab trên màn hình điều phối của thu ngân.
- * <p>
- * Yêu cầu quan trọng nhất không phải là từng tab lọc đúng gì, mà là <b>bốn tab cộng lại phủ
- * kín mọi đơn chưa kết thúc</b>. Một đơn không hiện ở tab nào thì thu ngân chỉ tìm ra nó khi
- * khách đứng trước mặt hỏi — và lúc đó thì đã muộn.
- */
 @DisplayName("Bốn tab điều phối phủ kín mọi đơn đang chạy")
 class OrderDashboardIT extends IntegrationTestBase {
 
@@ -48,7 +41,6 @@ class OrderDashboardIT extends IntegrationTestBase {
     @Test
     @DisplayName("Mọi đơn chưa kết thúc đều xuất hiện ở ít nhất một tab")
     void everyLiveOrderAppearsSomewhere() {
-        // Dựng đủ các tổ hợp trạng thái còn sống của cả hai kênh
         List<Integer> live = new ArrayList<>();
         for (String status : List.of("CONFIRMED", "PREPARING", "READY")) {
             live.add(onlineOrder(status));
@@ -101,8 +93,6 @@ class OrderDashboardIT extends IntegrationTestBase {
         assertTrue(!idsIn("SCHEDULED").contains(pos), "Tab đặt trước không được có đơn tại quầy");
     }
 
-    // ------------------------------------------------------------------ tiện ích
-
     private Set<Integer> idsIn(String tab) {
         Set<Integer> ids = new HashSet<>();
         for (Order o : staffOrders.dashboard(tab)) {
@@ -121,7 +111,6 @@ class OrderDashboardIT extends IntegrationTestBase {
         return scalar(Integer.class, "SELECT MAX(order_id) FROM dbo.Orders");
     }
 
-    /** Đơn đặt trước đã sẵn sàng nhưng khách quá hẹn 40 phút chưa tới lấy. */
     private void onlineOverdueOrder() {
         LocalDateTime pastPickup = LocalDateTime.now().minusMinutes(40);
         exec("INSERT INTO dbo.Orders (customer_id, order_source, total_amount, order_status, " +

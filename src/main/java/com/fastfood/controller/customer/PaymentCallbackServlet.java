@@ -12,14 +12,6 @@ import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.math.BigDecimal;
 
-/**
- * Nhận kết quả từ cổng thanh toán.
- * <p>
- * Địa chỉ này không yêu cầu đăng nhập vì cổng thanh toán gọi vào từ máy chủ của họ,
- * không mang theo phiên của khách. Bù lại, mọi dữ liệu đều phải qua kiểm tra chữ ký,
- * và mã giao dịch được chống trùng ở tầng cơ sở dữ liệu — chi tiết trong
- * {@link PaymentService#handleCallback}.
- */
 @WebServlet("/payment/callback")
 public class PaymentCallbackServlet extends BaseServlet {
 
@@ -69,7 +61,6 @@ public class PaymentCallbackServlet extends BaseServlet {
                     break;
                 case DUPLICATE:
                 default:
-                    // Cổng gửi lại kết quả đã xử lý — trang theo dõi đơn đã hiện đúng trạng thái
                     break;
             }
         } catch (AppException e) {
@@ -78,7 +69,6 @@ public class PaymentCallbackServlet extends BaseServlet {
         redirect(req, resp, "/order/track?orderId=" + orderId);
     }
 
-    /** Số tiền cổng báo đã thu; {@code null} khi thiếu hoặc không đọc được. */
     private static BigDecimal parseAmount(String raw) {
         if (raw == null || raw.isBlank()) {
             return null;

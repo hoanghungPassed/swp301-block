@@ -1,6 +1,6 @@
 package com.fastfood.dao.shared;
 
-import com.fastfood.model.entity.Notification;
+import com.fastfood.model.entity.UserEntities.Notification;
 
 import java.sql.*;
 import java.time.LocalDateTime;
@@ -8,7 +8,6 @@ import java.util.ArrayList;
 import java.util.List;
 import com.fastfood.dao.JdbcSupport;
 
-/** Truy vấn bảng Notification. */
 public class NotificationDAO {
 
     private static final String COLS =
@@ -43,7 +42,6 @@ public class NotificationDAO {
         }
     }
 
-    /** Một trang trong hộp thông báo của khách, tin mới nhất trước. */
     public List<Notification> findByUser(Connection con, int userId, int offset, int limit)
             throws SQLException {
         String sql = "SELECT " + COLS + "FROM dbo.Notification WHERE user_id = ? " +
@@ -66,7 +64,6 @@ public class NotificationDAO {
         }
     }
 
-    /** Số tin chưa đọc — con số trên huy hiệu ở thanh điều hướng. */
     public int countUnread(Connection con, int userId) throws SQLException {
         try (PreparedStatement ps = con.prepareStatement(
                 "SELECT COUNT(*) FROM dbo.Notification WHERE user_id = ? AND read_at IS NULL")) {
@@ -77,13 +74,6 @@ public class NotificationDAO {
         }
     }
 
-    /**
-     * Đánh dấu đã đọc toàn bộ tin của một khách.
-     * <p>
-     * Điều kiện {@code read_at IS NULL} nằm ngay trong câu lệnh: thiếu nó thì mỗi lần bấm lại
-     * dời mốc đã đọc của cả những tin đọc từ tuần trước, và cột đó không còn nói được tin nào
-     * đọc lúc nào.
-     */
     public int markAllRead(Connection con, int userId, LocalDateTime now) throws SQLException {
         try (PreparedStatement ps = con.prepareStatement(
                 "UPDATE dbo.Notification SET read_at = ? WHERE user_id = ? AND read_at IS NULL")) {
@@ -93,14 +83,6 @@ public class NotificationDAO {
         }
     }
 
-    /**
-     * Đánh dấu đã đọc những tin của một đơn.
-     * <p>
-     * Gọi khi khách mở trang theo dõi đơn: tin đã hiện ngay trên màn hình họ đang nhìn, để nó
-     * tiếp tục được đếm là chưa đọc thì huy hiệu bảo có tin mới còn hộp thông báo mở ra chẳng
-     * có gì họ chưa biết. Điều kiện user_id giữ cho một khách không xoá được dấu chưa đọc
-     * của người khác.
-     */
     public int markReadByOrder(Connection con, int userId, int orderId, LocalDateTime now)
             throws SQLException {
         try (PreparedStatement ps = con.prepareStatement(

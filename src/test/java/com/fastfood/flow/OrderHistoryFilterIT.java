@@ -1,7 +1,7 @@
 package com.fastfood.flow;
 
-import com.fastfood.model.dto.Page;
-import com.fastfood.model.entity.Order;
+import com.fastfood.model.dto.Dtos.Page;
+import com.fastfood.model.entity.OrderEntities.Order;
 import com.fastfood.service.customer.CustomerOrderService;
 import com.fastfood.testsupport.IntegrationTestBase;
 import org.junit.jupiter.api.DisplayName;
@@ -16,16 +16,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/**
- * Bộ lọc trên màn hình "Đơn của tôi".
- * <p>
- * Điều đáng kiểm nhất ở đây không phải là danh sách lọc ra đúng, mà là <b>câu đếm và câu lấy
- * dữ liệu dùng chung một mệnh đề lọc</b>. Hai bên lệch nhau thì trang vẫn hiện ra bình thường,
- * chỉ có dòng "đang xem 1–20 trong N" nói một con số của tập khác — và không ai nhận ra cho
- * tới khi bấm sang trang cuối rồi thấy trống trơn.
- * <p>
- * Kèm theo là chốt chặn cũ vẫn phải còn: mọi bộ lọc đều đi qua điều kiện customer_id.
- */
 @DisplayName("Bộ lọc lịch sử đơn của khách")
 class OrderHistoryFilterIT extends IntegrationTestBase {
 

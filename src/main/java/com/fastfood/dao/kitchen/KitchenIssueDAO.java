@@ -1,6 +1,6 @@
 package com.fastfood.dao.kitchen;
 
-import com.fastfood.model.entity.KitchenIssue;
+import com.fastfood.model.entity.OperationEntities.KitchenIssue;
 
 import java.sql.*;
 import java.time.LocalDateTime;
@@ -8,7 +8,6 @@ import java.util.ArrayList;
 import java.util.List;
 import com.fastfood.dao.JdbcSupport;
 
-/** Truy vấn bảng KitchenIssue. */
 public class KitchenIssueDAO {
 
     private static final String BASE =
@@ -47,12 +46,6 @@ public class KitchenIssueDAO {
         }
     }
 
-    /**
-     * Sửa mô tả sự cố.
-     * <p>
-     * Hai điều kiện "còn đang mở" và "đúng người báo" nằm ngay trong câu lệnh, không kiểm tra
-     * trước rồi mới ghi: giữa hai bước đó người khác có thể vừa đánh dấu đã xử lý xong.
-     */
     public int updateDescription(Connection con, int issueId, int userId, String description)
             throws SQLException {
         String sql = "UPDATE dbo.KitchenIssue SET description = ? " +
@@ -65,11 +58,6 @@ public class KitchenIssueDAO {
         }
     }
 
-    /**
-     * Thu hồi sự cố báo nhầm. Dùng lại cột {@code resolved_at} làm mốc đóng sự cố — cả hai
-     * đường ra đều là "sự cố khép lại lúc nào", nên thêm một cột nữa chỉ để phân biệt
-     * lý do đóng là thừa, trong khi cột {@code status} đã nói rõ điều đó.
-     */
     public int cancel(Connection con, int issueId, int userId, LocalDateTime now) throws SQLException {
         String sql = "UPDATE dbo.KitchenIssue SET status = 'CANCELLED', resolved_at = ? " +
                      "WHERE issue_id = ? AND status = 'OPEN' AND created_by = ?";
@@ -81,13 +69,6 @@ public class KitchenIssueDAO {
         }
     }
 
-    /**
-     * Còn bao nhiêu báo hết nguyên liệu đang mở cho một món.
-     * <p>
-     * Thu hồi một báo nhầm không đủ để bật món lại: cùng một món có thể đang bị nhiều người
-     * báo hết. Đếm trước rồi mới bật, nếu không thì một lần bấm nhầm sẽ xoá sạch cảnh báo
-     * thật của người khác và khách lại đặt được đúng món đang hết.
-     */
     public int countOpenOutOfStockForProduct(Connection con, int productId) throws SQLException {
         String sql = "SELECT COUNT(*) FROM dbo.KitchenIssue ki " +
                      "JOIN dbo.OrderItem oi ON oi.order_item_id = ki.order_item_id " +
@@ -124,10 +105,6 @@ public class KitchenIssueDAO {
         }
     }
 
-    /**
-     * Sự cố đang mở của một đơn cụ thể.
-     * Thu ngân cần cả loại và mô tả để nói chuyện được với khách, không chỉ con số đếm.
-     */
     public List<KitchenIssue> findOpenByOrder(Connection con, int orderId) throws SQLException {
         try (PreparedStatement ps = con.prepareStatement(
                 BASE + "WHERE oi.order_id = ? AND ki.status = 'OPEN' ORDER BY ki.created_at DESC")) {
@@ -136,7 +113,6 @@ public class KitchenIssueDAO {
         }
     }
 
-    /** Số sự cố còn chưa xử lý — hiện trên màn hình điều phối của thu ngân. */
     public int countOpen(Connection con) throws SQLException {
         try (PreparedStatement ps = con.prepareStatement(
                 "SELECT COUNT(*) FROM dbo.KitchenIssue WHERE status = 'OPEN'")) {

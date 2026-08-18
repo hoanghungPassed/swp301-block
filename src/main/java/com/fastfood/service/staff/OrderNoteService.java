@@ -1,13 +1,13 @@
 package com.fastfood.service.staff;
 
-import com.fastfood.common.exception.BusinessException;
-import com.fastfood.common.exception.NotFoundException;
-import com.fastfood.common.exception.ValidationException;
+import com.fastfood.common.exception.AppException.BusinessException;
+import com.fastfood.common.exception.AppException.NotFoundException;
+import com.fastfood.common.exception.AppException.ValidationException;
 import com.fastfood.common.util.DateTimeUtil;
 import com.fastfood.dao.shared.OrderDAO;
 import com.fastfood.dao.staff.OrderNoteDAO;
-import com.fastfood.model.entity.Order;
-import com.fastfood.model.entity.OrderNote;
+import com.fastfood.model.entity.OrderEntities.Order;
+import com.fastfood.model.entity.OrderEntities.OrderNote;
 import com.fastfood.service.Tx;
 
 import java.sql.Connection;
@@ -16,15 +16,6 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 
-/**
- * Ghi chú điều phối trên đơn hàng — của thu ngân, hiện ngay dưới mỗi dòng đơn ở màn điều phối.
- * <p>
- * "Khách gọi báo đến muộn 20 phút", "đơn này ưu tiên, khách đang đứng đợi". Hiện tại những thông
- * tin đó chỉ nằm trong đầu người trực quầy nên đổi ca là mất.
- * <p>
- * Cùng nguyên tắc với ghi chú của bếp: không dính tiền, không đổi trạng thái đơn, không có dòng
- * nhật ký nào trỏ về — nên <b>xoá hẳn</b> khỏi bảng và không ghi nhật ký thao tác.
- */
 public class OrderNoteService {
 
     private static final int MAX_LENGTH = 500;
@@ -36,7 +27,6 @@ public class OrderNoteService {
         return Tx.read(con -> noteDAO.findByOrder(con, orderId));
     }
 
-    /** Ghi chú của nhiều đơn trong một lượt truy vấn — dùng cho bốn tab màn điều phối. */
     public Map<Integer, List<OrderNote>> notesOfOrders(List<Integer> orderIds) {
         return Tx.read(con -> noteDAO.findByOrders(con, orderIds));
     }
@@ -75,10 +65,6 @@ public class OrderNoteService {
         });
     }
 
-    /**
-     * Đọc trước để báo lỗi cho đúng: câu lệnh ghi đã gộp điều kiện "đúng người viết" vào chính
-     * nó, nên khi trả về 0 dòng thì không phân biệt được không tồn tại hay của người khác.
-     */
     private void requireOwn(Connection con, int orderNoteId, int authorId) throws SQLException {
         OrderNote note = noteDAO.findById(con, orderNoteId);
         if (note == null) {

@@ -1,9 +1,9 @@
 package com.fastfood.flow;
 
-import com.fastfood.common.exception.BusinessException;
-import com.fastfood.common.exception.NotFoundException;
-import com.fastfood.common.exception.ValidationException;
-import com.fastfood.model.entity.Favourite;
+import com.fastfood.common.exception.AppException.BusinessException;
+import com.fastfood.common.exception.AppException.NotFoundException;
+import com.fastfood.common.exception.AppException.ValidationException;
+import com.fastfood.model.entity.MenuEntities.Favourite;
 import com.fastfood.service.customer.FavouriteService;
 import com.fastfood.testsupport.IntegrationTestBase;
 import org.junit.jupiter.api.DisplayName;
@@ -18,13 +18,11 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/** Món quen của khách — khối quản lý nằm ngay trên trang thực đơn. */
 @DisplayName("Món quen của khách")
 class FavouriteIT extends IntegrationTestBase {
 
     private final FavouriteService favouriteService = new FavouriteService();
 
-    /** Một món chưa nằm trong danh sách món quen của khách này — tránh vấp ràng buộc duy nhất. */
     private int monChuaDanhDau(int customerId) {
         Integer id = scalar(Integer.class,
                 "SELECT TOP 1 p.product_id FROM dbo.Product p " +
@@ -170,7 +168,6 @@ class FavouriteIT extends IntegrationTestBase {
         void unavailableProductStaysMarkable() {
             int khach = userId(CUSTOMER_2);
             int het_hang = unavailableProductId();
-            // Dữ liệu mẫu có thể đã đánh dấu sẵn món này cho khách khác, nhưng không cho khách 2.
             Favourite fav = favouriteService.add(khach, het_hang, "khi nào có lại thì báo tôi");
 
             Favourite trong_danh_sach = favouriteService.listOf(khach).stream()

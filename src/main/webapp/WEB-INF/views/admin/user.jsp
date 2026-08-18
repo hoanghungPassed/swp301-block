@@ -7,8 +7,6 @@
 
   <%@ include file="/WEB-INF/views/layout/flash.jspf" %>
 
-  <%-- Bộ lọc hiện tại, đã mã hoá sẵn. Mọi liên kết và biểu mẫu trên trang mang theo nó để
-       thao tác xong quay lại đúng danh sách vừa xem, chứ không rơi về trang đầu không lọc. --%>
   <c:set var="qs" value="${empty filterQuery ? '' : filterQuery.concat('&')}" />
 
   <div class="grid grid-side">
@@ -67,16 +65,12 @@
                   <span class="tag ${u.active ? 'tag-green' : 'tag-red'}">
                     ${u.active ? 'Hoạt động' : 'Đã khoá'}
                   </span>
-                  <%-- Tài khoản vừa được đặt lại mật khẩu vẫn đang dùng mật khẩu tạm mà quản trị
-                       viên biết. Không hiện ra thì không ai biết lần đặt lại ấy đã trôi qua bao
-                       lâu mà người dùng vẫn chưa tự đổi. --%>
                   <c:if test="${u.mustChangePassword}">
                     <div class="small muted">chờ đổi mật khẩu</div>
                   </c:if>
                 </td>
                 <td class="center">
                   <div class="actions center">
-                    <%-- Giữ nguyên bộ lọc và số trang đang xem, để sửa xong quay lại đúng chỗ cũ --%>
                     <a class="btn btn-sm" href="?${fn:escapeXml(qs)}edit=${u.userId}">Sửa</a>
                     <form method="post" action="${ctx}/admin/users" class="inline-form">
                       <input type="hidden" name="_csrf" value="${csrfToken}">
@@ -87,8 +81,6 @@
                         ${u.active ? 'Khoá' : 'Mở khoá'}
                       </button>
                     </form>
-                    <%-- Câu hỏi không nhắc tên người dùng: tên đã hiện ngay trên cùng dòng
-                         của bảng, và ghép tên vào đây thì lại phải lo chuyện thoát ký tự. --%>
                     <form method="post" action="${ctx}/admin/users" class="inline-form"
                           data-confirm="Đặt lại mật khẩu của tài khoản này? Bạn sẽ nhận được mật khẩu tạm để đọc cho họ.">
                       <input type="hidden" name="_csrf" value="${csrfToken}">
@@ -108,8 +100,6 @@
         </table>
         <%@ include file="/WEB-INF/views/layout/pager.jspf" %>
       </div>
-      <%-- Mật khẩu tạm do máy chủ sinh ngẫu nhiên cho từng lần đặt lại và hiện một lần duy nhất
-           trong thông báo ngay sau khi bấm. Không có mật khẩu mặc định nào để viết ra đây. --%>
       <p class="small muted">Mật khẩu tạm sinh ngẫu nhiên và chỉ hiện một lần ngay sau khi đặt
         lại — chép lại trước khi rời trang. Người dùng buộc phải tự đổi ở lần đăng nhập kế tiếp.</p>
     </div>
@@ -138,7 +128,6 @@
             </div>
             <div class="field">
               <label for="editEmail">Email</label>
-              <%-- Email là danh tính đăng nhập nên không sửa ở đây; hiện ra để biết đang sửa đúng người --%>
               <input type="email" id="editEmail" value="<c:out value="${editing.email}"/>" disabled>
               <p class="small muted">Email là tên đăng nhập nên không đổi được ở màn hình này.</p>
             </div>
@@ -180,8 +169,6 @@
         <div class="field">
           <label for="password">Mật khẩu ban đầu
             <span class="hint">(tối thiểu 8 ký tự, có cả chữ và số)</span></label>
-          <%-- Không điền sẵn giá trị nào. Một mật khẩu điền sẵn là mật khẩu nằm trong mã nguồn
-               trang, dùng chung cho mọi tài khoản nhân viên được tạo ra. --%>
           <input type="password" id="password" name="password" required>
         </div>
         <button type="submit" class="btn btn-primary btn-block">Tạo tài khoản</button>

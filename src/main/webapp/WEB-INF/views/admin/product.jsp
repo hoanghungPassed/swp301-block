@@ -7,9 +7,6 @@
 
   <%@ include file="/WEB-INF/views/layout/flash.jspf" %>
 
-  <%-- Bộ lọc hiện tại, đã mã hoá sẵn, dùng lại ở ba chỗ: liên kết Sửa, ô 'back' của mọi biểu
-       mẫu ghi, và thanh chuyển trang. Thiếu nó thì mỗi lần bấm một nút là danh sách nhảy về
-       trang đầu không lọc, và người dùng phải gõ lại bộ lọc sau từng thao tác. --%>
   <c:set var="qs" value="${empty filterQuery ? '' : filterQuery.concat('&')}" />
 
   <div class="grid grid-side">
@@ -37,9 +34,6 @@
               <option value="INACTIVE" ${status eq 'INACTIVE' ? 'selected' : ''}>Ngừng bán</option>
             </select>
           </div>
-          <%-- Tách khỏi ô trên: "ngừng bán" là quyết định lâu dài, "tạm hết" là chuyện của
-               hôm nay. Gộp làm một danh sách thì không hỏi được "món nào đang bán mà hết hàng" —
-               đúng câu người quản lý cần trả lời mỗi sáng. --%>
           <div class="field">
             <label for="filterStock">Tình trạng</label>
             <select id="filterStock" name="stock">
@@ -118,9 +112,6 @@
         </div>
         <div class="field">
           <label for="categoryId">Nhóm món</label>
-          <%-- Liệt kê cả nhóm đang ẩn. Bỏ chúng đi thì món thuộc một nhóm đã ẩn không có mục
-               nào được chọn sẵn, trình duyệt lấy mục đầu danh sách, và bấm Lưu là món lặng lẽ
-               chuyển sang nhóm khác — không ai chủ ý làm vậy và cũng không nhìn thấy. --%>
           <select id="categoryId" name="categoryId" required>
             <c:forEach var="cat" items="${categories}">
               <option value="${cat.categoryId}" ${editing.categoryId eq cat.categoryId ? 'selected' : ''}><c:out value="${cat.name}"/><c:if test="${cat.status ne 'ACTIVE'}"> (đang ẩn)</c:if></option>
@@ -145,13 +136,9 @@
         </div>
         <div class="field">
           <label for="imageUrl">Đường dẫn ảnh <span class="hint">(tối đa 255 ký tự)</span></label>
-          <%-- maxlength khớp với độ dài cột image_url trong cơ sở dữ liệu: đường dẫn CDN rất
-               dễ dài hơn 255, và nếu không chặn ở đây thì nó bị cắt cụt lúc lưu mà không báo. --%>
           <input type="url" id="imageUrl" name="imageUrl" maxlength="255"
                  placeholder="https://..." data-preview="imageUrlPreview"
                  value="<c:out value="${editing.imageUrl}"/>">
-          <%-- Xem trước ngay tại chỗ để biết đường dẫn có sống không, khỏi phải lưu lại rồi
-               mở thực đơn ra kiểm tra. --%>
           <img class="url-preview" id="imageUrlPreview" alt="" hidden referrerpolicy="no-referrer">
           <p class="small muted" id="imageUrlPreviewMsg" hidden>
             Không tải được ảnh từ đường dẫn này. Kiểm tra lại hoặc để trống.
@@ -162,9 +149,6 @@
                  ${empty editing or editing.available ? 'checked' : ''}>
           <label for="available">Còn hàng hôm nay</label>
         </div>
-        <%-- Không có ô tick "Đang kinh doanh" ở đây: ngừng bán/bán lại là nút riêng trên từng
-             dòng của bảng bên trái. Để chung form thì sửa mô tả một món cũng ghi đè trạng thái
-             kinh doanh của nó. --%>
         <button type="submit" class="btn btn-primary btn-block">
           ${empty editing ? 'Thêm món' : 'Lưu thay đổi'}
         </button>

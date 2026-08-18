@@ -16,24 +16,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
-/**
- * Dịch thử toàn bộ trang JSP bằng chính bộ dịch của Tomcat.
- * <p>
- * <b>Vì sao cần.</b> JSP là tầng duy nhất của dự án không được biên dịch trong {@code mvn test}:
- * mã Java sai thì Maven báo đỏ ngay, còn một thẻ quên đóng, một hàm thẻ gõ sai tên hay một tệp
- * {@code jspf} chèn nhầm đường dẫn chỉ lộ ra khi có người mở đúng trang đó trên trình duyệt.
- * Trang càng ít dùng thì lỗi càng sống lâu.
- * <p>
- * <b>Bài test này bắt được gì:</b> cú pháp JSP, thẻ không đóng, thẻ hay hàm không khai báo trong
- * {@code taglib}, tệp chèn không tồn tại, và biểu thức EL viết sai cú pháp.
- * <p>
- * <b>Không bắt được gì:</b> tên thuộc tính EL trỏ vào phương thức không tồn tại
- * ({@code ${hold.khongCoThat}}). EL tra cứu lúc chạy nên không bộ dịch nào biết trước — chốt
- * chặn cho loại lỗi đó vẫn là quy ước đặt tên theo JavaBean ở tầng entity.
- * <p>
- * Đây là bài {@code *Test} chứ không phải {@code *IT}: nó không cần cơ sở dữ liệu, chạy được
- * trên mọi máy.
- */
 @DisplayName("Toàn bộ trang JSP dịch được")
 class JspCompileTest {
 
@@ -47,22 +29,12 @@ class JspCompileTest {
 
         try {
             JspC jspc = new JspC();
-            /* Truyền bằng tham số dòng lệnh chứ không gọi từng setter: chỉ cờ -webapp mới bảo
-               JspC tự quét mọi trang dưới thư mục, còn setUriroot đơn thuần thì nó ngồi chờ một
-               danh sách trang mà lớp này không có cách nào đưa vào (setPages không công khai). */
             jspc.setArgs(new String[]{
                     "-d", outDir.toString(),
                     "-webapp", WEBAPP.toAbsolutePath().toString()
             });
-            // Chỉ dịch JSP sang Java, không gọi javac: phần Java đã có mvn compile lo, còn thứ
-            // cần bắt ở đây nằm hết ở bước dịch.
             jspc.setCompile(false);
-            /* Không kiểm lược đồ của tệp .tld: nó khai báo lược đồ theo đường dẫn mạng, và một
-               bài test chỉ chạy được khi có mạng thì không phải bài test. Cấu trúc tệp .tld vẫn
-               được kiểm gián tiếp — hàm thẻ gõ sai tên sẽ làm bước dịch hỏng. */
             jspc.setValidateTld(false);
-            // Dừng ở lỗi đầu tiên thì mỗi lượt chạy chỉ lộ một trang; gom hết rồi báo một lần
-            // để sửa được cả loạt.
             jspc.setFailOnError(false);
             jspc.setListErrors(true);
             jspc.execute();
@@ -70,8 +42,6 @@ class JspCompileTest {
             fail("Bo dich JSP bao loi: " + e.getMessage(), e);
         }
 
-        // JspC với failOnError=false không ném ngoại lệ, nên bằng chứng duy nhất là số tệp .java
-        // sinh ra có khớp số trang hay không.
         List<Path> jsps = findJsps();
         long sinh_ra;
         try (Stream<Path> walk = Files.walk(outDir)) {

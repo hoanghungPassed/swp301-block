@@ -1,8 +1,8 @@
 package com.fastfood.dao.customer;
 
 import com.fastfood.dao.JdbcSupport;
-import com.fastfood.model.entity.OrderTemplate;
-import com.fastfood.model.entity.OrderTemplateItem;
+import com.fastfood.model.entity.OrderEntities.OrderTemplate;
+import com.fastfood.model.entity.OrderEntities.OrderTemplateItem;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -15,21 +15,17 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-/** Truy vấn hai bảng OrderTemplate và OrderTemplateItem — mẫu đặt nhanh của khách. */
 public class OrderTemplateDAO {
 
     private static final String BASE =
             "SELECT t.template_id, t.customer_id, t.name, t.created_at, t.updated_at " +
             "FROM dbo.OrderTemplate t ";
 
-    /** Dòng món kèm tên, giá và tình trạng bán — ba thứ đọc mới, không lưu trong bảng. */
     private static final String ITEM_BASE =
             "SELECT i.template_item_id, i.template_id, i.product_id, i.quantity, " +
             "       p.name AS product_name, p.price, p.is_available, p.status AS product_status " +
             "FROM dbo.OrderTemplateItem i " +
             "JOIN dbo.Product p ON p.product_id = i.product_id ";
-
-    // ============================================================ mẫu
 
     public int insert(Connection con, OrderTemplate template) throws SQLException {
         String sql = "INSERT INTO dbo.OrderTemplate (customer_id, name, created_at) VALUES (?, ?, ?)";
@@ -61,13 +57,6 @@ public class OrderTemplateDAO {
         return template;
     }
 
-    /**
-     * Mẫu của một khách, mới nhất trước, kèm đủ dòng món.
-     * <p>
-     * Món lấy trong <b>một</b> lượt cho cả danh sách rồi mới gom theo mẫu — cùng lý do với
-     * ghi chú điều phối ở màn thu ngân: hỏi từng mẫu một thì mở trang lịch sử đơn thành mấy
-     * lượt đi lại chỉ để dựng một khối phụ.
-     */
     public List<OrderTemplate> findByCustomer(Connection con, int customerId) throws SQLException {
         List<OrderTemplate> templates;
         try (PreparedStatement ps = con.prepareStatement(
@@ -126,7 +115,6 @@ public class OrderTemplateDAO {
         }
     }
 
-    /** Xoá hẳn mẫu; dòng món đi theo nhờ {@code ON DELETE CASCADE}. */
     public int delete(Connection con, int templateId, int customerId) throws SQLException {
         try (PreparedStatement ps = con.prepareStatement(
                 "DELETE FROM dbo.OrderTemplate WHERE template_id = ? AND customer_id = ?")) {
@@ -136,8 +124,6 @@ public class OrderTemplateDAO {
         }
     }
 
-    // ============================================================ dòng món
-
     public List<OrderTemplateItem> findItems(Connection con, int templateId) throws SQLException {
         try (PreparedStatement ps = con.prepareStatement(
                 ITEM_BASE + "WHERE i.template_id = ? ORDER BY i.template_item_id")) {
@@ -146,7 +132,6 @@ public class OrderTemplateDAO {
         }
     }
 
-    /** Thêm món; đã có thì cộng dồn — cùng cách làm với giỏ hàng và phiếu treo. */
     public void addItem(Connection con, int templateId, int productId, int quantity)
             throws SQLException {
         String sql =
@@ -184,8 +169,6 @@ public class OrderTemplateDAO {
             return ps.executeUpdate();
         }
     }
-
-    // ============================================================ dựng đối tượng
 
     private List<OrderTemplate> collect(PreparedStatement ps) throws SQLException {
         List<OrderTemplate> list = new ArrayList<>();

@@ -11,16 +11,6 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 
-/**
- * Trang cổng thanh toán giả lập.
- * <p>
- * Đóng vai trang thanh toán của ngân hàng, cho phép chọn thành công hoặc thất bại.
- * Nhờ vậy có thể diễn lại đủ các tình huống thật khi trình bày: thanh toán hỏng rồi
- * thử lại, bỏ dở để đơn hết hạn, và cổng gửi kết quả về hai lần.
- * <p>
- * Chữ ký cho cả hai kết quả được tính ở phía máy chủ, đúng như cổng thật ký dữ liệu
- * trước khi gửi về.
- */
 @WebServlet("/payment/gateway")
 public class PaymentGatewayServlet extends BaseServlet {
 
@@ -31,9 +21,6 @@ public class PaymentGatewayServlet extends BaseServlet {
             throws ServletException, IOException {
         requireUser(req);
         if (!(paymentService.getGateway() instanceof MockPaymentGateway)) {
-            // Đang chạy cổng thật. Trang này không dẫn tới đâu cả — nút của nó ký bằng khoá của
-            // bản giả lập, mà cổng thật kiểm bằng thứ khác nên mọi lần bấm đều bị từ chối. Đóng
-            // hẳn thì rõ hơn là để lại một trang trông vẫn dùng được.
             resp.sendError(HttpServletResponse.SC_NOT_FOUND);
             return;
         }

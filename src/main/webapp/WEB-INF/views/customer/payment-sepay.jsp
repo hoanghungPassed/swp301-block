@@ -11,9 +11,6 @@
     </p>
 
     <div class="qr-box mt">
-      <%-- Mã QR do SePay dựng sẵn, đã điền đủ số tài khoản, số tiền và nội dung. Đặt kích
-           thước cố định để chỗ dành cho ảnh không co giãn trong lúc ảnh đang tải — mã nhảy
-           vị trí ngay khi khách vừa đưa điện thoại lên là đủ để phải quét lại từ đầu. --%>
       <img src="${qrImageUrl}" alt="Mã QR chuyển khoản đơn hàng #${orderId}"
            width="280" height="280">
     </div>
@@ -36,8 +33,6 @@
       </div>
     </div>
 
-    <%-- Hai điều kiện duy nhất khiến một lần chuyển khoản đúng bị hệ thống bỏ sót. Nói trước
-         ở đây rẻ hơn rất nhiều so với đối soát bằng tay sau đó. --%>
     <div class="alert alert-warn">
       <strong>Giữ nguyên nội dung <span class="mono"><c:out value="${transferContent}"/></span>
       và đúng số tiền.</strong>
@@ -65,8 +60,6 @@
     </div>
   </noscript>
 
-  <%-- Dấu hiệu để app.js hỏi lại trạng thái đơn: lần báo có tiền đi thẳng từ SePay tới máy
-       chủ, không qua trình duyệt này, nên không hỏi thì màn hình đứng yên mãi. --%>
   <div id="payment-watch" hidden
        data-endpoint="${ctx}/api/order/status?orderId=${orderId}"
        data-redirect="${ctx}/order/track?orderId=${orderId}"></div>
