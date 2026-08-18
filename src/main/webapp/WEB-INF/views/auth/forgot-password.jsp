@@ -13,7 +13,10 @@
       <input type="hidden" name="_csrf" value="${csrfToken}">
       <div class="field">
         <label for="email">Email</label>
-        <input type="email" id="email" name="email" required autofocus>
+        <input type="email" id="email" name="email" required autofocus
+               autocomplete="email" data-validate="email" data-label="email"
+               aria-describedby="emailMsg">
+        <p class="field-msg" id="emailMsg" role="alert" hidden></p>
       </div>
       <button type="submit" class="btn btn-primary btn-block">Gửi liên kết đặt lại</button>
     </form>

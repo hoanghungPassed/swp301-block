@@ -425,6 +425,195 @@
         });
     }
 
+    /* Kiểm tra dữ liệu nhập ngay trên trình duyệt. Các luật dưới đây phản chiếu
+       ValidationUtil phía máy chủ — máy chủ vẫn là nơi quyết định cuối cùng. */
+
+    var PW_MIN_LENGTH = 8;
+    var PW_MAX_BYTES = 72;
+    var EMAIL_RE = /^[\w.+-]+@[\w-]+\.[\w.-]+$/;
+    var PHONE_RE = /^0\d{9,10}$/;
+    var COMMON_PASSWORDS = [
+        '12345678', '123456789', '1234567890', 'password', 'password1', 'password123',
+        'qwerty123', 'abc12345', 'iloveyou', 'matkhau1', 'matkhau123', 'admin123',
+        'fastfood', 'fastfood1', '11111111', '00000000', '1qaz2wsx', 'letmein1'];
+
+    function unicodeRe(property, fallback) {
+        try {
+            return new RegExp('\\p{' + property + '}', 'u');
+        } catch (e) {
+            return fallback;
+        }
+    }
+
+    var LETTER_RE = unicodeRe('L', /[a-zA-Z]/);
+    var DIGIT_RE = unicodeRe('Nd', /[0-9]/);
+
+    function byteLength(value) {
+        if (window.TextEncoder) {
+            return new TextEncoder().encode(value).length;
+        }
+        return unescape(encodeURIComponent(value)).length;
+    }
+
+    function passwordChecks(value) {
+        return {
+            len: value.length >= PW_MIN_LENGTH,
+            letter: LETTER_RE.test(value),
+            digit: DIGIT_RE.test(value)
+        };
+    }
+
+    function passwordError(value) {
+        var checks = passwordChecks(value);
+        if (!checks.len) {
+            return 'Mật khẩu phải có ít nhất ' + PW_MIN_LENGTH + ' ký tự.';
+        }
+        if (byteLength(value) > PW_MAX_BYTES) {
+            return 'Mật khẩu quá dài. Vui lòng dùng tối đa ' + PW_MAX_BYTES + ' ký tự.';
+        }
+        if (!value.trim()) {
+            return 'Mật khẩu không được chỉ gồm khoảng trắng.';
+        }
+        if (value !== value.trim()) {
+            return 'Mật khẩu không được bắt đầu hoặc kết thúc bằng khoảng trắng.';
+        }
+        if (!checks.letter || !checks.digit) {
+            return 'Mật khẩu phải có cả chữ và số.';
+        }
+        if (COMMON_PASSWORDS.indexOf(value.toLowerCase()) !== -1) {
+            return 'Mật khẩu này quá phổ biến, vui lòng chọn mật khẩu khác.';
+        }
+        return null;
+    }
+
+    function fieldError(input) {
+        var raw = input.value;
+        var value = raw.trim();
+        var rules = (input.dataset.validate || '').split(/\s+/).filter(Boolean);
+        var label = input.dataset.label || 'thông tin';
+
+        if (!value) {
+            return input.required ? 'Vui lòng nhập ' + label + '.' : null;
+        }
+
+        for (var i = 0; i < rules.length; i++) {
+            var rule = rules[i];
+            if (rule === 'email' && !EMAIL_RE.test(value)) {
+                return 'Địa chỉ email không hợp lệ.';
+            }
+            if (rule === 'phone' && !PHONE_RE.test(value)) {
+                return 'Số điện thoại phải gồm 10 hoặc 11 chữ số và bắt đầu bằng 0.';
+            }
+            if (rule === 'password') {
+                var pwError = passwordError(raw);
+                if (pwError) { return pwError; }
+            }
+            if (rule.indexOf('match:') === 0) {
+                var source = document.getElementById(rule.slice('match:'.length));
+                if (source && source.value !== raw) {
+                    return input.dataset.mismatch || 'Giá trị nhập lại không khớp.';
+                }
+            }
+        }
+        return null;
+    }
+
+    function showFieldError(input, error) {
+        var field = input.closest('.field');
+        if (!field) {
+            return;
+        }
+        var msg = field.querySelector('.field-msg');
+        field.classList.toggle('has-error', Boolean(error));
+        if (error) {
+            input.setAttribute('aria-invalid', 'true');
+        } else {
+            input.removeAttribute('aria-invalid');
+        }
+        if (msg) {
+            msg.textContent = error || '';
+            msg.hidden = !error;
+        }
+    }
+
+    function refreshPasswordChecks(input) {
+        var list = document.querySelector('[data-pw-checks="' + input.id + '"]');
+        if (!list) {
+            return;
+        }
+        var checks = passwordChecks(input.value);
+        Array.prototype.forEach.call(list.querySelectorAll('[data-check]'), function (item) {
+            var passed = Boolean(checks[item.dataset.check]);
+            item.classList.toggle('ok', passed);
+            item.dataset.state = passed ? 'ok' : 'todo';
+        });
+    }
+
+    function bindFieldValidation() {
+        var inputs = document.querySelectorAll('[data-validate]');
+        if (!inputs.length) {
+            return;
+        }
+
+        function revalidate(input, force) {
+            if (force || input.dataset.touched === 'yes') {
+                showFieldError(input, fieldError(input));
+            }
+        }
+
+        Array.prototype.forEach.call(inputs, function (input) {
+            /* Chỉ nhắc lỗi sau khi người dùng rời ô lần đầu, tránh báo đỏ ngay khi
+               họ mới gõ được vài ký tự. */
+            input.addEventListener('blur', function () {
+                input.dataset.touched = 'yes';
+                showFieldError(input, fieldError(input));
+            });
+
+            input.addEventListener('input', function () {
+                refreshPasswordChecks(input);
+                revalidate(input, false);
+
+                /* Ô "nhập lại" phải được chấm lại khi ô gốc đổi. */
+                Array.prototype.forEach.call(
+                    document.querySelectorAll('[data-validate*="match:' + input.id + '"]'),
+                    function (mirror) { revalidate(mirror, false); });
+            });
+
+            refreshPasswordChecks(input);
+        });
+
+        var forms = [];
+        Array.prototype.forEach.call(inputs, function (input) {
+            if (input.form && forms.indexOf(input.form) === -1) {
+                forms.push(input.form);
+            }
+        });
+        /* Tắt bong bóng lỗi mặc định của trình duyệt để dùng thông báo tiếng Việt
+           của chúng ta. Nếu JavaScript không chạy, trình duyệt vẫn tự kiểm tra. */
+        forms.forEach(function (form) { form.noValidate = true; });
+
+        document.addEventListener('submit', function (e) {
+            var form = e.target;
+            if (forms.indexOf(form) === -1) {
+                return;
+            }
+            var invalid = null;
+            Array.prototype.forEach.call(form.querySelectorAll('[data-validate]'), function (input) {
+                input.dataset.touched = 'yes';
+                var error = fieldError(input);
+                showFieldError(input, error);
+                if (error && !invalid) { invalid = input; }
+            });
+            if (invalid) {
+                /* Chặn hẳn để guardDoubleSubmit không khoá nút và bindConfirm
+                   không mở hộp xác nhận cho một biểu mẫu còn lỗi. */
+                e.preventDefault();
+                e.stopImmediatePropagation();
+                invalid.focus();
+            }
+        }, true);
+    }
+
     ready(function () {
         watchKdsQueue();
         watchOrderStatus();
@@ -433,6 +622,7 @@
         bindAutoSubmit();
         bindNavToggle();
         bindImageFallback();
+        bindFieldValidation();
         bindConfirm();
         bindUrlPreview();
         bindChangeCalculator();

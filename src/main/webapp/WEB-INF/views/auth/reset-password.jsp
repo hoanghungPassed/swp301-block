@@ -14,11 +14,23 @@
       <input type="hidden" name="token" value="<c:out value="${token}"/>">
       <div class="field">
         <label for="newPassword">Mật khẩu mới <span class="hint">(tối thiểu 8 ký tự, có cả chữ và số)</span></label>
-        <input type="password" id="newPassword" name="newPassword" required autofocus>
+        <input type="password" id="newPassword" name="newPassword" required autofocus
+               autocomplete="new-password" data-validate="password" data-label="mật khẩu mới"
+               aria-describedby="newPasswordMsg">
+        <ul class="pw-checks" data-pw-checks="newPassword" aria-hidden="true">
+          <li data-check="len">Từ 8 ký tự</li>
+          <li data-check="letter">Có chữ</li>
+          <li data-check="digit">Có số</li>
+        </ul>
+        <p class="field-msg" id="newPasswordMsg" role="alert" hidden></p>
       </div>
       <div class="field">
         <label for="confirmPassword">Nhập lại mật khẩu mới</label>
-        <input type="password" id="confirmPassword" name="confirmPassword" required>
+        <input type="password" id="confirmPassword" name="confirmPassword" required
+               autocomplete="new-password" data-validate="match:newPassword"
+               data-label="lại mật khẩu mới" data-mismatch="Mật khẩu nhập lại không khớp."
+               aria-describedby="confirmPasswordMsg">
+        <p class="field-msg" id="confirmPasswordMsg" role="alert" hidden></p>
       </div>
       <button type="submit" class="btn btn-primary btn-block">Đặt mật khẩu</button>
     </form>
