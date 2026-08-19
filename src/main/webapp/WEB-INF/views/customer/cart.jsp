@@ -35,7 +35,7 @@
           </thead>
           <tbody>
             <c:forEach var="item" items="${cart.items}">
-              <tr>
+              <tr data-cart-line data-unit-price="${item.unitPrice}">
                 <td data-label="Món">
                   <c:out value="${item.productName}"/>
                   <c:if test="${not item.orderable}">
@@ -48,11 +48,13 @@
                     <input type="hidden" name="_csrf" value="${csrfToken}">
                     <input type="hidden" name="action" value="update">
                     <input type="hidden" name="cartItemId" value="${item.cartItemId}">
-                    <input type="number" name="quantity" value="${item.quantity}" min="0" max="50" class="qty-input">
-                    <button type="submit" class="btn btn-sm">Lưu</button>
+                    <input type="number" name="quantity" value="${item.quantity}" min="0" max="50"
+                           class="qty-input" data-autosubmit
+                           aria-label="Số lượng của <c:out value="${item.productName}"/>"
+                           title="Đặt về 0 để bỏ món khỏi giỏ">
                   </form>
                 </td>
-                <td class="num" data-label="Thành tiền">${ff:money(item.lineTotal)}</td>
+                <td class="num" data-label="Thành tiền" data-line-total>${ff:money(item.lineTotal)}</td>
                 <td class="center" data-label="">
                   <form method="post" action="${ctx}/cart" class="inline-form">
                     <input type="hidden" name="_csrf" value="${csrfToken}">
@@ -70,7 +72,7 @@
       <div class="card">
         <div class="total-line grand">
           <span>Tổng cộng</span>
-          <span>${ff:money(cart.totalAmount)}</span>
+          <span data-cart-total>${ff:money(cart.totalAmount)}</span>
         </div>
         <div class="actions mt">
           <a class="btn" href="${ctx}/menu">Chọn thêm món</a>
@@ -130,7 +132,7 @@
             </div>
 
             <button type="submit" class="btn btn-primary btn-block">
-              Đặt đơn và thanh toán ${ff:money(cart.totalAmount)}
+              Đặt đơn và thanh toán <span data-cart-total>${ff:money(cart.totalAmount)}</span>
             </button>
             <p class="small muted mt">
               Đơn chưa thanh toán trong ${paymentExpiryMinutes} phút sẽ tự hết hiệu lực.

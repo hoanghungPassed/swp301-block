@@ -24,6 +24,7 @@ import java.math.BigDecimal;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.List;
+import java.util.stream.Collectors;
 
 public class AdminService {
 
@@ -170,8 +171,11 @@ public class AdminService {
         });
     }
 
-    public List<Role> listRoles() {
-        return Tx.read(roleDAO::findAll);
+    /** Vai trò được phép chọn khi tạo tài khoản: chỉ thu ngân và bếp. */
+    public List<Role> listStaffRoles() {
+        return Tx.read(con -> roleDAO.findAll(con).stream()
+                .filter(r -> isCreatableStaffRole(r.getName()))
+                .collect(Collectors.toList()));
     }
 
     public User findUser(int userId) {
@@ -191,9 +195,10 @@ public class AdminService {
 
         Tx.writeVoid(con -> {
             Role role = requireRole(con, roleId);
-            if (RoleName.CUSTOMER.name().equals(role.getName())) {
+            if (!isCreatableStaffRole(role.getName())) {
                 throw new ValidationException(
-                        "Tài khoản khách hàng do chính khách tự đăng ký, không tạo ở màn hình này.");
+                        "Chỉ tạo được tài khoản thu ngân hoặc bếp. Khách hàng tự đăng ký, "
+                                + "còn quản trị viên không thêm mới ở màn hình này.");
             }
             if (userDAO.emailExists(con, normalizedEmail)) {
                 throw new ValidationException("Email này đã được sử dụng.");
@@ -282,6 +287,10 @@ public class AdminService {
             auditService.log(con, actorId, "USER", userId,
                     AuditAction.USER_CHANGED, null, "PASSWORD_RESET");
         });
+    }
+
+    private static boolean isCreatableStaffRole(String roleName) {
+        return RoleName.CASHIER.name().equals(roleName) || RoleName.KITCHEN.name().equals(roleName);
     }
 
     private Role requireRole(Connection con, int roleId) throws SQLException {

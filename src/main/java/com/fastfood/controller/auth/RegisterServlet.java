@@ -36,7 +36,7 @@ public class RegisterServlet extends BaseServlet {
                     WebUtil.baseUrl(req),
                     WebUtil.clientIp(req));
 
-            String target = WebUtil.startAuthenticatedSession(req, user, "/menu");
+            String target = WebUtil.startRegisteredSession(req, user, "/menu");
             WebUtil.flashSuccess(req, "Đăng ký thành công. Chào mừng " + user.getFullName()
                     + "! Chúng tôi vừa gửi một thư xác thực tới " + user.getEmail()
                     + " — mở thư và bấm liên kết trong đó để đặt được đơn online.");

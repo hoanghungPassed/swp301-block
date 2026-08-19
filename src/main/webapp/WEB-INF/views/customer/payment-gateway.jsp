@@ -17,11 +17,11 @@
 
     <div class="stack">
       <a class="btn btn-green btn-block touch"
-         href="${ctx}/payment/callback?paymentId=${paymentId}&txnId=<c:out value="${txnId}"/>&orderId=${orderId}&success=true&sig=${successSig}">
+         href="${ctx}/payment/callback?paymentId=${paymentId}&txnId=<c:out value="${txnId}"/>&orderId=${orderId}&amount=<c:out value="${amount}"/>&success=true&sig=${successSig}">
         Thanh toán thành công
       </a>
       <a class="btn btn-danger btn-block"
-         href="${ctx}/payment/callback?paymentId=${paymentId}&txnId=<c:out value="${txnId}"/>&orderId=${orderId}&success=false&sig=${failureSig}">
+         href="${ctx}/payment/callback?paymentId=${paymentId}&txnId=<c:out value="${txnId}"/>&orderId=${orderId}&amount=<c:out value="${amount}"/>&success=false&sig=${failureSig}">
         Thanh toán thất bại
       </a>
       <a class="btn btn-block" href="${ctx}/order/track?orderId=${orderId}">

@@ -33,6 +33,24 @@ public final class WebUtil {
     }
 
     public static String startAuthenticatedSession(HttpServletRequest req, User user, String fallback) {
+        return startSession(req, user, fallback, true);
+    }
+
+    /*
+      Dành cho đăng ký: mở phiên nhưng KHÔNG dùng địa chỉ đã lưu trước đó, luôn đi tới target.
+
+      Địa chỉ đã lưu là nơi khách bị chặn lúc chưa đăng nhập. Với đăng nhập thì đưa họ trở lại
+      đó là đúng. Với đăng ký thì không: tài khoản vừa tạo chắc chắn là CUSTOMER, nên nếu chỗ
+      bị chặn là khu vực nhân viên (gõ thẳng /admin/... rồi bấm sang trang đăng ký), đưa họ về
+      đó chỉ đổi một trang chặn này lấy một trang 403 khác — trong khi việc họ cần làm là xem
+      thực đơn.
+    */
+    public static String startRegisteredSession(HttpServletRequest req, User user, String target) {
+        return startSession(req, user, target, false);
+    }
+
+    private static String startSession(HttpServletRequest req, User user, String fallback,
+                                       boolean honorSavedTarget) {
         HttpSession old = req.getSession(false);
         String savedTarget = null;
         if (old != null) {
@@ -43,7 +61,7 @@ public final class WebUtil {
         HttpSession session = req.getSession(true);
         putCurrentUser(session, user);
         CsrfUtil.rotate(session);
-        return safeRedirect(savedTarget, fallback);
+        return honorSavedTarget ? safeRedirect(savedTarget, fallback) : fallback;
     }
 
     public static int currentUserId(HttpServletRequest req) {

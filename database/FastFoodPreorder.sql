@@ -355,10 +355,13 @@ CREATE TABLE dbo.Orders (
     CONSTRAINT CK_Orders_pendingOnlineOnly CHECK
         (order_status <> 'PENDING_PAYMENT' OR order_source = 'ONLINE_PREORDER'),
 
-    -- đơn Online bắt buộc có giờ hẹn; đơn POS không được gán giờ hẹn
+    /* Đơn Online bắt buộc có giờ hẹn; đơn POS không được gán giờ hẹn. Viết theo dạng suy diễn
+       như CK_Orders_onlineCustomer bên dưới, mỗi vế chỉ nói về đúng một kênh. Viết gộp thành
+       "(là ONLINE và có giờ) OR (là POS và không giờ)" thì một kênh lạ như 'DELIVERY' cũng làm
+       vế này sai, và SQL Server báo về giờ hẹn trong khi lỗi thật là kênh ngoài phạm vi. */
     CONSTRAINT CK_Orders_pickupTime CHECK
-        ((order_source = 'ONLINE_PREORDER' AND pickup_time IS NOT NULL)
-      OR (order_source = 'POS'             AND pickup_time IS NULL)),
+        ((order_source <> 'ONLINE_PREORDER' OR pickup_time IS NOT NULL)
+     AND (order_source <> 'POS'             OR pickup_time IS NULL)),
 
     /* Đặt trước bắt buộc đăng nhập, nên đơn Online luôn có chủ. Không có ràng buộc này thì
        một đơn Online thiếu customer_id vẫn ghi được, và sau đó không ai tra được lịch sử của

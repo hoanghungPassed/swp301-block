@@ -272,11 +272,51 @@
         }
         btn.hidden = false;
 
+        function setOpen(open) {
+            btn.setAttribute('aria-expanded', String(open));
+            nav.classList.toggle('open', open);
+        }
+
         btn.addEventListener('click', function () {
-            var open = btn.getAttribute('aria-expanded') === 'true';
-            btn.setAttribute('aria-expanded', String(!open));
-            nav.classList.toggle('open', !open);
+            setOpen(btn.getAttribute('aria-expanded') !== 'true');
         });
+
+        nav.addEventListener('click', function (e) {
+            if (e.target.closest('a')) {
+                setOpen(false);
+            }
+        });
+
+        document.addEventListener('click', function (e) {
+            if (!nav.contains(e.target) && !btn.contains(e.target)) {
+                setOpen(false);
+            }
+        });
+
+        document.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape' && btn.getAttribute('aria-expanded') === 'true') {
+                setOpen(false);
+                btn.focus();
+            }
+        });
+
+        window.addEventListener('resize', function () {
+            if (window.innerWidth > 720) {
+                setOpen(false);
+            }
+        });
+    }
+
+    function bindHeaderShadow() {
+        var header = document.getElementById('app-header');
+        if (!header) {
+            return;
+        }
+        function sync() {
+            header.classList.toggle('scrolled', window.scrollY > 4);
+        }
+        sync();
+        window.addEventListener('scroll', sync, { passive: true });
     }
 
     function bindImageFallback() {
@@ -394,6 +434,42 @@
 
             input.addEventListener('input', refresh);
             refresh();
+        });
+    }
+
+    function bindCartQuantity() {
+        var rows = document.querySelectorAll('[data-cart-line]');
+        if (!rows.length) {
+            return;
+        }
+        var totals = document.querySelectorAll('[data-cart-total]');
+
+        /* Nhân tạm ở trình duyệt để tiền nhảy ngay khi người dùng đổi số lượng.
+           Ô số lượng có data-autosubmit nên máy chủ vẫn lưu và vẽ lại con số
+           chính thức ngay sau đó. */
+        function refresh() {
+            var sum = 0;
+            Array.prototype.forEach.call(rows, function (row) {
+                var input = row.querySelector('.qty-input');
+                var output = row.querySelector('[data-line-total]');
+                var price = parseFloat(row.dataset.unitPrice) || 0;
+                var qty = parseInt(input ? input.value : '', 10);
+                if (isNaN(qty) || qty < 0) {
+                    /* Ô đang trống hoặc đang gõ dở: giữ nguyên số lượng cũ. */
+                    qty = parseInt(input ? input.defaultValue : '', 10) || 0;
+                }
+                var line = price * qty;
+                if (output) { output.textContent = formatDong(line); }
+                sum += line;
+            });
+            Array.prototype.forEach.call(totals, function (el) {
+                el.textContent = formatDong(sum);
+            });
+        }
+
+        Array.prototype.forEach.call(rows, function (row) {
+            var input = row.querySelector('.qty-input');
+            if (input) { input.addEventListener('input', refresh); }
         });
     }
 
@@ -621,11 +697,13 @@
         guardDoubleSubmit();
         bindAutoSubmit();
         bindNavToggle();
+        bindHeaderShadow();
         bindImageFallback();
         bindFieldValidation();
         bindConfirm();
         bindUrlPreview();
         bindChangeCalculator();
+        bindCartQuantity();
         bindPrint();
     });
 })();

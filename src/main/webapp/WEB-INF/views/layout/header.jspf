@@ -1,10 +1,10 @@
 <%@ page pageEncoding="UTF-8" %>
-<header class="app-header">
+<header class="app-header" id="app-header">
   <div class="inner">
-    <a class="brand" href="${ctx}/"><span aria-hidden="true">🍔</span> Fast Food</a>
-
-    <button type="button" class="nav-toggle" id="nav-toggle" hidden
-            aria-expanded="false" aria-controls="main-nav" aria-label="Hiện hoặc ẩn menu điều hướng">☰</button>
+    <a class="brand" href="${ctx}/">
+      <span class="logo" aria-hidden="true">🍔</span>
+      <span class="brand-text">Fast Food</span>
+    </a>
 
     <nav id="main-nav" aria-label="Điều hướng chính">
       <c:choose>
@@ -49,16 +49,23 @@
           <a class="btn btn-sm btn-primary" href="${ctx}/login">Đăng nhập</a>
         </c:when>
         <c:otherwise>
-          <span class="who">
-            <c:out value="${me.fullName}"/> · <span class="tag">${ff:roleName(me.roleName)}</span>
-          </span>
-          <a href="${ctx}/profile" class="btn btn-sm">Tài khoản</a>
+          <a class="user-chip" href="${ctx}/profile" title="Tài khoản của tôi">
+            <span class="avatar" aria-hidden="true">${fn:toUpperCase(fn:substring(me.fullName, 0, 1))}</span>
+            <span class="who">
+              <span class="name"><c:out value="${me.fullName}"/></span>
+              <span class="role">${ff:roleName(me.roleName)}</span>
+            </span>
+            <span class="visually-hidden">Tài khoản</span>
+          </a>
           <form method="post" action="${ctx}/logout" class="logout-form">
             <input type="hidden" name="_csrf" value="${csrfToken}">
-            <button type="submit" class="btn btn-sm">Thoát</button>
+            <button type="submit" class="btn btn-sm btn-quiet" title="Đăng xuất">Thoát</button>
           </form>
         </c:otherwise>
       </c:choose>
     </div>
+
+    <button type="button" class="nav-toggle" id="nav-toggle" hidden
+            aria-expanded="false" aria-controls="main-nav" aria-label="Hiện hoặc ẩn menu điều hướng"><span class="bars" aria-hidden="true"></span></button>
   </div>
 </header>

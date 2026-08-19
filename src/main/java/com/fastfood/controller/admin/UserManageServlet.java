@@ -27,7 +27,7 @@ public class UserManageServlet extends BaseServlet {
 
         req.setAttribute("pageData", adminService.listUsers(roleName, keyword, status,
                 WebUtil.getInt(req, "page", 1)));
-        req.setAttribute("roles", adminService.listRoles());
+        req.setAttribute("staffRoles", adminService.listStaffRoles());
         req.setAttribute("role", roleName);
         req.setAttribute("keyword", keyword);
         req.setAttribute("status", status);
@@ -68,11 +68,6 @@ public class UserManageServlet extends BaseServlet {
             case "unlock":
                 handle(req, resp, () -> adminService.setUserStatus(admin.getUserId(), userId, "ACTIVE"),
                         "Đã mở khoá tài khoản.", back);
-                return;
-            case "changeRole":
-                handle(req, resp, () -> adminService.setUserRole(admin.getUserId(), userId,
-                                WebUtil.getInt(req, "roleId", 0)),
-                        "Đã đổi vai trò.", back);
                 return;
             case "resetPassword":
                 String temporary = PasswordUtil.randomTemporary();

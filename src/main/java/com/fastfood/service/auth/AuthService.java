@@ -104,6 +104,12 @@ public class AuthService {
                 throw new ValidationException("Email này đã được đăng ký.");
             }
             Role role = roleDAO.findByName(con, RoleName.CUSTOMER.name());
+            if (role == null) {
+                // Bảng Role chưa được nạp dữ liệu gốc. Không phải lỗi của người đăng ký,
+                // nhưng để null đi tiếp thì họ nhận trang 500 trắng thay vì một câu đọc được.
+                throw new BusinessException("Hệ thống chưa sẵn sàng nhận đăng ký. "
+                        + "Vui lòng liên hệ quản trị viên.");
+            }
             User u = new User();
             u.setFullName(name);
             u.setEmail(normalizedEmail);

@@ -48,19 +48,7 @@
                 <td><strong><c:out value="${u.fullName}"/></strong>
                   <div class="small muted"><c:out value="${u.phone}"/></div></td>
                 <td class="small mono"><c:out value="${u.email}"/></td>
-                <td>
-                  <form method="post" action="${ctx}/admin/users" class="row-tight">
-                    <input type="hidden" name="_csrf" value="${csrfToken}">
-                    <input type="hidden" name="action" value="changeRole">
-                    <input type="hidden" name="userId" value="${u.userId}">
-                    <input type="hidden" name="back" value="<c:out value="${filterQuery}"/>">
-                    <select name="roleId" data-autosubmit class="select-sm">
-                      <c:forEach var="r" items="${roles}">
-                        <option value="${r.roleId}" ${u.roleId eq r.roleId ? 'selected' : ''}>${ff:roleName(r.name)}</option>
-                      </c:forEach>
-                    </select>
-                  </form>
-                </td>
+                <td>${ff:roleName(u.roleName)}</td>
                 <td>
                   <span class="tag ${u.active ? 'tag-green' : 'tag-red'}">
                     ${u.active ? 'Hoạt động' : 'Đã khoá'}
@@ -109,7 +97,7 @@
         <div class="card">
           <h2>Sửa thông tin tài khoản</h2>
           <p class="small muted mb">
-            Vai trò đổi ngay ở cột vai trò trong bảng, mật khẩu đổi bằng nút đặt lại.
+            Vai trò chỉ chọn được lúc tạo tài khoản, mật khẩu đổi bằng nút đặt lại.
           </p>
           <form method="post" action="${ctx}/admin/users">
             <input type="hidden" name="_csrf" value="${csrfToken}">
@@ -159,12 +147,11 @@
         <div class="field">
           <label for="roleId">Vai trò</label>
           <select id="roleId" name="roleId" required>
-            <c:forEach var="r" items="${roles}">
-              <c:if test="${r.name ne 'CUSTOMER'}">
-                <option value="${r.roleId}">${ff:roleName(r.name)}</option>
-              </c:if>
+            <c:forEach var="r" items="${staffRoles}">
+              <option value="${r.roleId}">${ff:roleName(r.name)}</option>
             </c:forEach>
           </select>
+          <p class="small muted">Chỉ tạo được thu ngân và bếp — vai trò này cố định sau khi tạo.</p>
         </div>
         <div class="field">
           <label for="password">Mật khẩu ban đầu

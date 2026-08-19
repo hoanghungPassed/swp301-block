@@ -77,9 +77,21 @@ class AdminRoleAssignmentIT extends IntegrationTestBase {
         }
 
         @Test
-        @DisplayName("Ba vai trò nhân viên vẫn tạo được bình thường")
+        @DisplayName("Không tạo được tài khoản quản trị, dù gửi thẳng mã vai trò")
+        void adminRoleIsNotCreatableHere() {
+            int adminRole = roleId("ADMIN");
+
+            assertThrows(ValidationException.class,
+                    () -> adminService.createStaff(userId(ADMIN), "Quan Tri Tu Phong",
+                            newEmail(), "0900000000", "MatKhauGoc7", adminRole),
+                    "Quản trị viên là tài khoản duy nhất được cấp sẵn — thêm được một cái nữa "
+                            + "qua màn hình này là mở đường tự nâng quyền");
+        }
+
+        @Test
+        @DisplayName("Hai vai trò nhân viên — thu ngân và bếp — vẫn tạo được bình thường")
         void staffRolesStillWork() {
-            for (String role : new String[]{"CASHIER", "KITCHEN", "ADMIN"}) {
+            for (String role : new String[]{"CASHIER", "KITCHEN"}) {
                 String email = newEmail();
                 adminService.createStaff(userId(ADMIN), "Nhan Vien " + role, email,
                         "0900000000", "MatKhauGoc7", roleId(role));
@@ -112,8 +124,8 @@ class AdminRoleAssignmentIT extends IntegrationTestBase {
             adminService.setUserRole(userId(ADMIN), target, roleId("CUSTOMER"));
 
             assertEquals("CUSTOMER", adminService.findUser(target).getRoleName(),
-                    "Khác với lúc tạo: ô chọn vai trò trên từng dòng cố ý liệt kê đủ bốn vai trò, "
-                            + "vì nhân viên nghỉ việc có thể còn là khách của cửa hàng");
+                    "Màn hình quản trị không còn ô đổi vai trò, nhưng tầng dịch vụ vẫn cho hạ "
+                            + "quyền vì nhân viên nghỉ việc có thể còn là khách của cửa hàng");
         }
 
         @Test
