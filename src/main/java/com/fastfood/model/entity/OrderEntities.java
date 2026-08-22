@@ -93,7 +93,6 @@ public final class OrderEntities {
         private Integer customerId;
         private Integer createdByUserId;
         private String orderSource;
-        private Integer shiftId;
         private BigDecimal totalAmount = BigDecimal.ZERO;
         private String orderStatus;
         private String idempotencyKey;
@@ -126,8 +125,6 @@ public final class OrderEntities {
         public Integer getCreatedByUserId() { return createdByUserId; }
         public void setCreatedByUserId(Integer createdByUserId) { this.createdByUserId = createdByUserId; }
 
-        public Integer getShiftId() { return shiftId; }
-        public void setShiftId(Integer shiftId) { this.shiftId = shiftId; }
 
         public String getOrderSource() { return orderSource; }
         public void setOrderSource(String orderSource) { this.orderSource = orderSource; }

@@ -11,7 +11,6 @@ import com.fastfood.model.entity.OrderEntities.Order;
 import com.fastfood.model.entity.UserEntities.User;
 import com.fastfood.service.shared.MenuService;
 import com.fastfood.service.staff.PosHoldService;
-import com.fastfood.service.staff.ShiftService;
 import com.fastfood.service.staff.StaffOrderService;
 
 import javax.servlet.ServletException;
@@ -34,7 +33,6 @@ public class PosServlet extends BaseServlet {
     private final MenuService menuService = new MenuService();
     private final StaffOrderService orderService = new StaffOrderService();
     private final PosHoldService holdService = new PosHoldService();
-    private final ShiftService shiftService = new ShiftService();
 
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp)
@@ -59,8 +57,6 @@ public class PosServlet extends BaseServlet {
         req.setAttribute("posLines", lines);
         req.setAttribute("posTotal", total);
         req.setAttribute("posUnavailable", anyUnavailable);
-
-        req.setAttribute("currentShift", shiftService.currentShift(cashier.getUserId()));
 
         req.setAttribute("holds", holdService.myHolds(cashier.getUserId()));
         int editId = WebUtil.getInt(req, "editHold", 0);

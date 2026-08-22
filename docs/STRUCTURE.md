@@ -100,7 +100,6 @@ service/
 │            OrderTemplateService   Mẫu đặt nhanh, nạp lại vào giỏ
 │            ReviewService          Đánh giá món — chỉ khách đã nhận mới viết được
 ├── staff/      StaffOrderService      Bán tại quầy, điều phối, nhận món, giao món
-│            ShiftService           Ca làm việc và đối soát tiền mặt
 │            OrderNoteService       Ghi chú điều phối trên đơn
 │            CounterRejectService   Từ chối nhận món bếp đưa ra quầy
 │            PosHoldService         Phiếu treo tại quầy
@@ -155,8 +154,7 @@ Cùng trục với `controller/` và `service/`. `JdbcSupport` ở gốc gói v�
 ```
 dao/
 ├── JdbcSupport.java     Nhận diện lỗi trùng khoá, đọc khoá vừa sinh
-├── staff/     ShiftDAO             → Shift
-│            OrderNoteDAO         → OrderNote
+├── staff/     OrderNoteDAO         → OrderNote
 │            PosHoldDAO           → PosHold · PosHoldItem
 ├── customer/  CartDAO              → Cart · CartItem
 │            FavouriteDAO         → Favourite
@@ -176,7 +174,7 @@ dao/
 
 **Vì sao 10 trong 22 lớp nằm ở `shared/`.** Mười hai lớp chia được
 vì bảng của chúng chỉ một vai trò đụng tới: giỏ hàng, món quen, mẫu đặt nhanh và đánh giá là của
-khách; sự cố bếp và kế hoạch chuẩn bị là của bếp; ca làm việc và phiếu treo là của thu ngân; báo
+khách; sự cố bếp và kế hoạch chuẩn bị là của bếp; ghi chú điều phối và phiếu treo là của thu ngân; báo
 cáo doanh thu và chỉ tiêu là của quản trị. Số còn lại gắn với bảng mà nhiều vai trò cùng dùng:
 
 | Lớp | Vai trò đi qua nó |
@@ -187,8 +185,8 @@ cáo doanh thu và chỉ tiêu là của quản trị. Số còn lại gắn v�
 | `UserDAO` · `RoleDAO` · `PasswordResetTokenDAO` | đăng nhập · quản trị |
 | `NotificationDAO` · `AuditLogDAO` | mọi luồng đều ghi vào |
 
-Thu ngân trước đây không có bảng riêng nên `dao/staff/` không tồn tại. Ca làm việc là thứ đầu
-tiên thuộc về riêng họ, và thư mục đó ra đời cùng với nó — nay có thêm phiếu treo tại quầy.
+Thu ngân trước đây không có bảng riêng nên `dao/staff/` không tồn tại. Ghi chú điều phối và
+phiếu treo tại quầy là thứ thuộc về riêng họ, và thư mục đó ra đời cùng với chúng.
 Cùng lý do, `dao/customer/` từ một lớp nay lên bốn: món quen, mẫu đặt nhanh và đánh giá đều là
 dữ liệu chỉ khách sở hữu.
 
@@ -363,11 +361,6 @@ màn hình giấu nút thu tiền, nói rõ vì sao, và thu ngân bỏ món đ�
 Bản trước ghép giỏ với danh sách thực đơn nên dòng đó biến mất khỏi phiếu mà vẫn nằm trong
 giỏ — tổng tiền trên màn hình thiếu một món, và lỗi chỉ nổ ra lúc khách đã đưa tiền.
 
-**Ca làm việc hiện ngay trên màn bán hàng.** Đơn bán khi chưa mở ca vẫn ghi nhận bình thường
-nhưng nằm ngoài bảng đối soát cuối ca (xem `ShiftService`). Cảnh báo vì thế nằm ở `/staff/pos`
-chứ không chỉ ở trang ca: một lời nhắc đặt ở trang mà thu ngân chỉ mở lúc cuối ca thì đã muộn
-mất một ca.
-
 ### 3.3 Ba chỗ chống trùng lặp
 
 | Tình huống | Cách xử lý | Nằm ở |
@@ -536,7 +529,7 @@ nào, để không phải mở từng file ra dò.
 | Vai trò | Thư mục controller | Thư mục service | DAO đi qua | Bảng |
 |---|---|---|---|---|
 | **Khách hàng** | `controller/customer` | `service/customer`<br>+ `shared` (thanh toán, thực đơn) | `dao/customer` CartDAO · FavouriteDAO · OrderTemplateDAO · ReviewDAO<br>`dao/shared` OrderDAO · OrderItemDAO · ProductDAO · CategoryDAO · PaymentDAO · TransactionDAO · NotificationDAO | Cart · CartItem · Favourite · OrderTemplate · OrderTemplateItem · Review · Orders · OrderItem · Product · Category · Payment · PaymentTransaction · Notification |
-| **Thu ngân** | `controller/staff` | `service/staff`<br>+ `kitchen` (quầy giao nhận)<br>+ `shared` | `dao/staff` ShiftDAO · OrderNoteDAO · PosHoldDAO<br>`dao/kitchen` KitchenIssueDAO<br>`dao/shared` OrderDAO · OrderItemDAO · PaymentDAO · TransactionDAO · ProductDAO · AuditLogDAO | Shift · OrderNote · PosHold · PosHoldItem · KitchenIssue · Orders · OrderItem · Payment · PaymentTransaction · Product · AuditLog |
+| **Thu ngân** | `controller/staff` | `service/staff`<br>+ `kitchen` (quầy giao nhận)<br>+ `shared` | `dao/staff` OrderNoteDAO · PosHoldDAO<br>`dao/kitchen` KitchenIssueDAO<br>`dao/shared` OrderDAO · OrderItemDAO · PaymentDAO · TransactionDAO · ProductDAO · AuditLogDAO | OrderNote · PosHold · PosHoldItem · KitchenIssue · Orders · OrderItem · Payment · PaymentTransaction · Product · AuditLog |
 | **Bếp** | `controller/kitchen`<br>`controller/api` (KDS) | `service/kitchen` | `dao/kitchen` KitchenIssueDAO · PrepTaskDAO · KitchenNoteDAO<br>`dao/shared` OrderItemDAO · OrderDAO · ProductDAO | KitchenIssue · PrepTask · OrderItemNote · KitchenNote · OrderItem · Orders · Product |
 | **Quản trị** | `controller/admin` | `service/admin`<br>+ `shared` (nhật ký) | `dao/admin` ReportDAO · RevenueTargetDAO<br>`dao/shared` ProductDAO · CategoryDAO · UserDAO · RoleDAO · AuditLogDAO | RevenueTarget · Product · Category · Users · Role · AuditLog |
 | **Đăng nhập** | `controller/auth` | `service/auth` | `dao/shared` UserDAO · RoleDAO · PasswordResetTokenDAO | Users · Role · PasswordResetToken |
@@ -590,7 +583,7 @@ Hai trang thanh toán chỉ tính là một: mỗi lần chạy chỉ có đúng
 | `/staff/orders` | OrderDashboardServlet | staff/order-dashboard.jsp — kèm ô **tra mã nhận hàng** và **ghi chú điều phối** |
 | `/staff/order/detail` | OrderDetailServlet | staff/order-detail.jsp — kèm **hoá đơn in** |
 | `/staff/counter` | CounterServlet | staff/counter.jsp — nhận **hoặc từ chối** món bếp đưa ra, và xem sự cố bếp |
-| `/staff/history` | StaffHistoryServlet | staff/history.jsp — kèm **ca làm việc và đối soát tiền mặt** |
+| `/staff/history` | StaffHistoryServlet | staff/history.jsp — tra lại đơn đã bán, kèm **nhật ký thao tác** |
 
 ### Bếp — 4 trang, `/kitchen/*`
 | Địa chỉ | Servlet | Trang |
@@ -668,7 +661,6 @@ kê đúng những màn hình đó, kèm thực thể chính và cách thao tác
 | **Thu ngân** | `/staff/pos` | PosHold · PosHoldItem | Xoá hẳn — phiếu treo chưa phải đơn hàng |
 | | `/staff/orders` | OrderNote | Xoá hẳn |
 | | `/staff/counter` | KitchenIssue loại `COUNTER_REJECT` | Mềm: `status = CANCELLED` |
-| | `/staff/history` | Shift | Mềm: `status = CANCELLED`, và chỉ khi ca chưa có đơn |
 | **Bếp** | `/kitchen/queue` | PrepTask | Mềm: `status = CANCELLED` |
 | | `/kitchen/item` | OrderItemNote | Xoá hẳn |
 | | `/kitchen/issue` | KitchenIssue | Mềm: `status = CANCELLED` |
@@ -698,7 +690,7 @@ khỏi thực đơn. Gộp hai khái niệm này thì mỗi lần bếp báo h�
 
 **Ranh giới giữa xoá hẳn và xoá mềm** không tuỳ tiện: xoá hẳn dành cho bản nháp và nội dung
 riêng của người dùng — không có đồng tiền nào đi qua, không bản ghi nào trỏ tới. Xoá mềm dành
-cho thứ đã có vết ở nơi khác: mã ca làm việc và mã sự cố đều đã nằm trong nhật ký thao tác, còn
+cho thứ đã có vết ở nơi khác: mã sự cố đã nằm trong nhật ký thao tác, còn
 món và tài khoản thì các đơn cũ vẫn đang tham chiếu tới.
 
 `RevenueTarget` là ngoại lệ đáng nói: nó **có** dòng nhật ký trỏ tới nhưng vẫn xoá hẳn, vì dòng
@@ -844,7 +836,6 @@ hai bản lệch nhau lúc nào không ai biết, và bộ test sẽ xanh trên 
 | `AdminCatalogIT` | Đủ bốn thao tác trên món và nhóm món, và chứng minh Xoá đi đường riêng: sửa nội dung không được đụng tới trạng thái kinh doanh |
 | `AdminListingIT` | Hai danh sách quản trị: câu đếm dùng chung mệnh đề lọc với câu lấy dữ liệu, trang 2 không lặp trang 1, giá trị lọc lạ hiểu thành không lọc, và nhóm đang ẩn vẫn nằm trong ô chọn nhóm |
 | `KitchenNoteIT` | Ghi chú chế biến và sổ bàn giao — và bằng chứng ghi chú **không** làm tăng số sự cố đang mở |
-| `ShiftReconcileIT` | Ca làm việc: một ca mở mỗi thu ngân, đối soát tiền mặt khi có hoàn tiền, bán được cả khi chưa mở ca |
 | `CounterNoteRejectIT` | Ghi chú điều phối, và từ chối nhận món chỉ trong khoảng bếp đã bàn giao mà quầy chưa nhận |
 | `PosHoldIT` | Phiếu treo tại quầy: lấy ra là xoá phiếu, giá đọc mới, không đụng phiếu người khác |
 | `AdminAccountIT` | Mật khẩu đặt hộ, chống tự hạ quyền |

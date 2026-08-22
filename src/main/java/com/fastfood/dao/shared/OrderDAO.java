@@ -28,7 +28,7 @@ public class OrderDAO {
     public int insert(Connection con, Order o) throws SQLException {
         String sql = "INSERT INTO dbo.Orders (customer_id, created_by_user_id, order_source, total_amount, " +
                      "order_status, idempotency_key, pickup_time, kitchen_release_at, released_to_kds_at, " +
-                     "pickup_code, created_at, shift_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+                     "pickup_code, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
         try (PreparedStatement ps = con.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
             JdbcSupport.setInteger(ps, 1, o.getCustomerId());
             JdbcSupport.setInteger(ps, 2, o.getCreatedByUserId());
@@ -41,7 +41,6 @@ public class OrderDAO {
             JdbcSupport.setDateTime(ps, 9, o.getReleasedToKdsAt());
             JdbcSupport.setString(ps, 10, o.getPickupCode());
             JdbcSupport.setDateTime(ps, 11, o.getCreatedAt());
-            JdbcSupport.setInteger(ps, 12, o.getShiftId());
             ps.executeUpdate();
             try (ResultSet keys = ps.getGeneratedKeys()) {
                 if (keys.next()) {

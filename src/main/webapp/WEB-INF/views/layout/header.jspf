@@ -23,7 +23,7 @@
           <a href="${ctx}/staff/pos" class="${nav eq 'pos' ? 'active' : ''}" ${nav eq 'pos' ? 'aria-current="page"' : ''}>Bán tại quầy</a>
           <a href="${ctx}/staff/orders" class="${nav eq 'orders' ? 'active' : ''}" ${nav eq 'orders' ? 'aria-current="page"' : ''}>Đơn hàng</a>
           <a href="${ctx}/staff/counter" class="${nav eq 'counter' ? 'active' : ''}" ${nav eq 'counter' ? 'aria-current="page"' : ''}>Quầy giao nhận</a>
-          <a href="${ctx}/staff/history" class="${nav eq 'history' ? 'active' : ''}" ${nav eq 'history' ? 'aria-current="page"' : ''}>Ca &amp; lịch sử</a>
+          <a href="${ctx}/staff/history" class="${nav eq 'history' ? 'active' : ''}" ${nav eq 'history' ? 'aria-current="page"' : ''}>Lịch sử đơn</a>
         </c:when>
 
         <c:when test="${me.roleName eq 'KITCHEN'}">

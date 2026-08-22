@@ -179,10 +179,6 @@ public final class Constants {
         public static final String PREP_DONE         = "PREP_DONE";
         public static final String PREP_CANCELLED    = "PREP_CANCELLED";
 
-        public static final String SHIFT_OPENED      = "SHIFT_OPENED";
-        public static final String SHIFT_CLOSED      = "SHIFT_CLOSED";
-        public static final String SHIFT_CANCELLED   = "SHIFT_CANCELLED";
-
         public static final String PICKUP_VERIFY_OK     = "PICKUP_VERIFY_OK";
         public static final String PICKUP_VERIFY_FAILED = "PICKUP_VERIFY_FAILED";
         public static final String HANDOFF              = "HANDOFF";

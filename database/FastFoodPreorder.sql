@@ -111,7 +111,8 @@ DROP TABLE IF EXISTS dbo.Payment;
 DROP TABLE IF EXISTS dbo.OrderNote;
 DROP TABLE IF EXISTS dbo.OrderItem;
 DROP TABLE IF EXISTS dbo.Orders;
--- Orders trỏ tới Shift nên phải xoá Orders trước, và Shift trước Users.
+-- Bảng của bản cũ, đã bỏ cùng tính năng giao ca. Vẫn phải xoá ở đây, nếu không thì cơ sở dữ
+-- liệu dựng bằng bản trước sẽ kẹt: khoá ngoại Shift → Users chặn lệnh xoá Users bên dưới.
 DROP TABLE IF EXISTS dbo.Shift;
 DROP TABLE IF EXISTS dbo.CartItem;
 DROP TABLE IF EXISTS dbo.Cart;
@@ -251,51 +252,6 @@ GO
 
 /* ------------------------------------ NHÓM 3 — ĐƠN HÀNG ----------------------------------- */
 
-/* Ca làm việc của thu ngân — nơi đối soát tiền mặt.
-
-   Vì sao cần bảng này. Khoản thu bằng thẻ hay mã QR có mã giao dịch trên biên lai để đối chiếu
-   với sao kê, còn khoản thu tiền mặt thì trước đây "chỉ có chính bản ghi thanh toán" làm dấu
-   vết — tức là không đối chiếu được với gì cả. Ca làm việc cho nó một con số kiểm chứng được:
-   đầu ca đếm tiền, cuối ca đếm lại, hệ thống nói ra chênh lệch.
-
-   expected_cash tính theo HAI mốc chứ không một, cùng bài học với báo cáo doanh thu:
-     thu  — khoản tiền mặt của đơn thuộc chính ca này, tính theo paid_at
-     hoàn — khoản tiền mặt hoàn của đơn thuộc chính ca này, tính theo refunded_at
-
-   Cả hai vế đều giới hạn trong đơn CỦA CA, không theo khoảng thời gian. Trừ mọi khoản hoàn
-   xảy ra trong giờ của ca sẽ kéo cả khoản hoàn của thu ngân khác — hai người bán cùng lúc ở
-   hai két thì két này gánh khoản chi của két kia. Đánh đổi đã biết: khoản hoàn cho đơn của ca
-   trước, chi ra từ két của ca này, không quy về đâu được vì Payment không lưu ai hoàn tiền;
-   dấu vết còn lại trong AuditLog (PAYMENT_REFUNDED có người thực hiện). Xem ShiftDAO.expectedCash.
-
-   variance lưu lại chứ không tính lại mỗi lần đọc: nó là con số đã chốt tại thời điểm đóng ca,
-   và sửa lại quá khứ thì mất ý nghĩa đối soát. */
-CREATE TABLE dbo.Shift (
-    shift_id      INT IDENTITY(1,1) NOT NULL,
-    cashier_id    INT               NOT NULL,
-    opened_at     DATETIME2(0)      NOT NULL,
-    opening_cash  DECIMAL(12,2)     NOT NULL CONSTRAINT DF_Shift_openCash DEFAULT (0),
-    closed_at     DATETIME2(0)      NULL,
-    counted_cash  DECIMAL(12,2)     NULL,      -- thu ngân đếm được cuối ca
-    expected_cash DECIMAL(12,2)     NULL,      -- hệ thống tính ra
-    variance      DECIMAL(12,2)     NULL,      -- counted − expected; âm là thiếu
-    note          NVARCHAR(500)     NULL,
-    status        VARCHAR(20)       NOT NULL CONSTRAINT DF_Shift_status DEFAULT ('OPEN'),
-    CONSTRAINT PK_Shift        PRIMARY KEY (shift_id),
-    CONSTRAINT FK_Shift_Users  FOREIGN KEY (cashier_id) REFERENCES dbo.Users(user_id),
-    -- CANCELLED: ca mở nhầm, thu hồi khi chưa có đơn nào. Giữ dòng lại thay vì xoá để mã ca
-    -- trong nhật ký thao tác vẫn dẫn về đúng bản ghi.
-    CONSTRAINT CK_Shift_status CHECK (status IN ('OPEN','CLOSED','CANCELLED')),
-    CONSTRAINT CK_Shift_cash   CHECK (opening_cash >= 0 AND (counted_cash IS NULL OR counted_cash >= 0)),
-    /* Ca đã đóng thì bắt buộc có đủ bốn số liệu đối soát. Thiếu một trong số đó nghĩa là ca
-       đóng dở dang, và bảng đối soát sẽ có một dòng trống mà không ai biết vì sao. */
-    CONSTRAINT CK_Shift_closed CHECK (
-        status <> 'CLOSED'
-        OR (closed_at IS NOT NULL AND counted_cash IS NOT NULL
-            AND expected_cash IS NOT NULL AND variance IS NOT NULL))
-);
-GO
-
 /* Ba mốc thời gian dưới đây là phần cốt lõi phân biệt Online Pre-order với POS:
 
      pickup_time         CAM KẾT với khách — giờ khách sẽ đến lấy
@@ -312,12 +268,6 @@ CREATE TABLE dbo.Orders (
     customer_id        INT               NULL,          -- NULL với khách vãng lai mua tại quầy
     created_by_user_id INT               NULL,          -- Cashier lập đơn POS
     order_source       VARCHAR(20)       NOT NULL,      -- ONLINE_PREORDER | POS
-    /* Ca làm việc đã thu tiền đơn này. Để trống được, và đó là lựa chọn có ý thức: chặn bán
-       khi chưa mở ca sẽ khiến thu ngân kẹt giữa giờ cao điểm vì một thủ tục hành chính. Đơn
-       không thuộc ca nào vẫn bán bình thường, chỉ không vào được bảng đối soát cuối ca — và
-       màn hình có cảnh báo để chuyện đó không xảy ra trong im lặng.
-       Đơn đặt trước luôn để trống: tiền vào qua cổng thanh toán, không qua két nào cả. */
-    shift_id           INT               NULL,
     total_amount       DECIMAL(12,2)     NOT NULL CONSTRAINT DF_Orders_total DEFAULT (0),
     order_status       VARCHAR(20)       NOT NULL,
     idempotency_key    VARCHAR(64)       NULL,          -- chặn tạo trùng đơn khi khách bấm Đặt hàng 2 lần
@@ -341,9 +291,6 @@ CREATE TABLE dbo.Orders (
     CONSTRAINT FK_Orders_Customer  FOREIGN KEY (customer_id)        REFERENCES dbo.Users(user_id),
     CONSTRAINT FK_Orders_CreatedBy FOREIGN KEY (created_by_user_id) REFERENCES dbo.Users(user_id),
     CONSTRAINT FK_Orders_Handoff   FOREIGN KEY (handoff_by_user_id) REFERENCES dbo.Users(user_id),
-    CONSTRAINT FK_Orders_Shift     FOREIGN KEY (shift_id)           REFERENCES dbo.Shift(shift_id),
-    -- Đơn đặt trước không đi qua két tiền mặt nào nên không được gắn vào ca.
-    CONSTRAINT CK_Orders_shiftPosOnly CHECK (shift_id IS NULL OR order_source = 'POS'),
 
     -- chặn mọi kênh ngoài phạm vi MVP lọt vào hệ thống
     CONSTRAINT CK_Orders_source CHECK (order_source IN ('ONLINE_PREORDER','POS')),
@@ -679,7 +626,7 @@ GO
    hai cách tính đặt cạnh nhau trên cùng màn hình sớm muộn cũng lệch nhau — đúng bài học hai mốc
    thời gian của báo cáo doanh thu.
 
-   Xoá hẳn được, khác với Shift. Chỉ tiêu là một dự định chưa thành việc gì: không có tiền đi
+   Xoá hẳn được, khác với đơn hàng. Chỉ tiêu là một dự định chưa thành việc gì: không có tiền đi
    qua, không bản ghi nào trỏ tới. Dấu vết vẫn còn vì dòng nhật ký TARGET_DELETED mang theo con
    số cũ trong old_value — tức là bản thân dòng nhật ký đã đủ, không cần giữ lại bản ghi rỗng. */
 CREATE TABLE dbo.RevenueTarget (
@@ -948,16 +895,6 @@ GO
 CREATE UNIQUE INDEX UX_PrepTask_date_product ON dbo.PrepTask(prep_date, product_id)
     WHERE status IN ('PLANNED','DONE');
 
-/* Mỗi thu ngân chỉ có một ca đang mở. Chốt chặn quan trọng nhất của việc đối soát: hai ca mở
-   cùng lúc thì tiền của một lần bán rơi vào ca nào là chuyện ngẫu nhiên, và cả hai bảng đối
-   soát cuối ca đều sai mà không ai chỉ ra được sai ở đâu.
-
-   Lọc theo trạng thái để một người mở rồi đóng bao nhiêu ca trong ngày cũng được. */
-CREATE UNIQUE INDEX UX_Shift_openPerCashier ON dbo.Shift(cashier_id) WHERE status = 'OPEN';
-
--- Bảng đối soát: mọi đơn tiền mặt của một ca, đọc khi đóng ca và khi xem lại lịch sử.
-CREATE INDEX IX_Orders_shift ON dbo.Orders(shift_id) WHERE shift_id IS NOT NULL;
-
 -- Ghi chú điều phối: đọc cùng lúc với danh sách đơn trên màn điều phối của thu ngân.
 CREATE INDEX IX_OrderNote_order ON dbo.OrderNote(order_id, created_at DESC);
 
@@ -973,8 +910,7 @@ GO
 CREATE INDEX IX_PosHold_cashier ON dbo.PosHold(cashier_id, created_at DESC);
 
 /* Mỗi kỳ đúng một chỉ tiêu. Không có ràng buộc này thì hai chỉ tiêu cho tháng 8 cùng tồn tại,
-   và bảng điều khiển lấy phải cái nào là chuyện ngẫu nhiên — cùng loại lỗi mà
-   UX_Shift_openPerCashier sinh ra để chặn. */
+   và bảng điều khiển lấy phải cái nào là chuyện ngẫu nhiên. */
 CREATE UNIQUE INDEX UX_Target_period ON dbo.RevenueTarget(period_type, period_start);
 
 /* Danh sách món quen của một khách, và câu hỏi "món này tôi đã đánh dấu chưa" chạy cho từng
@@ -1558,33 +1494,12 @@ OR (SELECT COUNT(*) FROM dbo.KitchenNote)    <> 2
 GO
 
 
-/* -- Ca làm việc, ghi chú điều phối và đơn treo của thu ngân --------------------------------
-   Ba màn hình của thu ngân mở ra sẽ trống trơn nếu không có khối này. Dữ liệu cố ý dựng đủ cả
-   hai trạng thái của ca: một ca đang mở để thao tác đóng ca thử được ngay, và một ca đã đóng
-   có chênh lệch âm — vì bảng đối soát mà mọi dòng đều khớp thì cột chênh lệch không bao giờ
-   hiện ra màu cảnh báo, và người thử không biết nó trông ra sao.
+/* -- Ghi chú điều phối và đơn treo của thu ngân ---------------------------------------------
+   Các màn hình của thu ngân mở ra sẽ trống trơn nếu không có khối này.
    ------------------------------------------------------------------------------------------ */
 DECLARE @cash1s INT = (SELECT user_id FROM dbo.Users WHERE email = 'cashier1@fastfood.vn');
-DECLARE @cash2s INT = (SELECT user_id FROM dbo.Users WHERE email = 'cashier2@fastfood.vn');
 DECLARE @adminId INT = (SELECT user_id FROM dbo.Users WHERE email = 'admin@fastfood.vn');
 DECLARE @bay_gio DATETIME2(0) = SYSDATETIME();
-
-INSERT INTO dbo.Shift (cashier_id, opened_at, opening_cash, note, status)
-VALUES (@cash1s, DATEADD(HOUR, -3, @bay_gio), 500000,
-        N'Nhận ca từ anh Quang, két có sẵn 500.000 tiền lẻ.', 'OPEN');
-DECLARE @shift1 INT = CAST(SCOPE_IDENTITY() AS INT);
-
-INSERT INTO dbo.Shift (cashier_id, opened_at, opening_cash, closed_at,
-                       counted_cash, expected_cash, variance, note, status)
-VALUES (@cash2s, DATEADD(HOUR, -8, DATEADD(DAY, -1, @bay_gio)), 500000,
-        DATEADD(DAY, -1, @bay_gio), 480000, 500000, -20000,
-        N'Cuối ca thiếu 20.000, đã báo quản lý. Nghi trả nhầm tiền thừa cho khách.', 'CLOSED');
-
-/* Gắn đơn tại quầy của chính thu ngân đó vào ca đang mở, để con số "lẽ ra phải có trong két"
-   khác tiền đầu ca — không gắn thì màn đóng ca chỉ hiện đúng 500.000 và không chứng minh được
-   phép cộng nào cả. CK_Orders_shiftPosOnly chỉ cho phép đơn POS mang mã ca. */
-UPDATE dbo.Orders SET shift_id = @shift1
-WHERE  order_source = 'POS' AND created_by_user_id = @cash1s;
 
 INSERT INTO dbo.OrderNote (order_id, author_id, content)
 SELECT TOP 1 o.order_id, @cash1s, N'Khách gọi báo đến muộn khoảng 15 phút, giữ món giúp.'
@@ -1676,11 +1591,10 @@ SELECT x.product_id, x.customer_id,
                   ELSE       N'Bình thường, được cái đặt trước nên không phải xếp hàng.' END
 FROM   xep x WHERE x.stt <= 3;
 
-/* Cùng loại chốt chặn với THROW 50005 ở trên. Ba dòng cuối kiểm thứ mà phép đếm thuần không
-   thấy: đơn tại quầy có thật sự được gắn vào ca không, và đánh giá có sinh ra được từ đơn đã
-   hoàn tất không — hai chỗ mà một thay đổi ở dữ liệu đơn hàng sẽ âm thầm làm rỗng. */
-IF (SELECT COUNT(*) FROM dbo.Shift)             <> 2
-OR (SELECT COUNT(*) FROM dbo.OrderNote)         <> 2
+/* Cùng loại chốt chặn với THROW 50005 ở trên. Dòng cuối kiểm thứ mà phép đếm thuần không
+   thấy: đánh giá có sinh ra được từ đơn đã hoàn tất không — chỗ mà một thay đổi ở dữ liệu
+   đơn hàng sẽ âm thầm làm rỗng. */
+IF (SELECT COUNT(*) FROM dbo.OrderNote)         <> 2
 OR (SELECT COUNT(*) FROM dbo.PosHold)           <> 2
 OR (SELECT COUNT(*) FROM dbo.PosHoldItem)       <> 4
 OR (SELECT COUNT(*) FROM dbo.RevenueTarget)     <> 2
@@ -1688,7 +1602,6 @@ OR (SELECT COUNT(*) FROM dbo.Favourite)         <> 3
 OR (SELECT COUNT(*) FROM dbo.OrderTemplate)     <> 2
 OR (SELECT COUNT(*) FROM dbo.OrderTemplateItem) <> 5
 OR (SELECT COUNT(*) FROM dbo.Review)             < 3
-OR (SELECT COUNT(*) FROM dbo.Orders WHERE shift_id IS NOT NULL) = 0
     THROW 50006, 'Du lieu mau cua thu ngan / quan tri / khach hang thieu dong: kiem tra lai ten mon, email va dieu kien JOIN.', 1;
 GO
 
@@ -1874,7 +1787,6 @@ UNION ALL SELECT 'Category',           COUNT(*) FROM dbo.Category
 UNION ALL SELECT 'Product',            COUNT(*) FROM dbo.Product
 UNION ALL SELECT 'Cart',               COUNT(*) FROM dbo.Cart
 UNION ALL SELECT 'CartItem',           COUNT(*) FROM dbo.CartItem
-UNION ALL SELECT 'Shift',              COUNT(*) FROM dbo.Shift
 UNION ALL SELECT 'Orders',             COUNT(*) FROM dbo.Orders
 UNION ALL SELECT 'OrderItem',          COUNT(*) FROM dbo.OrderItem
 UNION ALL SELECT 'OrderNote',          COUNT(*) FROM dbo.OrderNote

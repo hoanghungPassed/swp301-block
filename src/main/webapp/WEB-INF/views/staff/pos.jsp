@@ -7,23 +7,6 @@
 
   <%@ include file="/WEB-INF/views/layout/flash.jspf" %>
 
-  <c:choose>
-    <c:when test="${empty currentShift}">
-      <div class="alert alert-warn">
-        <strong>Chưa mở ca.</strong> Đơn bán ra vẫn ghi nhận bình thường nhưng
-        <strong>không vào được bảng đối soát tiền cuối ca</strong>.
-        <a href="${ctx}/staff/history">Mở ca →</a>
-      </div>
-    </c:when>
-    <c:otherwise>
-      <p class="small muted">
-        Ca mở lúc ${ff:time(currentShift.openedAt)} · đã gắn ${currentShift.orderCount} đơn ·
-        tiền đầu ca ${ff:money(currentShift.openingCash)}.
-        <a href="${ctx}/staff/history">Đóng ca và đối soát →</a>
-      </p>
-    </c:otherwise>
-  </c:choose>
-
   <div class="grid grid-side">
     <div>
       <div class="card">
