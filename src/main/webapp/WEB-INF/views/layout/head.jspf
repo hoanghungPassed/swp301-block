@@ -5,5 +5,8 @@
 <meta name="theme-color" content="#d92d20">
 <title><c:out value="${empty pageTitle ? 'Fast Food' : pageTitle}"/> · Fast Food</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%8D%94%3C/text%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
 <link rel="stylesheet" href="${ctx}/assets/css/main.css?v=${assetVersion}">
 <script src="${ctx}/assets/js/app.js?v=${assetVersion}" defer></script>

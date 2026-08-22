@@ -1,4 +1,65 @@
 <%@ page pageEncoding="UTF-8" %>
 <footer class="app-footer">
-  Hệ thống đặt trước và bán hàng tại quầy · Đồ án SWP301
+  <div class="inner">
+    <div class="foot-brand">
+      <span class="brand">
+        <span class="logo" aria-hidden="true">🍔</span>
+        <span class="brand-text">Fast Food</span>
+      </span>
+      <p>Đặt món trước, hẹn giờ đến lấy — khỏi phải xếp hàng chờ. Mua trực tiếp tại quầy vẫn
+        dùng chung một hệ thống với đơn đặt online.</p>
+    </div>
+
+    <nav class="foot-links" aria-label="Liên kết chân trang">
+      <h2>Khám phá</h2>
+      <c:choose>
+        <c:when test="${empty me or me.roleName eq 'CUSTOMER'}">
+          <a href="${ctx}/menu">Thực đơn</a>
+          <a href="${ctx}/order/track">Theo dõi đơn</a>
+          <c:choose>
+            <c:when test="${empty me}">
+              <a href="${ctx}/login">Đăng nhập</a>
+              <a href="${ctx}/register">Đăng ký</a>
+            </c:when>
+            <c:otherwise>
+              <a href="${ctx}/order/history">Đơn của tôi</a>
+              <a href="${ctx}/profile">Tài khoản</a>
+            </c:otherwise>
+          </c:choose>
+        </c:when>
+        <c:when test="${me.roleName eq 'CASHIER'}">
+          <a href="${ctx}/staff/pos">Bán tại quầy</a>
+          <a href="${ctx}/staff/orders">Đơn hàng</a>
+          <a href="${ctx}/staff/counter">Quầy giao nhận</a>
+          <a href="${ctx}/profile">Tài khoản</a>
+        </c:when>
+        <c:when test="${me.roleName eq 'KITCHEN'}">
+          <a href="${ctx}/kitchen/queue">Hàng chờ bếp</a>
+          <a href="${ctx}/kitchen/issue">Báo sự cố</a>
+          <a href="${ctx}/kitchen/history">Đã hoàn thành</a>
+          <a href="${ctx}/profile">Tài khoản</a>
+        </c:when>
+        <c:otherwise>
+          <a href="${ctx}/admin/dashboard">Tổng quan</a>
+          <a href="${ctx}/admin/products">Món ăn</a>
+          <a href="${ctx}/admin/users">Tài khoản</a>
+          <a href="${ctx}/admin/audit">Nhật ký</a>
+        </c:otherwise>
+      </c:choose>
+    </nav>
+
+    <div class="foot-about">
+      <h2>Đặt món thế nào</h2>
+      <ol class="foot-steps">
+        <li>Chọn món và hẹn giờ ghé lấy.</li>
+        <li>Thanh toán, nhận mã đơn ngay.</li>
+        <li>Tới quầy đọc mã là có đồ.</li>
+      </ol>
+    </div>
+  </div>
+
+  <div class="foot-bottom">
+    <span>© <%= java.time.Year.now() %> Fast Food</span>
+    <span>Đặt trước · Hẹn giờ · Nhận tại quầy</span>
+  </div>
 </footer>
