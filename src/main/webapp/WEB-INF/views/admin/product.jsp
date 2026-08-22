@@ -12,7 +12,7 @@
   <div class="grid grid-side">
     <div>
       <div class="card">
-        <form method="get" action="${ctx}/admin/products" class="form-row">
+        <form method="get" action="${ctx}/admin/products" class="form-row" data-live-search="#live-results">
           <div class="field">
             <label for="keyword">Tìm món</label>
             <input type="search" id="keyword" name="keyword" value="<c:out value="${keyword}"/>">
@@ -47,7 +47,7 @@
         </form>
       </div>
 
-      <div class="card pad0 table-wrap">
+      <div class="card pad0 table-wrap" id="live-results" data-live-region>
         <table>
           <thead><tr><th scope="col">Tên món</th><th scope="col">Nhóm</th><th scope="col" class="num">Giá</th>
                      <th scope="col">Tình trạng</th><th scope="col">Trên thực đơn</th><th scope="col"><span class="visually-hidden">Thao tác</span></th></tr></thead>

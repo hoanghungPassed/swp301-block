@@ -10,7 +10,7 @@
   <div class="grid grid-side">
     <div>
       <div class="card">
-        <form method="get" action="${ctx}/staff/pos" class="form-row">
+        <form method="get" action="${ctx}/staff/pos" class="form-row" data-live-search="#live-results">
           <div class="field">
             <label for="keyword">Tìm món</label>
             <input type="search" id="keyword" name="keyword" value="<c:out value="${keyword}"/>" placeholder="Tên món...">
@@ -28,7 +28,7 @@
         </form>
       </div>
 
-      <div class="menu-grid">
+      <div class="menu-grid" id="live-results" data-live-region>
         <c:forEach var="p" items="${products}">
           <form method="post" action="${ctx}/staff/pos" class="product">
             <input type="hidden" name="_csrf" value="${csrfToken}">

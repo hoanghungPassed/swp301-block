@@ -143,7 +143,7 @@
   </c:if>
 
   <div class="card">
-    <form method="get" action="${ctx}/menu" class="form-row">
+    <form method="get" action="${ctx}/menu" class="form-row" data-live-search="#live-results">
       <input type="hidden" name="categoryId" value="${selectedCategory}">
       <div class="field">
         <label for="keyword">Tìm món</label>
@@ -151,7 +151,7 @@
       </div>
       <div class="field field-narrow">
         <label for="sort">Sắp xếp</label>
-        <select id="sort" name="sort" data-autosubmit>
+        <select id="sort" name="sort">
           <option value="DEFAULT"    ${sort eq 'DEFAULT'    ? 'selected' : ''}>Mặc định</option>
           <option value="PRICE_ASC"  ${sort eq 'PRICE_ASC'  ? 'selected' : ''}>Giá thấp → cao</option>
           <option value="PRICE_DESC" ${sort eq 'PRICE_DESC' ? 'selected' : ''}>Giá cao → thấp</option>
@@ -176,6 +176,7 @@
     </nav>
   </div>
 
+  <div id="live-results" data-live-region>
   <div class="row-between result-line">
     <p class="small muted">
       <c:choose>
@@ -273,4 +274,5 @@
       </div>
     </c:otherwise>
   </c:choose>
+  </div>
 <%@ include file="/WEB-INF/views/layout/page-end.jspf" %>

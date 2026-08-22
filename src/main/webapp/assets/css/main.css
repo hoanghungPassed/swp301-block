@@ -1080,3 +1080,7 @@ a.kds-card:hover { text-decoration: none; border-color: var(--muted); }
 
 .note-row > td { border-top: 0; padding-top: 0; }
 
+/* Tim kiem truc tiep: lam mo vung ket qua trong luc cho phan hoi */
+[data-live-region] { transition: opacity 0.15s ease; }
+[data-live-busy] { opacity: 0.45; pointer-events: none; }
+

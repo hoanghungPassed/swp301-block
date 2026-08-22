@@ -264,6 +264,112 @@
         });
     }
 
+    var LIVE_SEARCH_DELAY_MS = 260;
+
+    function liveSearchUrl(form) {
+        var params = [];
+        Array.prototype.forEach.call(form.elements, function (el) {
+            if (!el.name || el.disabled || el.type === 'submit' || el.type === 'button') {
+                return;
+            }
+            if ((el.type === 'checkbox' || el.type === 'radio') && !el.checked) {
+                return;
+            }
+            if (el.value === '') {
+                return;
+            }
+            params.push(encodeURIComponent(el.name) + '=' + encodeURIComponent(el.value));
+        });
+        return form.action + (params.length ? '?' + params.join('&') : '');
+    }
+
+    function bindLiveSearch() {
+        if (!window.fetch || !window.DOMParser || !window.history || !history.replaceState) {
+            return;
+        }
+
+        Array.prototype.forEach.call(document.querySelectorAll('form[data-live-search]'), function (form) {
+            var selector = form.getAttribute('data-live-search');
+            var region = document.querySelector(selector);
+            if (!region) {
+                return;
+            }
+
+            var timer = null;
+            var seq = 0;
+            var lastUrl = liveSearchUrl(form);
+
+            function done() {
+                region.removeAttribute('data-live-busy');
+                region.removeAttribute('aria-busy');
+            }
+
+            function run() {
+                var url = liveSearchUrl(form);
+                if (url === lastUrl) {
+                    return;
+                }
+                lastUrl = url;
+
+                var mine = ++seq;
+                region.setAttribute('data-live-busy', '');
+                region.setAttribute('aria-busy', 'true');
+
+                fetch(url, { credentials: 'same-origin' })
+                    .then(function (r) {
+                        if (!r.ok) { throw new Error('HTTP ' + r.status); }
+                        return r.text();
+                    })
+                    .then(function (html) {
+                        if (mine !== seq) {
+                            return;
+                        }
+                        var fresh = new DOMParser()
+                            .parseFromString(html, 'text/html')
+                            .querySelector(selector);
+
+                        if (fresh) {
+                            region.innerHTML = fresh.innerHTML;
+                            history.replaceState(null, '', url);
+                        } else {
+                            lastUrl = '';
+                        }
+                        done();
+                    })
+                    .catch(function () {
+                        if (mine !== seq) {
+                            return;
+                        }
+                        lastUrl = '';
+                        done();
+                    });
+            }
+
+            form.addEventListener('input', function (e) {
+                if (!e.target.name) {
+                    return;
+                }
+                window.clearTimeout(timer);
+                timer = window.setTimeout(run, LIVE_SEARCH_DELAY_MS);
+            });
+
+            form.addEventListener('change', function (e) {
+                if (!e.target.name || e.target.type === 'search' || e.target.type === 'text') {
+                    return;
+                }
+                window.clearTimeout(timer);
+                run();
+            });
+
+            form.addEventListener('submit', function (e) {
+                e.preventDefault();
+                e.stopPropagation();
+                window.clearTimeout(timer);
+                run();
+            });
+        });
+    }
+
     function bindNavToggle() {
         var btn = document.getElementById('nav-toggle');
         var nav = document.getElementById('main-nav');
@@ -696,6 +802,7 @@
         watchPaymentStatus();
         guardDoubleSubmit();
         bindAutoSubmit();
+        bindLiveSearch();
         bindNavToggle();
         bindHeaderShadow();
         bindImageFallback();
