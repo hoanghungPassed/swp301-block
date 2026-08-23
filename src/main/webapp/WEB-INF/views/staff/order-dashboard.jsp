@@ -1,5 +1,10 @@
 <c:set var="pageTitle" value="Đơn hàng" /><c:set var="nav" value="orders" />
 <%@ include file="/WEB-INF/views/layout/page-start.jspf" %>
+  <%-- Ghi chú lưu xong quay lại đúng thẻ và đúng trang đang xem. --%>
+  <c:set var="ordQuery" value="${ff:pageQuery(pageContext.request, 'editNote')}" />
+  <c:set var="ordBack"  value="/staff/orders${empty ordQuery ? '' : '?'.concat(ordQuery)}" />
+  <c:set var="ordMore"  value="${fn:contains(ordBack, '?') ? '&amp;' : '?'}" />
+  <c:set var="ordReturn"><input type="hidden" name="returnTo" value="<c:out value="${ordBack}"/>"></c:set>
   <div class="page-head"><h1>Đơn hàng</h1></div>
 
   <%@ include file="/WEB-INF/views/layout/flash.jspf" %>
@@ -74,7 +79,7 @@
   <c:if test="${openIssueCount > 0}">
     <div class="alert alert-warn">
       Bếp đang báo <strong>${openIssueCount} sự cố</strong> chưa xử lý. Đơn vướng sự cố sẽ
-      không tự sẵn sàng được — cần liên hệ khách để đổi món hoặc huỷ đơn.
+      không tự sẵn sàng được — cần liên hệ khách để đổi món hoặc chờ bếp xử lý xong.
       <a href="${ctx}/staff/counter">Xem danh sách →</a>
     </div>
   </c:if>
@@ -98,14 +103,14 @@
   </c:if>
   <c:if test="${tab eq 'OVERDUE'}">
     <div class="alert alert-warn">
-      Khách đã quá giờ hẹn mà chưa tới lấy. Đơn vẫn được giữ nguyên — hệ thống không tự huỷ
-      cũng không tự hoàn tiền vì khách đã trả tiền trước.
+      Khách đã quá giờ hẹn mà chưa tới lấy. Đơn vẫn được giữ nguyên và món vẫn chờ ở quầy —
+      khách đã trả tiền trước nên suất ăn là của họ, tới lúc nào lấy lúc ấy.
     </div>
   </c:if>
 
   <div class="card pad0 table-wrap">
     <c:choose>
-      <c:when test="${empty orders}">
+      <c:when test="${pageData.emptyPage}">
         <div class="empty"><div class="icon" aria-hidden="true">✅</div>Không có đơn nào trong mục này.</div>
       </c:when>
       <c:otherwise>
@@ -115,7 +120,7 @@
                 <th scope="col">Bếp</th><th scope="col" class="num">Tổng tiền</th><th scope="col">Trạng thái</th><th scope="col"><span class="visually-hidden">Thao tác</span></th></tr>
           </thead>
           <tbody>
-            <c:forEach var="o" items="${orders}">
+            <c:forEach var="o" items="${pageData.items}">
               <tr>
                 <td><strong>#${o.orderId}</strong>
                   <c:if test="${not empty o.pickupCode}">
@@ -150,15 +155,16 @@
                     <div class="small">
                       <c:choose>
                         <c:when test="${not empty editingNote and editingNote.orderNoteId eq n.orderNoteId}">
-                          <form method="post" action="${ctx}/staff/orders" class="inline-form">
+                          <form method="post" action="${ctx}/staff/orders" class="inline-form"
+                                data-confirm="Lưu ghi chú này?">
                             <input type="hidden" name="_csrf" value="${csrfToken}">
                             <input type="hidden" name="action" value="noteUpdate">
                             <input type="hidden" name="noteId" value="${n.orderNoteId}">
-                            <input type="hidden" name="tab" value="${tab}">
+                            ${ordReturn}
                             <input type="text" name="content" maxlength="500" required
                                    value="${fn:escapeXml(n.content)}" class="input-sm">
                             <button type="submit" class="btn btn-sm btn-primary">Lưu</button>
-                            <a class="btn btn-sm" href="${ctx}/staff/orders?tab=${tab}">Huỷ</a>
+                            <a class="btn btn-sm" href="${ctx}<c:out value="${ordBack}"/>">Huỷ</a>
                           </form>
                         </c:when>
                         <c:otherwise>
@@ -166,12 +172,13 @@
                           <span class="muted">— <c:out value="${n.authorName}"/>
                             <c:if test="${n.edited}"> (đã sửa)</c:if></span>
                           <c:if test="${n.authorId eq me.userId}">
-                            <a class="btn btn-sm" href="${ctx}/staff/orders?tab=${tab}&amp;editNote=${n.orderNoteId}">Sửa</a>
-                            <form method="post" action="${ctx}/staff/orders" class="inline-form">
+                            <a class="btn btn-sm" href="${ctx}<c:out value="${ordBack}"/>${ordMore}editNote=${n.orderNoteId}">Sửa</a>
+                            <form method="post" action="${ctx}/staff/orders" class="inline-form"
+                                  data-confirm="Xoá ghi chú này khỏi đơn?">
                               <input type="hidden" name="_csrf" value="${csrfToken}">
                               <input type="hidden" name="action" value="noteDelete">
                               <input type="hidden" name="noteId" value="${n.orderNoteId}">
-                              <input type="hidden" name="tab" value="${tab}">
+                              ${ordReturn}
                               <button type="submit" class="btn btn-sm btn-danger">Xoá</button>
                             </form>
                           </c:if>
@@ -179,11 +186,12 @@
                       </c:choose>
                     </div>
                   </c:forEach>
-                  <form method="post" action="${ctx}/staff/orders" class="inline-form">
+                  <form method="post" action="${ctx}/staff/orders" class="inline-form"
+                        data-confirm="Thêm ghi chú này vào đơn?">
                     <input type="hidden" name="_csrf" value="${csrfToken}">
                     <input type="hidden" name="action" value="noteAdd">
                     <input type="hidden" name="orderId" value="${o.orderId}">
-                    <input type="hidden" name="tab" value="${tab}">
+                    ${ordReturn}
                     <input type="text" name="content" maxlength="500" required
                            placeholder="Ghi chú cho đơn này" class="input-sm">
                     <button type="submit" class="btn btn-sm">Thêm ghi chú</button>
@@ -195,5 +203,6 @@
         </table>
       </c:otherwise>
     </c:choose>
+    <ui:pager page="${pageData}" label="đơn" />
   </div>
 <%@ include file="/WEB-INF/views/layout/page-end.jspf" %>

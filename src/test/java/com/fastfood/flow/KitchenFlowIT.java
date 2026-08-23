@@ -270,8 +270,8 @@ class KitchenFlowIT extends IntegrationTestBase {
     }
 
     @Test
-    @DisplayName("Chặn ở đó cũng là giữ quyền tự huỷ đơn cho khách")
-    void blockingEarlyClaimKeepsTheCustomerAbleToCancel() {
+    @DisplayName("Một lần nhận sớm lọt qua là món rời WAITING trước khi bếp được phép thấy đơn")
+    void blockingEarlyClaimKeepsItemsUntouched() {
         Fixture waiting = orderWithItems(1, false);
 
         assertThrows(BusinessException.class,
@@ -284,8 +284,8 @@ class KitchenFlowIT extends IntegrationTestBase {
                 "SELECT released_to_kds_at FROM dbo.Orders WHERE order_id = ?", waiting.orderId) == null);
         assertEquals(0, count("SELECT COUNT(*) FROM dbo.OrderItem " +
                 "WHERE order_id = ? AND item_status <> 'WAITING'", waiting.orderId),
-                "Mốc chặn huỷ của BR-12 là \"chưa món nào rời WAITING\"; một lần nhận sớm lọt qua "
-                + "là khách mất quyền huỷ đơn mà bếp còn chưa được phép nhìn thấy");
+                "Đơn chưa tới lượt vào bếp thì mọi món phải còn nguyên WAITING; một món rời khỏi "
+                + "đó nghĩa là nguyên liệu đã bị dùng cho đơn mà bếp chưa được phép nhìn thấy");
     }
 
     @Test

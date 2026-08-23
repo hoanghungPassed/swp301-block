@@ -1,5 +1,10 @@
 <c:set var="pageTitle" value="Sự cố bếp" /><c:set var="nav" value="issue" />
 <%@ include file="/WEB-INF/views/layout/page-start.jspf" %>
+  <%-- Xử lý xong một sự cố thì quay lại đúng trang của bảng đang xem. --%>
+  <c:set var="issQuery" value="${ff:pageQuery(pageContext.request, 'edit')}" />
+  <c:set var="issBack"  value="/kitchen/issue${empty issQuery ? '' : '?'.concat(issQuery)}" />
+  <c:set var="issMore"  value="${fn:contains(issBack, '?') ? '&amp;' : '?'}" />
+  <c:set var="issReturn"><input type="hidden" name="returnTo" value="<c:out value="${issBack}"/>"></c:set>
   <div class="page-head">
     <h1>Sự cố bếp</h1>
     <p>Ghi nhận sự cố không làm món quay về hàng chờ — món vẫn thuộc về người đang làm.</p>
@@ -9,12 +14,12 @@
 
   <div class="grid grid-side">
     <div>
-      <div class="card pad0 table-wrap">
-        <div class="card-head"><h2>Đang mở (${fn:length(openIssues)})</h2></div>
+      <div class="card pad0 table-wrap" id="dang-mo">
+        <div class="card-head"><h2>Đang mở (${openPage.totalItems})</h2></div>
         <table>
           <thead><tr><th scope="col">Món</th><th scope="col">Đơn</th><th scope="col">Loại</th><th scope="col">Mô tả</th><th scope="col">Người báo</th><th scope="col"><span class="visually-hidden">Thao tác</span></th></tr></thead>
           <tbody>
-            <c:forEach var="i" items="${openIssues}">
+            <c:forEach var="i" items="${openPage.items}">
               <tr>
                 <td><a href="${ctx}/kitchen/item?id=${i.orderItemId}"><c:out value="${i.productName}"/></a></td>
                 <td>#${i.orderId}</td>
@@ -22,18 +27,21 @@
                 <td class="small"><c:out value="${i.description}"/></td>
                 <td class="small muted"><c:out value="${i.createdByName}"/><br>${ff:time(i.createdAt)}</td>
                 <td class="center">
-                  <form method="post" action="${ctx}/kitchen/issue" class="inline-form">
+                  <form method="post" action="${ctx}/kitchen/issue" class="inline-form"
+                        data-confirm="Đánh dấu sự cố này đã xử lý xong?">
                     <input type="hidden" name="_csrf" value="${csrfToken}">
                     <input type="hidden" name="action" value="resolve">
+                    ${issReturn}
                     <input type="hidden" name="issueId" value="${i.issueId}">
                     <button type="submit" class="btn btn-sm btn-green">Đã xử lý</button>
                   </form>
                   <c:if test="${i.createdBy eq me.userId}">
-                    <a class="btn btn-sm" href="${ctx}/kitchen/issue?edit=${i.issueId}">Sửa</a>
+                    <a class="btn btn-sm" href="${ctx}<c:out value="${issBack}"/>${issMore}edit=${i.issueId}">Sửa</a>
                     <form method="post" action="${ctx}/kitchen/issue" class="inline-form"
                           data-confirm="Thu hồi sự cố báo nhầm này? Bản ghi vẫn được giữ trong nhật ký.">
                       <input type="hidden" name="_csrf" value="${csrfToken}">
                       <input type="hidden" name="action" value="cancel">
+                      ${issReturn}
                       <input type="hidden" name="issueId" value="${i.issueId}">
                       <button type="submit" class="btn btn-sm btn-danger">Thu hồi</button>
                     </form>
@@ -41,19 +49,20 @@
                 </td>
               </tr>
             </c:forEach>
-            <c:if test="${empty openIssues}">
+            <c:if test="${openPage.emptyPage}">
               <tr><td colspan="6" class="center muted cell-empty">Không có sự cố nào đang mở.</td></tr>
             </c:if>
           </tbody>
         </table>
+        <ui:pager page="${openPage}" pageParam="openPage" anchor="dang-mo" label="sự cố" />
       </div>
 
-      <div class="card pad0 table-wrap">
-        <div class="card-head"><h2>Đã khép lại gần đây</h2></div>
+      <div class="card pad0 table-wrap" id="da-khep">
+        <div class="card-head"><h2>Đã khép lại gần đây (${closedPage.totalItems})</h2></div>
         <table>
           <thead><tr><th scope="col">Thời điểm</th><th scope="col">Món</th><th scope="col">Loại</th><th scope="col">Trạng thái</th></tr></thead>
           <tbody>
-            <c:forEach var="i" items="${closedIssues}">
+            <c:forEach var="i" items="${closedPage.items}">
               <tr>
                 <td class="small muted">${ff:dateTime(i.createdAt)}</td>
                 <td><a href="${ctx}/kitchen/item?id=${i.orderItemId}"><c:out value="${i.productName}"/></a></td>
@@ -61,11 +70,12 @@
                 <td><span class="tag ${ff:issueStatusTag(i.status)}">${ff:issueStatus(i.status)}</span></td>
               </tr>
             </c:forEach>
-            <c:if test="${empty closedIssues}">
+            <c:if test="${closedPage.emptyPage}">
               <tr><td colspan="4" class="center muted cell-empty">Chưa có sự cố nào khép lại gần đây.</td></tr>
             </c:if>
           </tbody>
         </table>
+        <ui:pager page="${closedPage}" pageParam="closedPage" anchor="da-khep" label="sự cố" />
       </div>
     </div>
 
@@ -77,7 +87,8 @@
         <c:out value="${editing.productName}"/> · đơn #${editing.orderId} ·
         ${ff:issueType(editing.issueType)}
       </p>
-      <form method="post" action="${ctx}/kitchen/issue">
+      <form method="post" action="${ctx}/kitchen/issue"
+            data-confirm="Lưu mô tả mới cho sự cố này?">
         <input type="hidden" name="_csrf" value="${csrfToken}">
         <input type="hidden" name="action" value="update">
         <input type="hidden" name="issueId" value="${editing.issueId}">
@@ -115,7 +126,8 @@
         </p>
       </c:when>
       <c:otherwise>
-      <form method="post" action="${ctx}/kitchen/issue">
+      <form method="post" action="${ctx}/kitchen/issue"
+            data-confirm="Ghi nhận sự cố này? Chọn Hết nguyên liệu thì món sẽ bị tắt khỏi thực đơn ngay.">
         <input type="hidden" name="_csrf" value="${csrfToken}">
         <div class="field">
           <label for="orderItemId">Món gặp sự cố</label>

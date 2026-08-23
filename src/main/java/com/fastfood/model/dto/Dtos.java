@@ -19,6 +19,12 @@ public final class Dtos {
 
         public static final int SIZE = 20;
 
+        /** Bảng phụ nằm chung trang với bảng khác thì để ít dòng cho đỡ dài trang. */
+        public static final int SMALL_SIZE = 10;
+
+        /** Lưới thẻ (thực đơn, bán tại quầy, màn bếp) xếp 3 cột nên lấy bội của 3. */
+        public static final int CARD_SIZE = 12;
+
         public static final int MAX_SIZE = 200;
 
         private final List<T> items;
@@ -50,7 +56,12 @@ public final class Dtos {
         public boolean isFirst() { return pageNo <= 1; }
         public boolean isLast() { return pageNo >= getTotalPages(); }
 
-        public int getPrevPage() { return Math.max(1, pageNo - 1); }
+        /*
+         * Số trang gõ tay có thể vượt quá cuối danh sách (cắt dưới SQL thì trang đó rỗng
+         * chứ không tự lùi). Ép về trong khoảng trước khi tính hàng xóm, nếu không thì từ
+         * trang 999 bấm "Trước" lại rơi vào trang 998 cũng rỗng, lùi mãi không về được.
+         */
+        public int getPrevPage() { return Math.max(1, Math.min(pageNo, getTotalPages()) - 1); }
         public int getNextPage() { return Math.min(getTotalPages(), pageNo + 1); }
 
         public long getFirstIndex() {
@@ -76,6 +87,28 @@ public final class Dtos {
 
         public static int offset(int pageNo, int pageSize) {
             return (safePage(pageNo) - 1) * safeSize(pageSize);
+        }
+
+        /**
+         * Cắt trang ngay trên danh sách đã nạp sẵn.
+         *
+         * <p>Dùng cho các màn hình vận hành (hàng chờ bếp, quầy, sự cố...) vốn đã
+         * đọc trọn danh sách để đếm và tô màu; hỏi thêm một câu COUNT nữa chỉ tốn công.
+         * Bảng lớn tra cứu theo bộ lọc thì vẫn phân trang dưới SQL.
+         *
+         * <p>Trang vượt quá cuối danh sách sẽ tự lùi về trang cuối, nên xoá bớt bản ghi
+         * lúc đang đứng ở trang chót không làm màn hình trống trơn.
+         */
+        public static <T> Page<T> of(List<T> all, int pageNo, int pageSize) {
+            List<T> source = all == null ? List.of() : all;
+            int size = safeSize(pageSize);
+            int total = source.size();
+            int lastPage = Math.max(1, (total + size - 1) / size);
+            int page = Math.min(safePage(pageNo), lastPage);
+
+            int from = Math.min((page - 1) * size, total);
+            int to = Math.min(from + size, total);
+            return new Page<>(new ArrayList<>(source.subList(from, to)), page, size, total);
         }
     }
 
@@ -223,15 +256,148 @@ public final class Dtos {
         }
     }
 
+    /**
+     * Một đơn nhìn từ màn bếp: bếp nhận, làm xong và bàn giao theo cả đơn nên thẻ trên màn
+     * hình cũng phải là đơn, không phải món. Món vẫn giữ nguyên bên trong để đếm số phần,
+     * đọc trạng thái từng món và mở trang chi tiết khi cần xử lý riêng.
+     */
+    public static class KdsOrderView {
+
+        private final int orderId;
+        private final String orderSource;
+        private final String orderStatus;
+        private final LocalDateTime pickupTime;
+        private final List<KdsItemView> items = new ArrayList<>();
+
+        public KdsOrderView(OrderItem first) {
+            this.orderId = first.getOrderId();
+            this.orderSource = first.getOrderSource();
+            this.orderStatus = first.getOrderStatus();
+            this.pickupTime = first.getPickupTime();
+        }
+
+        /** Gom danh sách món đã sắp xếp sẵn thành từng đơn, giữ nguyên thứ tự của câu truy vấn. */
+        public static List<KdsOrderView> group(List<OrderItem> items) {
+            List<KdsOrderView> orders = new ArrayList<>();
+            KdsOrderView current = null;
+            for (OrderItem item : items) {
+                if (current == null || current.orderId != item.getOrderId()) {
+                    current = new KdsOrderView(item);
+                    orders.add(current);
+                }
+                current.items.add(new KdsItemView(item));
+            }
+            return orders;
+        }
+
+        public int getOrderId() { return orderId; }
+        public String getOrderSource() { return orderSource; }
+        public String getOrderStatus() { return orderStatus; }
+        public LocalDateTime getPickupTime() { return pickupTime; }
+        public List<KdsItemView> getItems() { return items; }
+
+        public int getItemCount() { return items.size(); }
+
+        public int getTotalQuantity() {
+            int total = 0;
+            for (KdsItemView view : items) {
+                total += view.getItem().getQuantity();
+            }
+            return total;
+        }
+
+        public int getOpenIssueCount() {
+            int total = 0;
+            for (KdsItemView view : items) {
+                total += view.getOpenIssueCount();
+            }
+            return total;
+        }
+
+        public int countStatus(String status) {
+            int total = 0;
+            for (KdsItemView view : items) {
+                if (status.equals(view.getItem().getItemStatus())) {
+                    total++;
+                }
+            }
+            return total;
+        }
+
+        public int getWaitingCount() { return countStatus("WAITING"); }
+        public int getPreparingCount() { return countStatus("PREPARING"); }
+        public int getReadyCount() { return countStatus("READY"); }
+
+        /** Số món của đơn đã nằm ngoài quầy — dùng để nói rõ phần còn lại phải bàn giao. */
+        public int getHandedOverCount() {
+            int total = 0;
+            for (KdsItemView view : items) {
+                if (view.getItem().getHandedOverAt() != null) {
+                    total++;
+                }
+            }
+            return total;
+        }
+
+        public boolean isOrderClosed() {
+            return !items.isEmpty() && items.get(0).getItem().isOrderClosed();
+        }
+
+        public String getAssignedToName() {
+            for (KdsItemView view : items) {
+                String name = view.getItem().getAssignedToName();
+                if (name != null && !name.isBlank()) {
+                    return name;
+                }
+            }
+            return null;
+        }
+
+        public LocalDateTime getStartedAt() {
+            LocalDateTime earliest = null;
+            for (KdsItemView view : items) {
+                LocalDateTime at = view.getItem().getStartedAt();
+                if (at != null && (earliest == null || at.isBefore(earliest))) {
+                    earliest = at;
+                }
+            }
+            return earliest;
+        }
+
+        public LocalDateTime getReadyAt() {
+            LocalDateTime latest = null;
+            for (KdsItemView view : items) {
+                LocalDateTime at = view.getItem().getReadyAt();
+                if (at != null && (latest == null || at.isAfter(latest))) {
+                    latest = at;
+                }
+            }
+            return latest;
+        }
+
+        public boolean isOnline() { return "ONLINE_PREORDER".equals(orderSource); }
+
+        public long getMinutesToPickup() {
+            return pickupTime == null
+                    ? Long.MAX_VALUE
+                    : DateTimeUtil.minutesBetween(DateTimeUtil.now(), pickupTime);
+        }
+
+        public boolean isUrgent() { return pickupTime != null && getMinutesToPickup() <= 10; }
+
+        public boolean isLate() { return pickupTime != null && getMinutesToPickup() < 0; }
+
+        public String getPickupLabel() {
+            return pickupTime == null ? "Khách đang đợi tại quầy" : DateTimeUtil.humanize(pickupTime);
+        }
+    }
+
     public static class DashboardKpi {
 
-        private BigDecimal grossRevenue = BigDecimal.ZERO;
         private BigDecimal netRevenue = BigDecimal.ZERO;
-        private BigDecimal refundedAmount = BigDecimal.ZERO;
         private int onlineOrderCount;
         private int posOrderCount;
         private int completedOrderCount;
-        private int cancelledOrderCount;
         private int expiredOrderCount;
         private int readyOrderCount;
         private int overduePickupCount;
@@ -239,14 +405,8 @@ public final class Dtos {
         private int totalReadyMeasured;
         private Double avgPrepLeadMinutes;
 
-        public BigDecimal getGrossRevenue() { return grossRevenue; }
-        public void setGrossRevenue(BigDecimal grossRevenue) { this.grossRevenue = grossRevenue; }
-
         public BigDecimal getNetRevenue() { return netRevenue; }
         public void setNetRevenue(BigDecimal netRevenue) { this.netRevenue = netRevenue; }
-
-        public BigDecimal getRefundedAmount() { return refundedAmount; }
-        public void setRefundedAmount(BigDecimal refundedAmount) { this.refundedAmount = refundedAmount; }
 
         public int getOnlineOrderCount() { return onlineOrderCount; }
         public void setOnlineOrderCount(int onlineOrderCount) { this.onlineOrderCount = onlineOrderCount; }
@@ -256,9 +416,6 @@ public final class Dtos {
 
         public int getCompletedOrderCount() { return completedOrderCount; }
         public void setCompletedOrderCount(int completedOrderCount) { this.completedOrderCount = completedOrderCount; }
-
-        public int getCancelledOrderCount() { return cancelledOrderCount; }
-        public void setCancelledOrderCount(int cancelledOrderCount) { this.cancelledOrderCount = cancelledOrderCount; }
 
         public int getExpiredOrderCount() { return expiredOrderCount; }
         public void setExpiredOrderCount(int expiredOrderCount) { this.expiredOrderCount = expiredOrderCount; }

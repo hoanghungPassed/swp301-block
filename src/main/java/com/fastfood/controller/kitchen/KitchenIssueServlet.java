@@ -4,7 +4,7 @@ import com.fastfood.common.exception.AppException;
 import com.fastfood.common.util.WebUtil;
 import com.fastfood.controller.BaseServlet;
 import com.fastfood.model.dto.Dtos.KdsItemView;
-import com.fastfood.model.entity.OperationEntities.KitchenIssue;
+import com.fastfood.model.dto.Dtos.Page;
 import com.fastfood.model.entity.UserEntities.User;
 import com.fastfood.service.kitchen.KitchenService;
 
@@ -24,14 +24,10 @@ public class KitchenIssueServlet extends BaseServlet {
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp)
             throws ServletException, IOException {
-        req.setAttribute("openIssues", kitchenService.openIssues());
-        List<KitchenIssue> closed = new ArrayList<>();
-        for (KitchenIssue issue : kitchenService.recentIssues(30)) {
-            if (!issue.isOpen()) {
-                closed.add(issue);
-            }
-        }
-        req.setAttribute("closedIssues", closed);
+        req.setAttribute("openPage", Page.of(kitchenService.openIssues(),
+                WebUtil.getInt(req, "openPage", 1), Page.SMALL_SIZE));
+        req.setAttribute("closedPage", Page.of(kitchenService.recentClosedIssues(30),
+                WebUtil.getInt(req, "closedPage", 1), Page.SMALL_SIZE));
 
         int orderItemId = WebUtil.getInt(req, "orderItemId", 0);
         req.setAttribute("orderItemId", orderItemId);
@@ -67,22 +63,23 @@ public class KitchenIssueServlet extends BaseServlet {
     protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws IOException {
         User user = requireUser(req);
         String action = WebUtil.getString(req, "action");
+        String back = WebUtil.safeRedirect(WebUtil.getString(req, "returnTo"), "/kitchen/issue");
 
         int issueId = WebUtil.getInt(req, "issueId", 0);
 
         switch (action == null ? "" : action) {
             case "resolve":
                 handle(req, resp, () -> kitchenService.resolveIssue(issueId, user.getUserId()),
-                        "Đã đánh dấu sự cố được xử lý.", "/kitchen/issue");
+                        "Đã đánh dấu sự cố được xử lý.", back);
                 return;
             case "update":
                 handle(req, resp, () -> kitchenService.updateIssue(issueId, user.getUserId(),
                                 WebUtil.getString(req, "description")),
-                        "Đã cập nhật mô tả sự cố.", "/kitchen/issue");
+                        "Đã cập nhật mô tả sự cố.", back);
                 return;
             case "cancel":
                 handle(req, resp, () -> kitchenService.cancelIssue(issueId, user.getUserId()),
-                        "Đã thu hồi sự cố báo nhầm.", "/kitchen/issue");
+                        "Đã thu hồi sự cố báo nhầm.", back);
                 return;
             default:
                 break;
@@ -92,6 +89,6 @@ public class KitchenIssueServlet extends BaseServlet {
         String issueType = WebUtil.getString(req, "issueType");
         String description = WebUtil.getString(req, "description");
         handle(req, resp, () -> kitchenService.openIssue(orderItemId, user.getUserId(), issueType, description),
-                "Đã ghi nhận sự cố.", "/kitchen/issue");
+                "Đã ghi nhận sự cố.", back);
     }
 }

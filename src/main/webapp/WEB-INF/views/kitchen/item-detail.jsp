@@ -46,7 +46,8 @@
 
     <div class="actions mt">
       <c:if test="${item.itemStatus eq 'WAITING'}">
-        <form method="post" action="${ctx}/kitchen/queue">
+        <form method="post" action="${ctx}/kitchen/queue"
+              data-confirm="Nhận làm món này?">
           <input type="hidden" name="_csrf" value="${csrfToken}">
           <input type="hidden" name="action" value="claim">
           <input type="hidden" name="orderItemId" value="${item.orderItemId}">
@@ -55,7 +56,8 @@
         </form>
       </c:if>
       <c:if test="${item.itemStatus eq 'PREPARING'}">
-        <form method="post" action="${ctx}/kitchen/queue">
+        <form method="post" action="${ctx}/kitchen/queue"
+              data-confirm="Đánh dấu món này đã làm xong?">
           <input type="hidden" name="_csrf" value="${csrfToken}">
           <input type="hidden" name="action" value="ready">
           <input type="hidden" name="orderItemId" value="${item.orderItemId}">
@@ -64,7 +66,8 @@
         </form>
       </c:if>
       <c:if test="${item.awaitingHandover}">
-        <form method="post" action="${ctx}/kitchen/queue">
+        <form method="post" action="${ctx}/kitchen/queue"
+              data-confirm="Bàn giao món này ra quầy?">
           <input type="hidden" name="_csrf" value="${csrfToken}">
           <input type="hidden" name="action" value="handover">
           <input type="hidden" name="orderItemId" value="${item.orderItemId}">
@@ -138,7 +141,8 @@
 
   <div class="card">
     <h2>${empty editingNote ? 'Thêm ghi chú' : 'Sửa ghi chú'}</h2>
-    <form method="post" action="${ctx}/kitchen/item">
+    <form method="post" action="${ctx}/kitchen/item"
+          data-confirm="${empty editingNote ? 'Thêm ghi chú này cho món?' : 'Lưu thay đổi cho ghi chú này?'}">
       <input type="hidden" name="_csrf" value="${csrfToken}">
       <input type="hidden" name="action" value="${empty editingNote ? 'noteAdd' : 'noteUpdate'}">
       <input type="hidden" name="orderItemId" value="${item.orderItemId}">

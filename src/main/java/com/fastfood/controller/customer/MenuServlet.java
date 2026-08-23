@@ -3,6 +3,7 @@ package com.fastfood.controller.customer;
 import com.fastfood.common.util.WebUtil;
 import com.fastfood.config.AppConfig;
 import com.fastfood.controller.BaseServlet;
+import com.fastfood.model.dto.Dtos.Page;
 import com.fastfood.model.entity.UserEntities.User;
 import com.fastfood.service.customer.CartService;
 import com.fastfood.service.customer.FavouriteService;
@@ -28,7 +29,8 @@ public class MenuServlet extends BaseServlet {
         String keyword = WebUtil.getString(req, "keyword");
         String sort = menuService.sortOrDefault(WebUtil.getString(req, "sort"));
 
-        req.setAttribute("products", menuService.browse(categoryId, keyword, sort));
+        req.setAttribute("pageData", menuService.browsePage(categoryId, keyword, sort,
+                WebUtil.getInt(req, "page", 1), Page.CARD_SIZE));
         req.setAttribute("categories", menuService.activeCategories());
         req.setAttribute("selectedCategory", categoryId);
         req.setAttribute("keyword", keyword);
@@ -46,7 +48,8 @@ public class MenuServlet extends BaseServlet {
         if (user != null && "CUSTOMER".equals(user.getRoleName())) {
             req.setAttribute("cartCount", cartService.countItems(user.getUserId()));
 
-            req.setAttribute("favourites", favouriteService.listOf(user.getUserId()));
+            req.setAttribute("favouritePage", Page.of(favouriteService.listOf(user.getUserId()),
+                    WebUtil.getInt(req, "favPage", 1), Page.SMALL_SIZE));
             req.setAttribute("favouriteIds", favouriteService.favouriteProductIds(user.getUserId()));
 
             int editId = WebUtil.getInt(req, "editFav", 0);

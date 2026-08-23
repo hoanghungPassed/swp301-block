@@ -15,7 +15,8 @@
   <div class="grid grid-2">
     <div class="card">
       <h2>Thông tin cá nhân</h2>
-      <form method="post" action="${ctx}/profile">
+      <form method="post" action="${ctx}/profile"
+            data-confirm="Lưu thay đổi thông tin cá nhân?">
         <input type="hidden" name="_csrf" value="${csrfToken}">
         <div class="field">
           <label for="profileEmail">Email <span class="hint">(không đổi được)</span></label>
@@ -39,7 +40,8 @@
 
     <div class="card">
       <h2>Đổi mật khẩu</h2>
-      <form method="post" action="${ctx}/profile">
+      <form method="post" action="${ctx}/profile"
+            data-confirm="Đổi mật khẩu? Từ lần đăng nhập sau bạn phải dùng mật khẩu mới.">
         <input type="hidden" name="_csrf" value="${csrfToken}">
         <input type="hidden" name="action" value="changePassword">
         <div class="field">

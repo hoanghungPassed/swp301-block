@@ -1,5 +1,10 @@
 <c:set var="pageTitle" value="Tổng quan" /><c:set var="nav" value="dashboard" />
 <%@ include file="/WEB-INF/views/layout/page-start.jspf" %>
+  <%-- Thao tác chỉ tiêu xong quay lại đúng khoảng thời gian và trang đang xem. --%>
+  <c:set var="dashQuery" value="${ff:pageQuery(pageContext.request, 'editTarget')}" />
+  <c:set var="dashBack"  value="/admin/dashboard${empty dashQuery ? '' : '?'.concat(dashQuery)}" />
+  <c:set var="dashMore"  value="${fn:contains(dashBack, '?') ? '&amp;' : '?'}" />
+  <c:set var="dashReturn"><input type="hidden" name="returnTo" value="<c:out value="${dashBack}"/>"></c:set>
   <div class="page-head"><h1>Tổng quan</h1></div>
 
   <%@ include file="/WEB-INF/views/layout/flash.jspf" %>
@@ -30,9 +35,9 @@
 
   <div class="grid grid-4 mb">
     <div class="kpi">
-      <div class="label">Doanh thu thuần</div>
+      <div class="label">Doanh thu</div>
       <div class="value">${ff:money(kpi.netRevenue)}</div>
-      <div class="sub">Thu ${ff:money(kpi.grossRevenue)} · hoàn ${ff:money(kpi.refundedAmount)}</div>
+      <div class="sub">Tổng tiền đã thu trong kỳ</div>
     </div>
     <div class="kpi">
       <div class="label">Số đơn</div>
@@ -51,14 +56,10 @@
     </div>
   </div>
 
-  <div class="grid grid-4 mb">
+  <div class="grid grid-3 mb">
     <div class="kpi">
       <div class="label">Đã giao</div>
       <div class="value">${kpi.completedOrderCount}</div>
-    </div>
-    <div class="kpi">
-      <div class="label">Đã huỷ</div>
-      <div class="value">${kpi.cancelledOrderCount}</div>
     </div>
     <div class="kpi">
       <div class="label">Hết hạn thanh toán</div>
@@ -89,7 +90,7 @@
       <%@ include file="/WEB-INF/views/admin/target-kpi.jspf" %>
     </div>
 
-    <div class="table-wrap">
+    <div class="table-wrap" id="chi-tieu">
       <table>
         <thead>
           <tr>
@@ -102,7 +103,7 @@
           </tr>
         </thead>
         <tbody>
-          <c:forEach var="t" items="${targets}">
+          <c:forEach var="t" items="${targetPage.items}">
             <tr>
               <td>
                 <strong>${t.monthly ? 'Tháng' : 'Ngày'} ${t.periodLabel}</strong>
@@ -116,11 +117,12 @@
               <td class="small"><c:out value="${t.note}"/></td>
               <td class="small muted"><c:out value="${t.createdByName}"/></td>
               <td class="actions">
-                <a class="btn btn-sm" href="${ctx}/admin/dashboard?editTarget=${t.targetId}">Sửa</a>
+                <a class="btn btn-sm" href="${ctx}<c:out value="${dashBack}"/>${dashMore}editTarget=${t.targetId}#chi-tieu">Sửa</a>
                 <form method="post" action="${ctx}/admin/dashboard" class="inline-form"
-                      onsubmit="return confirm('Xoá chỉ tiêu này? Con số cũ vẫn còn trong nhật ký thao tác.');">
+                      data-confirm="Xoá chỉ tiêu này? Con số cũ vẫn còn trong nhật ký thao tác.">
                   <input type="hidden" name="_csrf" value="${csrfToken}">
                   <input type="hidden" name="action" value="targetDelete">
+                  ${dashReturn}
                   <input type="hidden" name="targetId" value="${t.targetId}">
                   <button type="submit" class="btn btn-sm btn-danger">Xoá</button>
                 </form>
@@ -129,9 +131,11 @@
             <c:if test="${not empty editingTarget and editingTarget.targetId eq t.targetId}">
               <tr class="note-row">
                 <td colspan="6">
-                  <form method="post" action="${ctx}/admin/dashboard" class="form-row">
+                  <form method="post" action="${ctx}/admin/dashboard" class="form-row"
+                        data-confirm="Lưu chỉ tiêu mới cho kỳ này?">
                     <input type="hidden" name="_csrf" value="${csrfToken}">
                     <input type="hidden" name="action" value="targetUpdate">
+                    ${dashReturn}
                     <input type="hidden" name="targetId" value="${t.targetId}">
                     <div class="field">
                       <label for="editAmount">Chỉ tiêu (đồng)</label>
@@ -144,22 +148,25 @@
                              value="<c:out value="${editingTarget.note}"/>">
                     </div>
                     <button type="submit" class="btn btn-primary">Lưu</button>
-                    <a class="btn" href="${ctx}/admin/dashboard">Thôi</a>
+                    <a class="btn" href="${ctx}<c:out value="${dashBack}"/>#chi-tieu">Thôi</a>
                   </form>
                 </td>
               </tr>
             </c:if>
           </c:forEach>
-          <c:if test="${empty targets}">
+          <c:if test="${targetPage.emptyPage}">
             <tr><td colspan="6" class="center muted cell-empty">Chưa đặt chỉ tiêu nào.</td></tr>
           </c:if>
         </tbody>
       </table>
+      <ui:pager page="${targetPage}" pageParam="targetPage" anchor="chi-tieu" label="chỉ tiêu" />
     </div>
 
-    <form method="post" action="${ctx}/admin/dashboard" class="form-row mt">
+    <form method="post" action="${ctx}/admin/dashboard" class="form-row mt"
+          data-confirm="Đặt chỉ tiêu này cho kỳ đã chọn?">
       <input type="hidden" name="_csrf" value="${csrfToken}">
       <input type="hidden" name="action" value="targetCreate">
+      ${dashReturn}
       <div class="field">
         <label for="periodType">Kỳ</label>
         <select id="periodType" name="periodType">

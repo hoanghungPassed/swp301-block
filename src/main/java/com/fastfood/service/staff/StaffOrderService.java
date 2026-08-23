@@ -17,6 +17,7 @@ import com.fastfood.dao.shared.OrderItemDAO;
 import com.fastfood.dao.shared.PaymentDAO;
 import com.fastfood.dao.shared.ProductDAO;
 import com.fastfood.dao.shared.TransactionDAO;
+import com.fastfood.model.dto.Dtos.KdsOrderView;
 import com.fastfood.model.dto.Dtos.Page;
 import com.fastfood.model.dto.Dtos.PosCartLine;
 import com.fastfood.model.dto.Dtos.PosLine;
@@ -27,10 +28,11 @@ import com.fastfood.model.entity.MenuEntities.Product;
 import com.fastfood.model.entity.OrderEntities.Transaction;
 import com.fastfood.service.Tx;
 import com.fastfood.service.shared.AuditService;
-import com.fastfood.service.shared.NotificationService;
 import com.fastfood.service.shared.OrderCoreService;
 
 import java.math.BigDecimal;
+import java.sql.Connection;
+import java.sql.SQLException;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -40,100 +42,199 @@ public class StaffOrderService {
 
     private static final String POS_TERMINAL = "POS_TERMINAL";
 
+    /* Mã đối soát của lần thu ngân tự xác nhận tiền QR. Gắn theo mã khoản thu nên mỗi
+       khoản chỉ ghi được một lần — ràng buộc duy nhất trên bảng giao dịch chặn lần thứ hai. */
+    private static final String POS_QR_REFERENCE = "POS-QR-";
+
     private final OrderDAO orderDAO = new OrderDAO();
     private final OrderItemDAO orderItemDAO = new OrderItemDAO();
     private final PaymentDAO paymentDAO = new PaymentDAO();
     private final TransactionDAO transactionDAO = new TransactionDAO();
     private final ProductDAO productDAO = new ProductDAO();
     private final AuditService auditService = new AuditService();
-    private final NotificationService notificationService = new NotificationService();
     private final OrderCoreService orderCore = new OrderCoreService();
 
-    public Order createPosOrder(int cashierId, List<PosLine> lines, PaymentMethod method,
-                                String terminalReference) {
+    /**
+     * Đơn tại quầy trả bằng tiền mặt: lập đơn, ghi nhận tiền và đẩy xuống bếp trong một nhịp.
+     *
+     * <p>Quầy chỉ còn hai đường thu tiền — tiền mặt ở đây và mã QR ở {@link #createPosQrOrder}.
+     * Tiền mặt là đường duy nhất mà tiền chắc chắn đã nằm trong két ngay lúc bấm, nên đơn được
+     * ghi PAID và mở đường xuống bếp cùng lúc.
+     */
+    public Order createPosOrder(int cashierId, List<PosLine> lines) {
         if (lines == null || lines.isEmpty()) {
             throw new ValidationException("Chưa chọn món nào.");
-        }
-        if (method == null) {
-            throw new ValidationException("Chưa chọn hình thức thanh toán.");
-        }
-        String reference = terminalReference == null ? "" : terminalReference.trim().toUpperCase();
-        if (method == PaymentMethod.ONLINE_GATEWAY && reference.isEmpty()) {
-            throw new ValidationException(
-                    "Vui lòng nhập mã giao dịch in trên biên lai của máy thanh toán.");
         }
         LocalDateTime now = DateTimeUtil.now();
 
         return Tx.write(con -> {
-            Order order = new Order();
-            order.setCustomerId(null);
-            order.setCreatedByUserId(cashierId);
-            order.setOrderSource(OrderSource.POS.name());
-            order.setOrderStatus(OrderStatus.CONFIRMED.name());
-            order.setCreatedAt(now);
-            order.setReleasedToKdsAt(now);
-            order.setTotalAmount(BigDecimal.ZERO);
-            orderDAO.insert(con, order);
-
-            BigDecimal total = BigDecimal.ZERO;
-            for (PosLine line : lines) {
-                if (line.getQuantity() <= 0 || line.getQuantity() > BusinessRule.MAX_QUANTITY_PER_LINE) {
-                    throw new ValidationException("Số lượng mỗi món phải từ 1 đến "
-                            + BusinessRule.MAX_QUANTITY_PER_LINE + ".");
-                }
-                Product product = productDAO.findForCheckout(con, line.getProductId());
-                if (product == null) {
-                    throw new BusinessException("Trong phiếu có món không còn trong hệ thống. "
-                            + "Hãy bỏ món đó ra rồi thu tiền lại.");
-                }
-                if (!product.isOrderable()) {
-                    throw new BusinessException("Món \"" + product.getName() + "\" hiện không còn "
-                            + "phục vụ. Hãy bỏ món đó ra khỏi phiếu rồi thu tiền lại.");
-                }
-                OrderItem item = new OrderItem();
-                item.setOrderId(order.getOrderId());
-                item.setProductId(product.getProductId());
-                item.setProductNameSnapshot(product.getName());
-                item.setUnitPrice(product.getPrice());
-                item.setQuantity(line.getQuantity());
-                item.setItemStatus(OrderItemStatus.WAITING.name());
-                orderItemDAO.insert(con, item);
-                order.getItems().add(item);
-                total = total.add(item.getLineTotal());
-            }
-
-            order.setTotalAmount(total);
-            orderDAO.updateTotal(con, order.getOrderId(), total);
-
-            Payment payment = new Payment();
-            payment.setOrderId(order.getOrderId());
-            payment.setMethod(method.name());
-            payment.setAmount(total);
-            payment.setPaymentStatus(PaymentStatus.PAID.name());
-            payment.setAttemptNo(1);
-            payment.setCreatedAt(now);
-            payment.setPaidAt(now);
-            paymentDAO.insert(con, payment);
-            order.setLatestPayment(payment);
-
-            if (method == PaymentMethod.ONLINE_GATEWAY) {
-                Transaction txn = transactionDAO.newTransaction(payment.getPaymentId(), POS_TERMINAL,
-                        reference, "SUCCESS", "Thu tại quầy, mã biên lai do thu ngân nhập.", now);
-                if (!transactionDAO.insertIfNew(con, txn)) {
-                    throw new BusinessException("Mã giao dịch \"" + reference
-                            + "\" đã được ghi nhận cho một đơn khác. Vui lòng kiểm tra lại biên lai — "
-                            + "một lần thanh toán chỉ dùng được cho một đơn.");
-                }
-            }
+            Order order = insertOrderWithItems(con, cashierId, lines, now, true);
+            Payment payment = insertPayment(con, order, PaymentMethod.CASH, PaymentStatus.PAID, now);
 
             auditService.log(con, cashierId, "ORDER", order.getOrderId(),
                     AuditAction.ORDER_CREATED, null, OrderStatus.CONFIRMED.name());
             auditService.log(con, cashierId, "PAYMENT", payment.getPaymentId(),
-                    AuditAction.PAYMENT_PAID, null, method.name());
+                    AuditAction.PAYMENT_PAID, null, PaymentMethod.CASH.name());
             auditService.log(con, cashierId, "ORDER", order.getOrderId(),
                     AuditAction.KDS_RELEASE, null, "RELEASED");
             return order;
         });
+    }
+
+    /**
+     * Đơn tại quầy trả bằng mã QR: lập đơn và khoản thu ở trạng thái CHỜ, chưa đẩy xuống bếp.
+     *
+     * <p>Khác {@link #createPosOrder} ở đúng một chỗ: lúc này tiền chưa về. Đơn vẫn phải nằm
+     * trong cơ sở dữ liệu trước khi sinh mã QR, vì mã QR trỏ tới một khoản thu cụ thể của cổng
+     * thanh toán — chưa có khoản thu thì chưa có gì để ký. Bù lại {@code released_to_kds_at}
+     * để trống nên bếp chưa thấy đơn: chỉ khi thu ngân bấm Xong, {@link #confirmQrPayment} mới
+     * mở đường xuống bếp. Nhờ vậy khách bỏ đi giữa chừng cũng không ai làm món cho một đơn
+     * chưa trả tiền.
+     */
+    public Order createPosQrOrder(int cashierId, List<PosLine> lines) {
+        if (lines == null || lines.isEmpty()) {
+            throw new ValidationException("Chưa chọn món nào.");
+        }
+        LocalDateTime now = DateTimeUtil.now();
+
+        return Tx.write(con -> {
+            Order order = insertOrderWithItems(con, cashierId, lines, now, false);
+            Payment payment = insertPayment(con, order, PaymentMethod.ONLINE_GATEWAY,
+                    PaymentStatus.PENDING, now);
+
+            auditService.log(con, cashierId, "ORDER", order.getOrderId(),
+                    AuditAction.ORDER_CREATED, null, OrderStatus.CONFIRMED.name());
+            auditService.log(con, cashierId, "PAYMENT", payment.getPaymentId(),
+                    AuditAction.PAYMENT_INITIATED, null, PaymentStatus.PENDING.name());
+            return order;
+        });
+    }
+
+    /**
+     * Thu ngân xác nhận khách đã trả xong: ghi nhận tiền rồi đưa đơn xuống bếp.
+     *
+     * <p>Có hai đường tiền về và cả hai đều dừng ở đây. Nếu cổng đã báo về (webhook, hoặc lượt
+     * khách quay lại trình duyệt) thì khoản thu đã PAID sẵn và việc còn lại chỉ là mở đường
+     * xuống bếp. Nếu chưa thấy báo về — thường vì máy chủ chạy trên máy cá nhân, không có địa
+     * chỉ công khai cho webhook, mà khách thì trả trên điện thoại của họ — thì thu ngân nhìn
+     * màn hình báo tiền về của khách rồi xác nhận bằng tay, đúng mức tin cậy đang dành cho
+     * tiền mặt.
+     * Lần xác nhận tay ấy để lại một giao dịch POS_TERMINAL để sau này đối soát còn phân biệt
+     * được với khoản do cổng tự báo.
+     */
+    public Order confirmQrPayment(int orderId, int cashierId) {
+        LocalDateTime now = DateTimeUtil.now();
+
+        return Tx.write(con -> {
+            orderCore.lockOrder(con, orderId);
+            Order order = orderDAO.findById(con, orderId);
+            if (order == null) {
+                throw new NotFoundException("Không tìm thấy đơn hàng.");
+            }
+            if (order.isOnline()) {
+                throw new BusinessException("Đơn đặt trước không xác nhận tiền ở màn hình bán tại quầy.");
+            }
+            if (!OrderStatus.CONFIRMED.name().equals(order.getOrderStatus())) {
+                throw new BusinessException("Đơn #" + orderId + " đang ở trạng thái "
+                        + order.getOrderStatus() + " nên không ghi nhận thanh toán được nữa.");
+            }
+
+            Payment payment = paymentDAO.findLatestByOrder(con, orderId);
+            if (payment == null) {
+                throw new NotFoundException("Đơn này chưa có khoản thu nào để xác nhận.");
+            }
+
+            if (!payment.isPaid()) {
+                if (!payment.isPending()) {
+                    throw new BusinessException("Khoản thu của đơn đang ở trạng thái "
+                            + payment.getPaymentStatus() + " nên không xác nhận được. "
+                            + "Hãy lập lại phiếu cho khách.");
+                }
+                if (paymentDAO.markPaid(con, payment.getPaymentId(), now) == 0) {
+                    throw new BusinessException("Khoản thu vừa được ghi nhận ở nơi khác. "
+                            + "Vui lòng tải lại trang.");
+                }
+                Transaction txn = transactionDAO.newTransaction(payment.getPaymentId(), POS_TERMINAL,
+                        POS_QR_REFERENCE + payment.getPaymentId(), "SUCCESS",
+                        "Thu ngân xác nhận khách đã quét mã QR trả tiền.", now);
+                transactionDAO.insertIfNew(con, txn);
+                auditService.log(con, cashierId, "PAYMENT", payment.getPaymentId(),
+                        AuditAction.PAYMENT_PAID, PaymentStatus.PENDING.name(),
+                        PaymentStatus.PAID.name());
+            }
+
+            if (orderDAO.markReleasedToKds(con, orderId, now) > 0) {
+                auditService.log(con, cashierId, "ORDER", orderId,
+                        AuditAction.KDS_RELEASE, null, "RELEASED");
+                order.setReleasedToKdsAt(now);
+            }
+            order.setItems(orderItemDAO.findByOrder(con, orderId));
+            order.setLatestPayment(paymentDAO.findLatestByOrder(con, orderId));
+            return order;
+        });
+    }
+
+    private Order insertOrderWithItems(Connection con, int cashierId, List<PosLine> lines,
+                                       LocalDateTime now, boolean releaseToKitchen) throws SQLException {
+        Order order = new Order();
+        order.setCustomerId(null);
+        order.setCreatedByUserId(cashierId);
+        order.setOrderSource(OrderSource.POS.name());
+        order.setOrderStatus(OrderStatus.CONFIRMED.name());
+        order.setCreatedAt(now);
+        if (releaseToKitchen) {
+            order.setReleasedToKdsAt(now);
+        }
+        order.setTotalAmount(BigDecimal.ZERO);
+        orderDAO.insert(con, order);
+
+        BigDecimal total = BigDecimal.ZERO;
+        for (PosLine line : lines) {
+            if (line.getQuantity() <= 0 || line.getQuantity() > BusinessRule.MAX_QUANTITY_PER_LINE) {
+                throw new ValidationException("Số lượng mỗi món phải từ 1 đến "
+                        + BusinessRule.MAX_QUANTITY_PER_LINE + ".");
+            }
+            Product product = productDAO.findForCheckout(con, line.getProductId());
+            if (product == null) {
+                throw new BusinessException("Trong phiếu có món không còn trong hệ thống. "
+                        + "Hãy bỏ món đó ra rồi thu tiền lại.");
+            }
+            if (!product.isOrderable()) {
+                throw new BusinessException("Món \"" + product.getName() + "\" hiện không còn "
+                        + "phục vụ. Hãy bỏ món đó ra khỏi phiếu rồi thu tiền lại.");
+            }
+            OrderItem item = new OrderItem();
+            item.setOrderId(order.getOrderId());
+            item.setProductId(product.getProductId());
+            item.setProductNameSnapshot(product.getName());
+            item.setUnitPrice(product.getPrice());
+            item.setQuantity(line.getQuantity());
+            item.setItemStatus(OrderItemStatus.WAITING.name());
+            orderItemDAO.insert(con, item);
+            order.getItems().add(item);
+            total = total.add(item.getLineTotal());
+        }
+
+        order.setTotalAmount(total);
+        orderDAO.updateTotal(con, order.getOrderId(), total);
+        return order;
+    }
+
+    private Payment insertPayment(Connection con, Order order, PaymentMethod method,
+                                  PaymentStatus status, LocalDateTime now) throws SQLException {
+        Payment payment = new Payment();
+        payment.setOrderId(order.getOrderId());
+        payment.setMethod(method.name());
+        payment.setAmount(order.getTotalAmount());
+        payment.setPaymentStatus(status.name());
+        payment.setAttemptNo(1);
+        payment.setCreatedAt(now);
+        if (status == PaymentStatus.PAID) {
+            payment.setPaidAt(now);
+        }
+        paymentDAO.insert(con, payment);
+        order.setLatestPayment(payment);
+        return payment;
     }
 
     public List<PosCartLine> describeCart(Map<Integer, Integer> cart) {
@@ -191,31 +292,6 @@ public class StaffOrderService {
         return order;
     }
 
-    public void cancelByStaff(int orderId, int staffId, String reason) {
-        String note = reason == null ? "" : reason.trim();
-        if (note.isEmpty()) {
-            throw new ValidationException("Vui lòng nhập lý do huỷ đơn.");
-        }
-        Tx.writeVoid(con -> {
-            Order order = orderDAO.findById(con, orderId);
-            if (order == null) {
-                throw new NotFoundException("Không tìm thấy đơn hàng.");
-            }
-            if (order.statusEnum().isFinal()) {
-                throw new BusinessException("Đơn đã kết thúc, không huỷ được nữa.");
-            }
-
-            int changed = orderDAO.markCancelledByStaff(con, orderId, DateTimeUtil.now());
-            if (changed == 0) {
-                throw new BusinessException("Đơn vừa được xử lý bởi người khác. Vui lòng tải lại.");
-            }
-            auditService.log(con, staffId, "ORDER", orderId, AuditAction.ORDER_CANCELLED,
-                    order.getOrderStatus(), OrderStatus.CANCELLED.name() + ": " + note);
-            boolean refunded = orderCore.refundIfPaid(con, orderId, staffId);
-            notificationService.notifyOrderCancelled(con, order, note, refunded);
-        });
-    }
-
     public List<OrderItem> awaitingCounter() {
         return Tx.read(orderItemDAO::findAwaitingCounter);
     }
@@ -232,6 +308,36 @@ public class StaffOrderService {
                 order.setItems(orderItemDAO.findByOrder(con, order.getOrderId()));
             }
             return orders;
+        });
+    }
+
+    /** Món trên quầy gom theo đơn, khớp với cách bếp bàn giao cả đơn. */
+    public List<KdsOrderView> awaitingCounterOrders() {
+        return KdsOrderView.group(Tx.read(orderItemDAO::findAwaitingCounterOrders));
+    }
+
+    /** Nhận trọn phần bếp vừa đưa ra của một đơn. */
+    public void receiveOrder(int orderId, int cashierId) {
+        LocalDateTime now = DateTimeUtil.now();
+        Tx.writeVoid(con -> {
+            List<OrderItem> items = orderItemDAO.findByOrder(con, orderId);
+            if (items.isEmpty()) {
+                throw new NotFoundException("Không tìm thấy đơn hàng.");
+            }
+            int received = 0;
+            for (OrderItem item : items) {
+                if (item.getHandedOverAt() == null || item.isReceived()) {
+                    continue;
+                }
+                if (orderItemDAO.receiveAtCounter(con, item.getOrderItemId(), cashierId, now) == 1) {
+                    auditService.log(con, cashierId, "ORDER_ITEM", item.getOrderItemId(),
+                            AuditAction.ITEM_RECEIVED, "AT_COUNTER", "RECEIVED");
+                    received++;
+                }
+            }
+            if (received == 0) {
+                throw new BusinessException("Đơn này không còn món nào chờ nhận trên quầy.");
+            }
         });
     }
 
@@ -292,11 +398,6 @@ public class StaffOrderService {
             }
             Payment paid = paymentDAO.findPaidByOrder(con, orderId);
             if (paid == null) {
-                Payment latest = paymentDAO.findLatestByOrder(con, orderId);
-                if (latest != null && PaymentStatus.REFUNDED.name().equals(latest.getPaymentStatus())) {
-                    throw new BusinessException("Đơn này đã được hoàn tiền nên không giao được. "
-                            + "Nếu khách vẫn muốn nhận, vui lòng lập đơn mới tại quầy.");
-                }
                 throw new BusinessException("Đơn chưa được thanh toán.");
             }
             if (order.isOnline()) {

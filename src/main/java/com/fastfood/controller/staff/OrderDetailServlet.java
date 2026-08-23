@@ -54,18 +54,6 @@ public class OrderDetailServlet extends BaseServlet {
                         "Đã giao món cho khách và hoàn tất đơn #" + orderId + ".", back);
                 return;
             }
-            case "cancel": {
-                String reason = WebUtil.getString(req, "reason");
-                handle(req, resp, () -> orderService.cancelByStaff(orderId, staff.getUserId(), reason),
-                        "Đã huỷ đơn #" + orderId + " và hoàn lại tiền nếu khách đã thanh toán.", back);
-                return;
-            }
-            case "refund": {
-                String refundReason = WebUtil.getString(req, "refundReason");
-                handle(req, resp, () -> paymentService.refund(orderId, staff.getUserId(), refundReason),
-                        "Đã hoàn tiền cho đơn #" + orderId + ".", back);
-                return;
-            }
             default:
                 redirect(req, resp, back);
         }

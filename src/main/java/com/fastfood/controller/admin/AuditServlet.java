@@ -24,7 +24,6 @@ public class AuditServlet extends BaseServlet {
         req.setAttribute("pageData", auditService.search(entityType, action,
                 WebUtil.getDateTime(req, "from"), WebUtil.getDateTime(req, "to"),
                 WebUtil.getInt(req, "page", 1)));
-        req.setAttribute("filterQuery", WebUtil.queryStringWithout(req, "page"));
         req.setAttribute("actions", auditService.distinctActions());
         req.setAttribute("entityType", entityType);
         req.setAttribute("action", action);

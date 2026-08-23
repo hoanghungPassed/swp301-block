@@ -120,6 +120,15 @@
         <function-signature>java.lang.String auditAction(java.lang.String)</function-signature>
     </function>
     <function>
+        <description>
+            Chuỗi truy vấn hiện tại sau khi bỏ bớt vài tham số (ngăn nhau bằng dấu phẩy),
+            dùng cho thẻ phân trang giữ nguyên bộ lọc khi đổi trang.
+        </description>
+        <name>pageQuery</name>
+        <function-class>com.fastfood.common.util.ViewFunctions</function-class>
+        <function-signature>java.lang.String pageQuery(javax.servlet.http.HttpServletRequest, java.lang.String)</function-signature>
+    </function>
+    <function>
         <name>roleName</name>
         <function-class>com.fastfood.common.util.ViewFunctions</function-class>
         <function-signature>java.lang.String roleName(java.lang.String)</function-signature>

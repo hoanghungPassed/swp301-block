@@ -12,7 +12,7 @@ public class PaymentDAO {
 
     private static final String COLS =
             "p.payment_id, p.order_id, p.method, p.amount, p.payment_status, p.attempt_no, " +
-            "p.created_at, p.paid_at, p.refunded_at ";
+            "p.created_at, p.paid_at ";
 
     public int insert(Connection con, Payment p) throws SQLException {
         String sql = "INSERT INTO dbo.Payment (order_id, method, amount, payment_status, attempt_no, " +
@@ -64,9 +64,13 @@ public class PaymentDAO {
         }
     }
 
-    public int markRefunded(Connection con, int paymentId, LocalDateTime now) throws SQLException {
-        String sql = "UPDATE dbo.Payment SET payment_status = 'REFUNDED', refunded_at = ? " +
-                     "WHERE payment_id = ? AND payment_status = 'PAID'";
+    /* Ghi nhận tiền đã về cho khoản thu mà bộ hẹn giờ đã đóng trước đó. Khác markPaid ở chỗ
+       nhận cả trạng thái FAILED: tới lúc gọi hàm này thì cổng thanh toán đã xác nhận tiền vào
+       tài khoản cửa hàng, và để bản ghi ở FAILED nghĩa là sổ sách nói không thu được trong khi
+       sao kê ngân hàng nói có. Vẫn loại trừ PAID để lần gọi lại thứ hai không dời paid_at. */
+    public int markPaidLate(Connection con, int paymentId, LocalDateTime now) throws SQLException {
+        String sql = "UPDATE dbo.Payment SET payment_status = 'PAID', paid_at = ? " +
+                     "WHERE payment_id = ? AND payment_status <> 'PAID'";
         try (PreparedStatement ps = con.prepareStatement(sql)) {
             JdbcSupport.setDateTime(ps, 1, now);
             ps.setInt(2, paymentId);
@@ -128,7 +132,6 @@ public class PaymentDAO {
         p.setAttemptNo(rs.getInt("attempt_no"));
         p.setCreatedAt(JdbcSupport.getDateTime(rs, "created_at"));
         p.setPaidAt(JdbcSupport.getDateTime(rs, "paid_at"));
-        p.setRefundedAt(JdbcSupport.getDateTime(rs, "refunded_at"));
         return p;
     }
 }

@@ -22,14 +22,14 @@ public class NotificationServlet extends BaseServlet {
         User user = requireUser(req);
         req.setAttribute("pageData",
                 notificationService.pageOfUser(user.getUserId(), WebUtil.getInt(req, "page", 1)));
-        req.setAttribute("filterQuery", WebUtil.queryStringWithout(req, "page"));
         forward(req, resp, "customer/notifications.jsp");
     }
 
     @Override
     protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws IOException {
         User user = requireUser(req);
+        String back = WebUtil.safeRedirect(WebUtil.getString(req, "returnTo"), "/notifications");
         handle(req, resp, () -> notificationService.markAllRead(user.getUserId()),
-                "Đã đánh dấu toàn bộ thông báo là đã đọc.", "/notifications");
+                "Đã đánh dấu toàn bộ thông báo là đã đọc.", back);
     }
 }

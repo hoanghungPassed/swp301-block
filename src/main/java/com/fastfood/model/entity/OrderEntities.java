@@ -107,7 +107,6 @@ public final class OrderEntities {
         private Integer handoffByUserId;
         private LocalDateTime createdAt;
         private LocalDateTime completedAt;
-        private LocalDateTime cancelledAt;
         private LocalDateTime expiredAt;
 
         private String customerName;
@@ -165,8 +164,6 @@ public final class OrderEntities {
         public LocalDateTime getCompletedAt() { return completedAt; }
         public void setCompletedAt(LocalDateTime completedAt) { this.completedAt = completedAt; }
 
-        public LocalDateTime getCancelledAt() { return cancelledAt; }
-        public void setCancelledAt(LocalDateTime cancelledAt) { this.cancelledAt = cancelledAt; }
 
         public LocalDateTime getExpiredAt() { return expiredAt; }
         public void setExpiredAt(LocalDateTime expiredAt) { this.expiredAt = expiredAt; }
@@ -213,31 +210,9 @@ public final class OrderEntities {
             return isOnline() && readyAt != null && pickupTime != null && readyAt.isAfter(pickupTime);
         }
 
-        public boolean isCancellable() {
-            if (OrderStatus.PENDING_PAYMENT.name().equals(orderStatus)) {
-                return true;
-            }
-            if (!OrderStatus.CONFIRMED.name().equals(orderStatus)) {
-                return false;
-            }
-            return items.stream()
-                    .allMatch(i -> OrderItemStatus.WAITING.name().equals(i.getItemStatus()));
-        }
-
-        public boolean isStaffCancellable() {
-            return !statusEnum().isFinal();
-        }
-
         public boolean isActiveForKitchen() {
             return OrderStatus.CONFIRMED.name().equals(orderStatus)
                 || OrderStatus.PREPARING.name().equals(orderStatus);
-        }
-
-        public boolean isRefundPending() {
-            return statusEnum().isFinal()
-                && !OrderStatus.COMPLETED.name().equals(orderStatus)
-                && latestPayment != null
-                && PaymentStatus.PAID.name().equals(latestPayment.getPaymentStatus());
         }
 
         public boolean isPaid() {
@@ -543,7 +518,6 @@ public final class OrderEntities {
         private int attemptNo;
         private LocalDateTime createdAt;
         private LocalDateTime paidAt;
-        private LocalDateTime refundedAt;
 
         private String orderSource;
 
@@ -571,8 +545,6 @@ public final class OrderEntities {
         public LocalDateTime getPaidAt() { return paidAt; }
         public void setPaidAt(LocalDateTime paidAt) { this.paidAt = paidAt; }
 
-        public LocalDateTime getRefundedAt() { return refundedAt; }
-        public void setRefundedAt(LocalDateTime refundedAt) { this.refundedAt = refundedAt; }
 
         public String getOrderSource() { return orderSource; }
         public void setOrderSource(String orderSource) { this.orderSource = orderSource; }
@@ -582,7 +554,6 @@ public final class OrderEntities {
 
         public boolean isPaid()     { return PaymentStatus.PAID.name().equals(paymentStatus); }
         public boolean isPending()  { return PaymentStatus.PENDING.name().equals(paymentStatus); }
-        public boolean isRefunded() { return PaymentStatus.REFUNDED.name().equals(paymentStatus); }
         public boolean isCash()     { return PaymentMethod.CASH.name().equals(method); }
     }
 

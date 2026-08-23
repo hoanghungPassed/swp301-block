@@ -3,7 +3,6 @@ package com.fastfood.service.shared;
 import com.fastfood.common.constant.Constants.*;
 import com.fastfood.common.exception.AppException.BusinessException;
 import com.fastfood.common.exception.AppException.NotFoundException;
-import com.fastfood.common.exception.AppException.ValidationException;
 import com.fastfood.common.util.DateTimeUtil;
 import com.fastfood.dao.JdbcSupport;
 import com.fastfood.dao.shared.OrderDAO;
@@ -19,6 +18,7 @@ import com.fastfood.model.entity.OrderEntities.Transaction;
 import com.fastfood.service.Tx;
 
 import java.math.BigDecimal;
+import java.sql.Connection;
 import java.sql.SQLException;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -30,7 +30,7 @@ public class PaymentService {
         PAID,
         FAILED,
         DUPLICATE,
-        REFUNDED_ORDER_GONE,
+        ORDER_GONE,
         AMOUNT_MISMATCH
     }
 
@@ -44,12 +44,28 @@ public class PaymentService {
     private final OrderCoreService orderCore = new OrderCoreService();
     private final AuditService auditService = new AuditService();
     private final NotificationService notificationService = new NotificationService();
-    private final PaymentGateway gateway = PaymentGateways.fromConfig();
+    private final PaymentGateway gateway;
+
+    public PaymentService() {
+        this(PaymentGateways.fromConfig());
+    }
+
+    /**
+     * Chỗ nối để bài kiểm tra đưa vào một cổng khác cổng đang cấu hình.
+     *
+     * <p>Có mặt vì PayOS: mở cổng ở đó là một lời gọi HTTP ra Internet, nên nếu không thay được
+     * đường truyền thì mọi bài kiểm tra chạm tới thanh toán đều đòi mạng và đòi khoá thật —
+     * tức là trên thực tế không ai chạy chúng. Đưa vào một {@code PayOsGateway} dựng trên một
+     * {@code PayOsApi} giả thì phần ký, phần dựng mã đơn và phần đọc kết quả vẫn là mã thật.
+     */
+    public PaymentService(PaymentGateway gateway) {
+        this.gateway = gateway;
+    }
 
     public String startOnlinePayment(int orderId, int customerId, String baseUrl) {
         LocalDateTime now = DateTimeUtil.now();
 
-        return Tx.write(con -> {
+        Payment created = Tx.write(con -> {
             Order order = orderDAO.findById(con, orderId);
             if (order == null || order.getCustomerId() == null || order.getCustomerId() != customerId) {
                 throw new NotFoundException("Không tìm thấy đơn hàng.");
@@ -79,15 +95,30 @@ public class PaymentService {
 
             auditService.log(con, customerId, "PAYMENT", payment.getPaymentId(),
                     AuditAction.PAYMENT_INITIATED, null, PaymentStatus.PENDING.name());
-
-            PaymentInitResult init = gateway.initiate(payment.getPaymentId(), orderId,
-                    order.getTotalAmount(), baseUrl);
-            return init.getRedirectUrl();
+            return payment;
         });
+
+        /* Gọi cổng NGOÀI giao dịch, sau khi khoản thu đã được ghi hẳn.
+
+           Với một cổng tính địa chỉ tại chỗ thì để lời gọi nằm trong giao dịch cũng không sao,
+           nhưng PayOS thì mở cổng là một lời gọi HTTP ra Internet — dài tới mươi giây nếu bên
+           kia chậm. Giữ giao dịch mở suốt quãng đó là giữ luôn một kết nối trong bể dùng chung;
+           vài chục khách bấm thanh toán cùng lúc lúc cổng đang ì là bể cạn, và thứ hỏng không
+           phải trang thanh toán mà là cả ứng dụng.
+
+           Đổi lại: PayOS hỏng thì còn một khoản thu PENDING không có liên kết nào. Đây là cái
+           giá rẻ hơn — khách bấm lại sẽ có một lần thanh toán mới (attempt_no kế tiếp), còn
+           khoản dở dang thì bộ hẹn giờ quá hạn đóng lại như mọi lần khách bỏ ngang. */
+        return gateway.initiate(created.getPaymentId(), orderId, created.getAmount(), baseUrl)
+                .getRedirectUrl();
     }
 
     public CallbackResult handleCallback(GatewayCallback callback) {
-        if (!gateway.verifySignature(callback)) {
+        /* Bỏ qua bước kiểm chữ ký khi dữ liệu do chính hệ thống đi hỏi cổng mà có — xem
+           GatewayCallback.isTrusted(). Không phải một lối tắt cho tiện: cổng như PayOS không
+           ký các tham số trên địa chỉ khách quay về, nên ở đó chữ ký không tồn tại để mà kiểm,
+           và thứ thay thế nó là lời gọi HTTPS có khoá API tới đúng máy chủ của cổng. */
+        if (!callback.isTrusted() && !gateway.verifySignature(callback)) {
             LOG.warning("Bo qua ket qua thanh toan co chu ky khong hop le, paymentId="
                     + callback.getPaymentId());
             throw new BusinessException("Dữ liệu thanh toán không hợp lệ.");
@@ -135,57 +166,61 @@ public class PaymentService {
                 return CallbackResult.AMOUNT_MISMATCH;
             }
 
+            Order order = orderDAO.findById(con, payment.getOrderId());
+
             int paidRows = paymentDAO.markPaid(con, payment.getPaymentId(), now);
             if (paidRows == 0) {
+                /* Không ghi được PAID vì khoản thu đã rời khỏi PENDING/UNPAID. Hai chuyện rất
+                   khác nhau cùng rơi vào đây, và gộp chúng lại thì chuyện thứ hai đi vào im lặng:
+
+                     · đã PAID  — cổng gọi lại lần nữa cho khoản đã ghi nhận, bỏ qua là đúng
+                     · đã FAILED — bộ hẹn giờ đã đóng khoản này vì quá hạn, rồi tiền mới về
+
+                   Vế sau là tiền thật đã bị ngân hàng trừ của khách. */
+                if (!payment.isPaid()) {
+                    paymentDAO.markPaidLate(con, payment.getPaymentId(), now);
+                    auditService.logSystem(con, "PAYMENT", payment.getPaymentId(),
+                            AuditAction.PAYMENT_PAID, PaymentStatus.PAID.name());
+                    return orphan(con, order, payment,
+                            "khoan thu da bi dong luc " + payment.getPaymentStatus()
+                            + " truoc khi tien ve");
+                }
                 return CallbackResult.DUPLICATE;
             }
             auditService.logSystem(con, "PAYMENT", payment.getPaymentId(),
                     AuditAction.PAYMENT_PAID, PaymentStatus.PAID.name());
 
-            Order order = orderDAO.findById(con, payment.getOrderId());
-            if (order != null && order.isOnline()
-                    && !orderCore.confirmOnlineAfterPaid(con, order, now)) {
-                paymentDAO.markRefunded(con, payment.getPaymentId(), now);
-                auditService.logSystem(con, "PAYMENT", payment.getPaymentId(),
-                        AuditAction.PAYMENT_REFUNDED, PaymentStatus.REFUNDED.name());
-                notificationService.notifyRefundedOrderGone(con, order);
-                LOG.warning("Tien ve sau khi don #" + order.getOrderId()
-                        + " het hieu luc (" + order.getOrderStatus() + "); da hoan lai ngay.");
-                return CallbackResult.REFUNDED_ORDER_GONE;
+            /* Đơn còn chỗ cho khoản tiền này không? Đơn đặt trước thì câu trả lời nằm ở lần xác
+               nhận: hết hiệu lực rồi thì không xác nhận được nữa. Đơn tại quầy đã là CONFIRMED
+               ngay từ lúc lập, nên chỗ để hỏi là trạng thái hiện thời — bộ hẹn giờ có thể vừa
+               đóng đơn vì quá 15 phút không ai trả tiền, đúng lúc khách bấm trả trên điện thoại. */
+            boolean orderGone = order != null && (order.isOnline()
+                    ? !orderCore.confirmOnlineAfterPaid(con, order, now)
+                    : !OrderStatus.CONFIRMED.name().equals(order.getOrderStatus()));
+            if (orderGone) {
+                return orphan(con, order, payment, "don da o trang thai " + order.getOrderStatus());
             }
             return CallbackResult.PAID;
         });
     }
 
-    public void refund(int orderId, int actorId, String reason) {
-        String note = reason == null ? "" : reason.trim();
-        if (note.isEmpty()) {
-            throw new ValidationException("Vui lòng nhập lý do hoàn tiền.");
+    /* Tiền về mà không còn đơn nào nhận nó. Khoản thu giữ nguyên trạng thái hiện có thay vì bị
+       kéo về FAILED: ngân hàng đã trừ tiền thật, và ghi ngược lại ở đây sẽ làm sổ sách lệch với
+       sao kê. Hệ thống không có đường hoàn tiền tự động, nên việc còn lại là để dấu vết thật rõ
+       — một dòng nhật ký tra được bằng PAYMENT_ORPHANED, một tin cho khách, và một cảnh báo mức
+       SEVERE trong log máy chủ để người trực đối soát nhìn thấy ngay trong ngày. */
+    private CallbackResult orphan(Connection con, Order order, Payment payment, String lyDo)
+            throws SQLException {
+        int orderId = order == null ? 0 : order.getOrderId();
+        auditService.logSystem(con, "PAYMENT", payment.getPaymentId(),
+                AuditAction.PAYMENT_ORPHANED, "don #" + orderId + ": " + lyDo);
+        if (order != null) {
+            notificationService.notifyPaymentOrphaned(con, order);
         }
-        LocalDateTime now = DateTimeUtil.now();
-        Tx.writeVoid(con -> {
-            Order order = orderDAO.findById(con, orderId);
-            if (order == null) {
-                throw new NotFoundException("Không tìm thấy đơn hàng.");
-            }
-            Payment paid = paymentDAO.findPaidByOrder(con, orderId);
-            if (paid == null) {
-                throw new BusinessException("Đơn này chưa có khoản thanh toán nào để hoàn.");
-            }
-            String status = order.getOrderStatus();
-            if (!OrderStatus.CANCELLED.name().equals(status) && !OrderStatus.EXPIRED.name().equals(status)) {
-                throw new BusinessException("Chỉ hoàn tiền cho đơn đã huỷ hoặc đã hết hiệu lực. "
-                        + "Đơn còn hiệu lực thì dùng chức năng huỷ đơn — hệ thống hoàn tiền kèm theo.");
-            }
-
-            int changed = paymentDAO.markRefunded(con, paid.getPaymentId(), now);
-            if (changed == 0) {
-                throw new BusinessException("Khoản thanh toán này đã được hoàn trước đó.");
-            }
-            auditService.log(con, actorId, "PAYMENT", paid.getPaymentId(),
-                    AuditAction.PAYMENT_REFUNDED, PaymentStatus.PAID.name(),
-                    PaymentStatus.REFUNDED.name() + ": " + note);
-        });
+        LOG.severe("Tien ve nhung don #" + orderId + " khong con nhan duoc (" + lyDo
+                + "). Khoan thu paymentId=" + payment.getPaymentId()
+                + " can doi soat va hoan thu cong qua cong thanh toan.");
+        return CallbackResult.ORDER_GONE;
     }
 
     private static String transactionStatus(boolean success, boolean amountMatches) {
@@ -221,6 +256,28 @@ public class PaymentService {
                 throw new NotFoundException("Không tìm thấy giao dịch thanh toán.");
             }
             return payment;
+        });
+    }
+
+    /**
+     * Địa chỉ trả tiền của cổng cho một khoản thu ĐÃ có sẵn trong cơ sở dữ liệu.
+     *
+     * <p>Khác {@link #startOnlinePayment} ở chỗ không ghi gì cả — dùng cho màn hình quầy, nơi
+     * khoản thu được lập lúc thu ngân bấm nút còn chỗ trả tiền thì lấy lại mỗi lần mở trang để
+     * mã hoá thành mã QR. Lấy lại được vì cổng chỉ cần mã khoản thu và số tiền; riêng PayOS thì
+     * lần gọi thứ hai trở đi không tạo thêm liên kết mới mà trả về đúng liên kết cũ, nên mở
+     * trang mười lần vẫn chỉ có một chỗ để khách trả tiền.
+     */
+    public PaymentInitResult paymentLink(int paymentId, int orderId, BigDecimal amount,
+                                         String baseUrl) {
+        return gateway.initiate(paymentId, orderId, amount, baseUrl);
+    }
+
+    /** Đơn bán tại quầy hay đơn đặt trước — dùng để chọn trang trả về sau khi cổng báo kết quả. */
+    public boolean isCounterOrder(int orderId) {
+        return Tx.read(con -> {
+            Order order = orderDAO.findById(con, orderId);
+            return order != null && !order.isOnline();
         });
     }
 

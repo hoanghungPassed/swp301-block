@@ -21,7 +21,7 @@ public class CategoryManageServlet extends BaseServlet {
     protected void doGet(HttpServletRequest req, HttpServletResponse resp)
             throws ServletException, IOException {
         int editId = WebUtil.getInt(req, "edit", 0);
-        req.setAttribute("categories", adminService.listCategories());
+        req.setAttribute("pageData", adminService.listCategories(WebUtil.getInt(req, "page", 1)));
         if (editId > 0) {
             req.setAttribute("editing", adminService.findCategory(editId));
         }
@@ -32,13 +32,15 @@ public class CategoryManageServlet extends BaseServlet {
     protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws IOException {
         User admin = requireUser(req);
         String action = WebUtil.getString(req, "action");
+        /* Ẩn một nhóm ở trang 2 xong thì vẫn đứng ở trang 2, không bị kéo về đầu danh sách. */
+        String back = WebUtil.safeRedirect(WebUtil.getString(req, "returnTo"), "/admin/categories");
 
         if ("retire".equals(action) || "restore".equals(action)) {
             int categoryId = WebUtil.getInt(req, "categoryId", 0);
             String status = "restore".equals(action) ? "ACTIVE" : "INACTIVE";
             handle(req, resp, () -> adminService.setCategoryStatus(admin.getUserId(), categoryId, status),
                     "restore".equals(action) ? "Đã hiện lại nhóm món." : "Đã ẩn nhóm món khỏi thực đơn.",
-                    "/admin/categories");
+                    back);
             return;
         }
 
@@ -49,6 +51,6 @@ public class CategoryManageServlet extends BaseServlet {
 
         handle(req, resp, () -> adminService.saveCategory(admin.getUserId(), form),
                 form.getCategoryId() > 0 ? "Đã cập nhật nhóm món." : "Đã thêm nhóm món.",
-                "/admin/categories");
+                back);
     }
 }

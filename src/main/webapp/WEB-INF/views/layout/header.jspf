@@ -57,7 +57,8 @@
             </span>
             <span class="visually-hidden">Tài khoản</span>
           </a>
-          <form method="post" action="${ctx}/logout" class="logout-form">
+          <form method="post" action="${ctx}/logout" class="logout-form"
+                data-confirm="Đăng xuất khỏi tài khoản?">
             <input type="hidden" name="_csrf" value="${csrfToken}">
             <button type="submit" class="btn btn-sm btn-quiet" title="Đăng xuất">Thoát</button>
           </form>

@@ -15,8 +15,10 @@ nbproject/
 # OS
 .DS_Store
 
-# Local config chứa credential
+# Local config chứa credential — nạp chồng lên db.properties / app.properties,
+# là chỗ duy nhất được chứa khoá thật. Xem docs/PAYOS.md §2.
 src/main/resources/db.local.properties
+src/main/resources/app.local.properties
 
 # Nhật ký và phiên làm việc của trợ lý lập trình — xem docs/GIT.md §1.
 # Những tệp này chứa đường dẫn máy cá nhân, biến môi trường và đôi khi cả khoá.

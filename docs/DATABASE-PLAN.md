@@ -180,7 +180,7 @@ Tách 2 cột `is_available` và `status` là cố ý: `status` = còn bán trê
 | `ready_at` | DATETIME2(0) | NULL | Aggregate (BR-11), dùng cho On-time Ready Rate |
 | `picked_up_at` | DATETIME2(0) | NULL | **BR-16** |
 | `handoff_by_user_id` | INT | NULL | **BR-16** FK→Users |
-| `created_at` / `completed_at` / `cancelled_at` / `expired_at` | DATETIME2(0) | | Mốc vòng đời |
+| `created_at` / `completed_at` / `expired_at` | DATETIME2(0) | | Mốc vòng đời |
 
 **CHECK constraint bắt buộc:**
 
@@ -236,7 +236,7 @@ WAITING → PREPARING → READY → HANDED_OVER → RECEIVED     ← KHÔNG ch�
 
 Nó hỏng ở chỗ **đổi nghĩa của `READY`**. Hàng chục chỗ trong mã nguồn đang đếm "món chưa xong"
 bằng `item_status <> 'READY'`: tổng hợp trạng thái đơn (BR-11), chỉ số đúng hẹn, màn hình lịch
-sử bếp, điều kiện cho phép hủy (BR-12). Thêm hai bậc thì mọi câu đó phải sửa thành
+sử bếp, điều kiện đưa đơn xuống bếp. Thêm hai bậc thì mọi câu đó phải sửa thành
 `item_status NOT IN ('READY','HANDED_OVER','RECEIVED')` — sửa nhiều chỗ mà **nghĩa không hề đổi**,
 và chỉ cần sót một chỗ là đơn đã nấu xong bị đếm nhầm thành chưa xong.
 
@@ -273,9 +273,9 @@ là hàng chờ của màn hình `/staff/counter`.
 | `order_id` | INT NOT NULL FK→Orders | **1 Order – N Payment** (BR-14) |
 | `method` | VARCHAR(20) | CHECK ∈ {ONLINE_GATEWAY, CASH} |
 | `amount` | DECIMAL(12,2) | |
-| `payment_status` | VARCHAR(20) | CHECK ∈ {UNPAID, PENDING, PAID, FAILED, REFUNDED} |
+| `payment_status` | VARCHAR(20) | CHECK ∈ {UNPAID, PENDING, PAID, FAILED} |
 | `attempt_no` | INT DEF 1 | `UNIQUE(order_id, attempt_no)` |
-| `created_at`, `paid_at`, `refunded_at` | DATETIME2(0) | `paid_at` là mốc tính doanh thu |
+| `created_at`, `paid_at` | DATETIME2(0) | `paid_at` là mốc tính doanh thu |
 
 **Rủi ro concurrency của `attempt_no`** (xem C4): tính `MAX(attempt_no)+1` bị race nếu khách bấm thanh toán 2 tab.
 
@@ -300,9 +300,9 @@ là hàng chờ của màn hình `/staff/counter`.
 | `gateway` | Nguồn | `external_transaction_id` đến từ đâu |
 |---|---|---|
 | `MOCK` (hoặc tên cổng thật) | Online Pre-order | Callback của cổng thanh toán |
-| `POS_TERMINAL` | POS thu bằng thẻ/QR | Cashier gõ lại mã in trên biên lai máy thanh toán |
+| `POS_TERMINAL` | POS thu bằng mã QR, thu ngân xác nhận tay | Mã do hệ thống sinh theo khoản thu (`POS-QR-<payment_id>`) |
 
-Không tách thành hai bảng, vì cả hai trả lời đúng một câu hỏi: *khoản tiền này đối chiếu với sao kê bằng mã nào?* Gộp lại thì báo cáo đối soát chỉ đọc một nơi, và `UNIQUE` bảo vệ cả hai đường như nhau — một biên lai POS không lập được thành hai đơn, đúng như một callback không ghi nhận được hai lần.
+Không tách thành hai bảng, vì cả hai trả lời đúng một câu hỏi: *khoản tiền này đối chiếu với sao kê bằng mã nào?* Gộp lại thì báo cáo đối soát chỉ đọc một nơi, và `UNIQUE` bảo vệ cả hai đường như nhau — một lần thu ngân xác nhận tay không ghi thành hai dòng, đúng như một callback không ghi nhận được hai lần.
 
 POS thu **tiền mặt** thì không có dòng nào ở đây: không có bên thứ ba nào để đối chiếu.
 
@@ -445,8 +445,7 @@ COMMIT;
 | `IX_OrderItem_kds(item_status, assigned_to_user_id)` | KIT-01 | **Poll mỗi 2 giây** (NFR-04) |
 | `IX_OrderItem_counter(handed_over_at, order_item_id) WHERE received_at IS NULL` | STF-04 + huy hiệu đếm trên thanh điều hướng | Cùng nguyên tắc lọc như `IX_Orders_release`: index chỉ chứa món đang thật sự nằm chờ trên quầy nên không lớn lên theo số món đã bán. Đáng có index riêng vì con số này chạy ở **mọi** trang thu ngân, không riêng STF-04 |
 | `IX_Payment_order(order_id, payment_status)` | Kiểm tra PAID trước handoff | BR-15 |
-| `IX_Payment_paidAt(paid_at)` | Net Revenue — vế thu | Quét theo khoảng ngày |
-| `IX_Payment_refundedAt(refunded_at) WHERE refunded_at IS NOT NULL` | Net Revenue — vế hoàn | Hai vế quét theo **hai mốc khác nhau** nên cần hai index; filtered vì hoàn tiền là thiểu số |
+| `IX_Payment_paidAt(paid_at)` | Doanh thu | Quét theo khoảng ngày; tiền chỉ đi một chiều nên một mốc là đủ |
 | `IX_Audit_entity(entity_type, entity_id, created_at DESC)` | STF-05 / ADM-05 | |
 
 **Nguyên tắc:** không tạo index "cho chắc". Mỗi index làm chậm INSERT/UPDATE — mà `Orders`/`OrderItem` là hai bảng bị ghi nhiều nhất.
@@ -455,37 +454,34 @@ COMMIT;
 
 | Metric | Nguồn | Lưu ý |
 |---|---|---|
-| Net Revenue | `SUM(amount WHERE paid_at ∈ kỳ)` − `SUM(amount WHERE refunded_at ∈ kỳ)` | **Hai mốc khác nhau.** Xem cảnh báo ngay dưới bảng |
+| Doanh thu | `SUM(amount WHERE paid_at ∈ kỳ)` | Mốc là `paid_at`, không phải `created_at`. Xem cảnh báo ngay dưới bảng |
 | Order Count by Channel | `COUNT` group by `order_source` | Lọc `created_at` |
-| Completed Sales | `SUM(total_amount)` where `COMPLETED` | Loại `CANCELLED`/`REFUNDED`; lọc `completed_at` |
+| Completed Sales | `SUM(total_amount)` where `COMPLETED` | Loại `EXPIRED`; lọc `completed_at` |
 | Best-selling Product | `SUM(oi.quantity)` join Order COMPLETED | Group theo `product_id` (không theo snapshot name) |
 | **On-time Ready Rate** | `vw_OnTimeReady` | `AVG(is_on_time*1.0)` — KPI đặc trưng của V6 |
 | Average Preparation Lead | `AVG(prep_lead_minutes)` | Chỉ đơn scheduled đã completed |
 | Overdue Pickup Count | `vw_OrderReleaseState WHERE is_overdue=1` | BR-17 |
 | Payment Summary | Group `method` × `payment_status` | |
 
-**Cái bẫy của Net Revenue — đọc kỹ trước khi viết câu SQL.**
+**Cái bẫy của doanh thu — đọc kỹ trước khi viết câu SQL.**
 
-`Payment` chỉ có **một** cột trạng thái, và hoàn tiền **ghi đè** `PAID` thành `REFUNDED`.
-Cách viết trông hợp lý nhất lại sai:
-
-```sql
--- SAI: một khoản đã thu rồi hoàn ra âm thay vì ra 0
-SUM(CASE WHEN payment_status = 'PAID'     THEN amount ELSE 0 END)
-  - SUM(CASE WHEN payment_status = 'REFUNDED' THEN amount ELSE 0 END)
-```
-
-Đơn 100.000đ thu rồi hoàn: vế thu ra 0 (vì trạng thái không còn là `PAID`), vế hoàn ra
-100.000đ → net = **âm 100.000đ**. Doanh thu bị trừ hai lần.
+Mốc để chia kỳ là **`paid_at`**, không phải `Orders.created_at`. Cách viết trông tự nhiên
+nhất lại sai:
 
 ```sql
--- ĐÚNG: mỗi vế đếm theo mốc thời gian của chính nó, không đụng tới payment_status
-SUM(CASE WHEN paid_at     BETWEEN @from AND @to THEN amount ELSE 0 END)
-  - SUM(CASE WHEN refunded_at BETWEEN @from AND @to THEN amount ELSE 0 END)
+-- SAI: đơn lập cuối tháng 3, khách trả tiền đầu tháng 4 vẫn bị tính vào tháng 3
+SELECT SUM(p.amount) FROM dbo.Payment p
+JOIN dbo.Orders o ON o.order_id = p.order_id
+WHERE o.created_at BETWEEN @from AND @to AND p.payment_status = 'PAID'
 ```
 
-Cách đúng còn giữ được tính chất quan trọng hơn: **tổng các kỳ luôn khớp tổng toàn thời gian**,
-và khoản thu tháng này mà hoàn tháng sau rơi vào đúng hai kỳ khác nhau như sổ sách ghi nhận.
+```sql
+-- ĐÚNG: kỳ nào nhận tiền thì kỳ đó ghi nhận
+SELECT SUM(p.amount) FROM dbo.Payment p WHERE p.paid_at BETWEEN @from AND @to
+```
+
+Cách đúng giữ được tính chất quan trọng nhất: **tổng các kỳ luôn khớp tổng toàn thời gian**.
+Lọc theo `payment_status = 'PAID'` là thừa — chỉ khoản đã thu mới có `paid_at`.
 
 ---
 
@@ -547,14 +543,14 @@ Mỗi file **idempotent**: bọc `IF OBJECT_ID(...) IS NULL` / `DROP ... IF EXIS
 | T-14 | BR-01 | Đặt Category về INACTIVE | Product của nó biến mất khỏi query menu |
 | T-15 | BR-02 | Admin đổi giá Product | `OrderItem.unit_price` đơn cũ **không đổi** |
 | T-16 | NFR-03 | 500 đơn chờ release | Query scheduler dùng `IX_Orders_release`, < 50ms |
-| T-19 | BR-22 | INSERT 2 PaymentTransaction cùng mã biên lai POS | Lần 2 lỗi 2627 → đơn thứ hai bị từ chối |
+| T-19 | BR-22 | INSERT 2 PaymentTransaction cùng mã xác nhận POS | Lần 2 lỗi 2627 → lần ghi nhận thứ hai bị từ chối |
 | T-20 | BR-21 | INSERT Order Online với `customer_id = NULL` | Lỗi `CK_Orders_onlineCustomer` |
-| T-21 | Mục 13 | Một Payment `paid_at` và `refunded_at` cùng trong kỳ | Net Revenue = **0**, không phải số âm |
-| T-22 | Mục 13 | `paid_at` tháng 1, `refunded_at` tháng 2 | Tháng 1 ghi đủ doanh thu; tháng 2 mới bị trừ |
+| T-21 | Mục 13 | Đơn lập tháng 1, `paid_at` tháng 2 | Tháng 2 ghi doanh thu; tháng 1 không tính |
+| T-22 | Mục 13 | Cộng doanh thu tháng 1 + tháng 2 | Bằng đúng doanh thu tính gộp cả hai tháng |
 | T-23 | BR-25 | UPDATE `received_at` khi `handed_over_at` còn NULL | Lỗi `CK_OrderItem_handover` |
 | T-24 | BR-25 | Handoff cho khách khi đơn còn món chưa `received_at` | Bị từ chối; đơn giữ nguyên READY, không ghi `picked_up_at` |
 
-### F2. Checklist đối chiếu 24 Business Rules
+### F2. Checklist đối chiếu 22 Business Rules
 
 | BR | Nơi enforce | Có ràng buộc DB? |
 |---|---|---|
@@ -569,7 +565,6 @@ Mỗi file **idempotent**: bọc `IF OBJECT_ID(...) IS NULL` / `DROP ... IF EXIS
 | BR-09 Release 1 lần | `UPDATE ... WHERE released_to_kds_at IS NULL` | ✅ |
 | BR-10 POS release ngay | Service | ❌ |
 | BR-11 Aggregate status | Service + `UPDLOCK` | ❌ |
-| BR-12 Cancel trước release | Service | ❌ |
 | BR-13 Expire 15' | `PaymentExpiryScheduler` | ❌ |
 | BR-14 N attempt, callback idempotent | UNIQUE `external_transaction_id`, `UQ_Payment_attempt` | ✅ |
 | BR-15 Handoff cần READY+PAID+code | Service + `UX_Orders_pickupCode` | Một phần |
@@ -579,9 +574,8 @@ Mỗi file **idempotent**: bọc `IF OBJECT_ID(...) IS NULL` / `DROP ... IF EXIS
 | BR-19 Issue song song | Bảng `KitchenIssue` tách riêng | ✅ |
 | BR-20 Không hard-delete | Trigger chặn DELETE + không CASCADE | ✅ |
 | BR-21 Ownership | Điều kiện `customer_id` ngay trong câu truy vấn | ❌ |
-| BR-22 POS card/QR cần mã biên lai | `PaymentTransaction` + UNIQUE `external_transaction_id` | ✅ |
+| BR-22 Tiền POS đi qua bên thứ ba cần mã đối soát | `PaymentTransaction` + UNIQUE `external_transaction_id` | ✅ — nay chỉ còn đường mã QR, máy quẹt thẻ rời đã bỏ |
 | BR-23 Reset password → buộc đổi | Cột `must_change_password` + `AuthenticationFilter` | ✅ cột |
-| BR-24 Cancel/Refund cần lý do | Service; lý do ghi vào `AuditLog.new_value` | ❌ |
 | BR-25 Bàn giao bếp → quầy | 4 cột timestamp + `CK_OrderItem_handover` + `IX_OrderItem_counter` | ✅ thứ tự; ❌ điều kiện handoff |
 
 > Các ô ❌ là **có chủ đích**: rule cần "thời điểm hiện tại", quyền người dùng, hoặc logic nhiều bước — thuộc Service layer. Điều quan trọng là **không có rule nào bị bỏ sót cả hai nơi**.
@@ -654,7 +648,7 @@ ràng buộc BR-20 lúc vận hành, và khả năng dựng lại DB bất cứ 
 | Quên `@@ROWCOUNT` sau UPDATE có điều kiện | Mất tác dụng chống trùng, bếp làm 2 phần | Code review bắt buộc cho mọi UPDATE ở C1–C5 |
 | Test toàn bằng thao tác tay tuần tự | Race condition không bao giờ lộ ra lúc demo | Test T-06 → T-09 bằng 2 kết nối song song |
 | Aggregate status ngoài transaction | Order kẹt ở PREPARING dù mọi món đã READY | C5 |
-| Seed thiếu đơn ở trạng thái hiếm (EXPIRED, CANCELLED, OVERDUE) | Không phát hiện lỗi hiển thị đến khi bảo vệ | `06_seed_demo.sql` phủ đủ 7 trạng thái |
+| Seed thiếu đơn ở trạng thái hiếm (EXPIRED, OVERDUE) | Không phát hiện lỗi hiển thị đến khi bảo vệ | `06_seed_demo.sql` phủ đủ 6 trạng thái |
 | Sửa CHECK constraint sau khi đã có dữ liệu | `ALTER` fail vì dữ liệu cũ vi phạm | Chốt Phần A trước GĐ 1 |
 
 ---

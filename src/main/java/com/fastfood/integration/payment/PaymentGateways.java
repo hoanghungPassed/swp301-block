@@ -37,23 +37,22 @@ public final class PaymentGateways {
                 return sepay;
             }
             LOG.severe("Cong thanh toan dat la SEPAY nhung thieu payment.sepay.accountNumber/bank/apiKey"
-                    + " - quay ve VNPAY");
-        } else if (!"VNPAY".equals(name) && !name.isEmpty()) {
-            LOG.warning("Khong biet cong thanh toan '" + provider + "', dung VNPAY");
+                    + " - quay ve PAYOS");
+        } else if (!"PAYOS".equals(name) && !name.isEmpty()) {
+            LOG.warning("Khong biet cong thanh toan '" + provider + "', dung PAYOS");
         }
 
-        VnPayGateway vnpay = new VnPayGateway();
-        if (!vnpay.isConfigured()) {
-            /* Không tự chuyển sang một cổng khác cho "chạy được": thiếu mã website hoặc chuỗi bí
-               mật thì không có cách nào thu tiền, và một cổng giả lập âm thầm thế chỗ là đúng
-               thứ khiến người ta tưởng đã thu được. Để nó hỏng ngay ở bước mở cổng, kèm lý do. */
-            LOG.severe("Thieu payment.vnpay.tmnCode hoac payment.vnpay.hashSecret"
+        PayOsGateway payos = new PayOsGateway();
+        if (!payos.isConfigured()) {
+            /* Không tự chuyển sang một cổng khác cho "chạy được": thiếu bộ khoá thì không có
+               cách nào thu tiền, và một cổng giả lập âm thầm thế chỗ là đúng thứ khiến người ta
+               tưởng đã thu được. Để nó hỏng ngay ở bước mở cổng, kèm lý do. */
+            LOG.severe("Thieu payment.payos.clientId/apiKey/checksumKey"
                     + " - khach se khong mo duoc cong thanh toan");
         } else {
-            LOG.info("Cong thanh toan: VNPAY, ma website " + vnpay.getTmnCode()
-                    + ", may chu " + vnpay.getPayUrl());
+            LOG.info("Cong thanh toan: PAYOS, ma cua hang " + payos.getClientId());
         }
-        return vnpay;
+        return payos;
     }
 
     static void reset() {

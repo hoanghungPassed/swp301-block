@@ -16,7 +16,7 @@ public class OrderDAO {
             "o.order_id, o.customer_id, o.created_by_user_id, o.order_source, o.total_amount, " +
             "o.order_status, o.idempotency_key, o.pickup_time, o.kitchen_release_at, " +
             "o.released_to_kds_at, o.pickup_code, o.ready_at, o.picked_up_at, o.handoff_by_user_id, " +
-            "o.created_at, o.completed_at, o.cancelled_at, o.expired_at ";
+            "o.created_at, o.completed_at, o.expired_at ";
 
     private static final String BASE =
             "SELECT " + COLS + ", cu.full_name AS customer_name, cu.email AS customer_email, " +
@@ -113,19 +113,13 @@ public class OrderDAO {
         }
     }
 
-    public int markCancelled(Connection con, int orderId, LocalDateTime now) throws SQLException {
-        String sql = "UPDATE dbo.Orders SET order_status = 'CANCELLED', cancelled_at = ? " +
-                     "WHERE order_id = ? AND order_status IN ('PENDING_PAYMENT', 'CONFIRMED')";
-        try (PreparedStatement ps = con.prepareStatement(sql)) {
-            JdbcSupport.setDateTime(ps, 1, now);
-            ps.setInt(2, orderId);
-            return ps.executeUpdate();
-        }
-    }
-
-    public int markCancelledByStaff(Connection con, int orderId, LocalDateTime now) throws SQLException {
-        String sql = "UPDATE dbo.Orders SET order_status = 'CANCELLED', cancelled_at = ? " +
-                     "WHERE order_id = ? AND order_status IN ('CONFIRMED', 'PREPARING', 'READY')";
+    /* Đơn tại quầy khách bỏ dở. Tách khỏi markExpired vì trạng thái xuất phát khác nhau:
+       đơn đặt trước hết hiệu lực từ PENDING_PAYMENT, còn đơn quầy phải lập ở CONFIRMED thì
+       mới sinh được mã QR cho khách quét. Dùng chung một câu lệnh nới điều kiện WHERE ra
+       cho cả hai sẽ mở đường cho đơn quầy đang chờ khách quét bị đóng nhầm. */
+    public int markCounterExpired(Connection con, int orderId, LocalDateTime now) throws SQLException {
+        String sql = "UPDATE dbo.Orders SET order_status = 'EXPIRED', expired_at = ? " +
+                     "WHERE order_id = ? AND order_source = 'POS' AND order_status = 'CONFIRMED'";
         try (PreparedStatement ps = con.prepareStatement(sql)) {
             JdbcSupport.setDateTime(ps, 1, now);
             ps.setInt(2, orderId);
@@ -361,6 +355,26 @@ public class OrderDAO {
         }
     }
 
+    /**
+     * Đơn tại quầy trả bằng mã QR mà khách bỏ dở: lập đã lâu, chưa có khoản thu nào PAID và
+     * chưa xuống bếp.
+     *
+     * <p>Điều kiện "chưa có khoản PAID" là chỗ quan trọng nhất. Đơn đã nhận được tiền nhưng
+     * thu ngân chưa kịp bấm Xong thì bên trong có tiền thật của khách — đơn ấy phải nằm yên
+     * chờ người xử lý, không được để một tác vụ chạy nền huỷ mất.
+     */
+    public List<Order> findAbandonedCounterOrders(Connection con, LocalDateTime deadline)
+            throws SQLException {
+        try (PreparedStatement ps = con.prepareStatement(
+                BASE + "WHERE o.order_source = 'POS' AND o.order_status = 'CONFIRMED' " +
+                       "AND o.released_to_kds_at IS NULL AND o.created_at <= ? " +
+                       "AND NOT EXISTS (SELECT 1 FROM dbo.Payment p " +
+                       "                WHERE p.order_id = o.order_id AND p.payment_status = 'PAID')")) {
+            JdbcSupport.setDateTime(ps, 1, deadline);
+            return collect(ps);
+        }
+    }
+
     public int countByStatus(Connection con, OrderStatus status) throws SQLException {
         try (PreparedStatement ps = con.prepareStatement(
                 "SELECT COUNT(*) FROM dbo.Orders WHERE order_status = ?")) {
@@ -399,7 +413,6 @@ public class OrderDAO {
         o.setHandoffByUserId(JdbcSupport.getInteger(rs, "handoff_by_user_id"));
         o.setCreatedAt(JdbcSupport.getDateTime(rs, "created_at"));
         o.setCompletedAt(JdbcSupport.getDateTime(rs, "completed_at"));
-        o.setCancelledAt(JdbcSupport.getDateTime(rs, "cancelled_at"));
         o.setExpiredAt(JdbcSupport.getDateTime(rs, "expired_at"));
         o.setCustomerName(rs.getNString("customer_name"));
         o.setCustomerEmail(rs.getString("customer_email"));

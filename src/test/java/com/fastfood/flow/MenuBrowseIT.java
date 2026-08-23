@@ -1,5 +1,6 @@
 package com.fastfood.flow;
 
+import com.fastfood.model.dto.Dtos.Page;
 import com.fastfood.model.entity.MenuEntities.Product;
 import com.fastfood.service.shared.MenuService;
 import com.fastfood.testsupport.IntegrationTestBase;
@@ -8,6 +9,7 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -21,6 +23,56 @@ class MenuBrowseIT extends IntegrationTestBase {
 
     private List<BigDecimal> giaTheoThuTu(String sort) {
         return menuService.browse(null, null, sort).stream().map(Product::getPrice).toList();
+    }
+
+    @Nested
+    @DisplayName("Phân trang")
+    class Paging {
+
+        @Test
+        @DisplayName("Tổng số của trang đúng bằng số món của cả thực đơn")
+        void totalMatchesTheWholeMenu() {
+            int tat_ca = menuService.browse(null, null, "DEFAULT").size();
+
+            Page<Product> trang = menuService.browsePage(null, null, "DEFAULT", 1, 5);
+
+            assertEquals(tat_ca, trang.getTotalItems(),
+                    "Câu đếm và câu lấy dữ liệu phải dùng chung một mệnh đề lọc");
+            assertEquals(Math.min(5, tat_ca), trang.getItems().size());
+        }
+
+        @Test
+        @DisplayName("Lật hết các trang thì ra đúng danh sách như khi lấy trọn thực đơn")
+        void pagesJoinBackIntoTheFullList() {
+            List<Integer> tron_bo = menuService.browse(null, null, "PRICE_ASC")
+                    .stream().map(Product::getProductId).toList();
+            assertFalse(tron_bo.isEmpty(), "Du lieu mau khong con mon nao dang ban");
+
+            List<Integer> lat_trang = new ArrayList<>();
+            int size = 5;
+            int so_trang = (tron_bo.size() + size - 1) / size;
+            for (int i = 1; i <= so_trang; i++) {
+                menuService.browsePage(null, null, "PRICE_ASC", i, size)
+                        .getItems().forEach(p -> lat_trang.add(p.getProductId()));
+            }
+
+            assertEquals(tron_bo, lat_trang,
+                    "Thứ tự cắt trang phải khớp thứ tự sắp xếp, không thì có món hiện hai lần "
+                            + "và có món không trang nào hiện");
+        }
+
+        @Test
+        @DisplayName("Lọc theo từ khoá thì cả trang lẫn số đếm cùng thu hẹp")
+        void keywordNarrowsBothListAndCount() {
+            Product mau = menuService.browse(null, null, "DEFAULT").get(0);
+
+            Page<Product> trang = menuService.browsePage(null, mau.getName(), "DEFAULT", 1, 5);
+
+            assertTrue(trang.getTotalItems() >= 1);
+            assertTrue(trang.getItems().stream()
+                            .allMatch(p -> p.getName().contains(mau.getName())),
+                    "Số đếm và danh sách phải cùng chịu một bộ lọc");
+        }
     }
 
     @Nested

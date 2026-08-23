@@ -3,6 +3,7 @@ package com.fastfood.controller.admin;
 import com.fastfood.common.util.DateTimeUtil;
 import com.fastfood.common.util.WebUtil;
 import com.fastfood.controller.BaseServlet;
+import com.fastfood.model.dto.Dtos.Page;
 import com.fastfood.model.entity.UserEntities.User;
 import com.fastfood.service.admin.ReportService;
 import com.fastfood.service.admin.RevenueTargetService;
@@ -55,7 +56,8 @@ public class AdminDashboardServlet extends BaseServlet {
 
         req.setAttribute("monthTarget", targetService.currentMonth());
         req.setAttribute("dayTarget", targetService.today());
-        req.setAttribute("targets", targetService.recent());
+        req.setAttribute("targetPage", Page.of(targetService.recent(),
+                WebUtil.getInt(req, "targetPage", 1), Page.SMALL_SIZE));
         req.setAttribute("today", DateTimeUtil.now().toLocalDate().toString());
 
         int editId = WebUtil.getInt(req, "editTarget", 0);
@@ -70,23 +72,25 @@ public class AdminDashboardServlet extends BaseServlet {
         User admin = requireUser(req);
         int targetId = WebUtil.getInt(req, "targetId", 0);
         String note = WebUtil.getString(req, "note");
+        /* Quay lại đúng khoảng thời gian và đúng trang chỉ tiêu đang xem. */
+        String back = WebUtil.safeRedirect(WebUtil.getString(req, "returnTo"), "/admin/dashboard");
 
         switch (WebUtil.getString(req, "action") == null ? "" : WebUtil.getString(req, "action")) {
             case "targetUpdate":
                 handle(req, resp, () -> targetService.update(admin.getUserId(), targetId,
                                 amount(req), note),
-                        "Đã cập nhật chỉ tiêu.", "/admin/dashboard");
+                        "Đã cập nhật chỉ tiêu.", back);
                 return;
             case "targetDelete":
                 handle(req, resp, () -> targetService.delete(admin.getUserId(), targetId),
-                        "Đã xoá chỉ tiêu.", "/admin/dashboard");
+                        "Đã xoá chỉ tiêu.", back);
                 return;
             case "targetCreate":
             default:
                 handle(req, resp, () -> targetService.create(admin.getUserId(),
                                 WebUtil.getString(req, "periodType"),
                                 WebUtil.getDate(req, "periodStart"), amount(req), note),
-                        "Đã đặt chỉ tiêu.", "/admin/dashboard");
+                        "Đã đặt chỉ tiêu.", back);
         }
     }
 

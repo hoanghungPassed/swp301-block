@@ -1,5 +1,9 @@
 <c:set var="pageTitle" value="Đơn của tôi" /><c:set var="nav" value="orders" />
 <%@ include file="/WEB-INF/views/layout/page-start.jspf" %>
+  <%-- Thao tác với mẫu đặt nhanh xong thì quay lại đúng trang lịch sử đang xem. --%>
+  <c:set var="hisQuery" value="${ff:pageQuery(pageContext.request, '')}" />
+  <c:set var="hisBack"  value="/order/history${empty hisQuery ? '' : '?'.concat(hisQuery)}" />
+  <c:set var="hisReturn"><input type="hidden" name="returnTo" value="<c:out value="${hisBack}"/>"></c:set>
   <div class="page-head"><h1>Đơn của tôi</h1></div>
 
   <%@ include file="/WEB-INF/views/layout/flash.jspf" %>
@@ -33,7 +37,7 @@
         <label for="status">Trạng thái</label>
         <select id="status" name="status">
           <option value="">Tất cả</option>
-          <c:forEach var="s" items="${['PENDING_PAYMENT','CONFIRMED','PREPARING','READY','COMPLETED','CANCELLED','EXPIRED']}">
+          <c:forEach var="s" items="${['PENDING_PAYMENT','CONFIRMED','PREPARING','READY','COMPLETED','EXPIRED']}">
             <option value="${s}" ${param.status eq s ? 'selected' : ''}>${ff:orderStatus(s)}</option>
           </c:forEach>
         </select>
@@ -91,9 +95,11 @@
                 <td data-label="Trạng thái"><span class="${ff:orderStatusClass(o.orderStatus)}">${ff:orderStatus(o.orderStatus)}</span></td>
                 <td class="center" data-label="">
                   <a class="btn touch" href="${ctx}/order/track?orderId=${o.orderId}">Xem</a>
-                  <form method="post" action="${ctx}/order/history" class="inline-form">
+                  <form method="post" action="${ctx}/order/history" class="inline-form"
+                        data-confirm="Lưu đơn này thành mẫu để đặt lại?">
                     <input type="hidden" name="_csrf" value="${csrfToken}">
                     <input type="hidden" name="action" value="templateSave">
+                    ${hisReturn}
                     <input type="hidden" name="orderId" value="${o.orderId}">
                     <input type="text" name="name" required maxlength="100" class="input-sm"
                            placeholder="Tên mẫu" aria-label="Tên mẫu cho đơn #${o.orderId}">
@@ -106,7 +112,7 @@
         </table>
       </c:otherwise>
     </c:choose>
-    <%@ include file="/WEB-INF/views/layout/pager.jspf" %>
+    <ui:pager page="${pageData}" label="đơn" />
   </div>
 
   <div class="card">
@@ -148,6 +154,7 @@
                       <form method="post" action="${ctx}/order/history" class="row-tight">
                         <input type="hidden" name="_csrf" value="${csrfToken}">
                         <input type="hidden" name="action" value="templateSetQty">
+                        ${hisReturn}
                         <input type="hidden" name="templateId" value="${t.templateId}">
                         <input type="hidden" name="productId" value="${i.productId}">
                         <input type="number" name="quantity" value="${i.quantity}" min="0" max="50"
@@ -159,7 +166,8 @@
                 </td>
                 <td class="num">${ff:money(t.estimatedTotal)}</td>
                 <td class="actions">
-                  <form method="post" action="${ctx}/order/history" class="inline-form">
+                  <form method="post" action="${ctx}/order/history" class="inline-form"
+                        data-confirm="Nạp mẫu này vào giỏ hàng?">
                     <input type="hidden" name="_csrf" value="${csrfToken}">
                     <input type="hidden" name="action" value="templateApply">
                     <input type="hidden" name="templateId" value="${t.templateId}">
@@ -167,9 +175,10 @@
                   </form>
                   <a class="btn btn-sm" href="${ctx}/order/history?editTemplate=${t.templateId}">Đổi tên</a>
                   <form method="post" action="${ctx}/order/history" class="inline-form"
-                        onsubmit="return confirm('Xoá mẫu &quot;<c:out value="${t.name}"/>&quot;?');">
+                        data-confirm="Xoá mẫu &quot;${fn:escapeXml(t.name)}&quot;?">
                     <input type="hidden" name="_csrf" value="${csrfToken}">
                     <input type="hidden" name="action" value="templateDelete">
+                    ${hisReturn}
                     <input type="hidden" name="templateId" value="${t.templateId}">
                     <button type="submit" class="btn btn-sm btn-danger">Xoá</button>
                   </form>
@@ -178,9 +187,11 @@
               <c:if test="${not empty editingTemplate and editingTemplate.templateId eq t.templateId}">
                 <tr class="note-row">
                   <td colspan="4">
-                    <form method="post" action="${ctx}/order/history" class="form-row">
+                    <form method="post" action="${ctx}/order/history" class="form-row"
+                          data-confirm="Lưu tên mới cho mẫu này?">
                       <input type="hidden" name="_csrf" value="${csrfToken}">
                       <input type="hidden" name="action" value="templateRename">
+                      ${hisReturn}
                       <input type="hidden" name="templateId" value="${t.templateId}">
                       <div class="field">
                         <label for="templateName">Tên mẫu</label>

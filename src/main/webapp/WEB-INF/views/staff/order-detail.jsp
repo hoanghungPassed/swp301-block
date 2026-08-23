@@ -12,8 +12,7 @@
   <c:if test="${not empty openIssues}">
     <div class="alert alert-warn no-print">
       <strong>Bếp báo sự cố với đơn này.</strong> Đơn sẽ không tự chuyển sang sẵn sàng cho tới
-      khi bếp xử lý xong. Liên hệ khách để đổi món hoặc chờ thêm; nếu khách không đồng ý thì
-      huỷ đơn ở khung bên phải.
+      khi bếp xử lý xong. Liên hệ khách để đổi món hoặc chờ thêm.
       <ul class="mt">
         <c:forEach var="i" items="${openIssues}">
           <li>
@@ -157,7 +156,8 @@
               <p class="small muted mb">
                 Nhập mã khách đưa. Mã sai thì hệ thống từ chối giao — tránh đưa nhầm đơn.
               </p>
-              <form method="post" action="${ctx}/staff/order/detail">
+              <form method="post" action="${ctx}/staff/order/detail"
+                    data-confirm="Xác minh mã nhận hàng và giao món cho khách? Đơn sẽ chuyển sang hoàn tất.">
                 <input type="hidden" name="_csrf" value="${csrfToken}">
                 <input type="hidden" name="orderId" value="${order.orderId}">
                 <input type="hidden" name="action" value="handoff">
@@ -171,7 +171,8 @@
             </c:when>
             <c:otherwise>
               <p class="small muted mb">Đơn tại quầy, khách đang đứng đợi — giao trực tiếp.</p>
-              <form method="post" action="${ctx}/staff/order/detail">
+              <form method="post" action="${ctx}/staff/order/detail"
+                    data-confirm="Xác nhận đã giao món cho khách? Đơn sẽ chuyển sang hoàn tất.">
                 <input type="hidden" name="_csrf" value="${csrfToken}">
                 <input type="hidden" name="orderId" value="${order.orderId}">
                 <input type="hidden" name="action" value="handoff">
@@ -179,64 +180,6 @@
               </form>
             </c:otherwise>
           </c:choose>
-        </div>
-      </c:if>
-
-      <c:if test="${order.staffCancellable}">
-        <div class="card">
-          <h2>Huỷ đơn &amp; hoàn tiền</h2>
-          <p class="small muted mb">
-            <c:choose>
-              <c:when test="${order.orderStatus eq 'READY'}">
-                Món đã làm xong nhưng khách không tới lấy. Huỷ để đóng đơn và trả lại tiền.
-              </c:when>
-              <c:when test="${order.orderStatus eq 'PREPARING'}">
-                Bếp đang làm dở. Chỉ huỷ khi đã thống nhất với khách — nguyên liệu đã dùng rồi.
-              </c:when>
-              <c:otherwise>
-                Huỷ đơn và hoàn lại toàn bộ tiền nếu khách đã thanh toán. Không có hoàn một phần.
-              </c:otherwise>
-            </c:choose>
-          </p>
-          <form method="post" action="${ctx}/staff/order/detail"
-                data-confirm="Huỷ đơn #${order.orderId} và hoàn tiền cho khách?">
-            <input type="hidden" name="_csrf" value="${csrfToken}">
-            <input type="hidden" name="orderId" value="${order.orderId}">
-            <input type="hidden" name="action" value="cancel">
-            <div class="field">
-              <label for="reason">Lý do huỷ</label>
-              <input type="text" id="reason" name="reason" maxlength="200" required
-                     placeholder="VD: khách không tới lấy, bếp hết nguyên liệu">
-            </div>
-            <button type="submit" class="btn btn-danger btn-block">
-              Huỷ đơn<c:if test="${not empty order.latestPayment
-                                   and order.latestPayment.paymentStatus eq 'PAID'}"> &amp; hoàn ${ff:money(order.totalAmount)}</c:if>
-            </button>
-          </form>
-        </div>
-      </c:if>
-
-      <c:if test="${order.refundPending}">
-        <div class="card">
-          <h2>Hoàn tiền sót</h2>
-          <p class="small muted mb">
-            Đơn đã đóng nhưng khoản thanh toán vẫn chưa được hoàn. Bình thường huỷ đơn đã tự
-            hoàn tiền kèm theo, nên nếu thấy ô này thì có một lần hoàn trước đó không thành công.
-          </p>
-          <form method="post" action="${ctx}/staff/order/detail"
-                data-confirm="Hoàn tiền cho đơn #${order.orderId}?">
-            <input type="hidden" name="_csrf" value="${csrfToken}">
-            <input type="hidden" name="orderId" value="${order.orderId}">
-            <input type="hidden" name="action" value="refund">
-            <div class="field">
-              <label for="refundReason">Lý do hoàn tiền</label>
-              <input type="text" id="refundReason" name="refundReason" required maxlength="200"
-                     placeholder="VD: lần hoàn lúc huỷ đơn bị lỗi kết nối">
-            </div>
-            <button type="submit" class="btn btn-danger btn-block">
-              Hoàn ${ff:money(order.totalAmount)}
-            </button>
-          </form>
         </div>
       </c:if>
 

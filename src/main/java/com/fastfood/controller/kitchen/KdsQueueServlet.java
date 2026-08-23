@@ -3,6 +3,7 @@ package com.fastfood.controller.kitchen;
 import com.fastfood.common.util.DateTimeUtil;
 import com.fastfood.common.util.WebUtil;
 import com.fastfood.controller.BaseServlet;
+import com.fastfood.model.dto.Dtos.Page;
 import com.fastfood.model.entity.UserEntities.User;
 import com.fastfood.service.kitchen.KitchenService;
 import com.fastfood.service.kitchen.PrepService;
@@ -27,14 +28,21 @@ public class KdsQueueServlet extends BaseServlet {
     protected void doGet(HttpServletRequest req, HttpServletResponse resp)
             throws ServletException, IOException {
         User user = requireUser(req);
-        req.setAttribute("myTasks", kitchenService.myTasks(user.getUserId()));
-        req.setAttribute("awaitingHandover", kitchenService.awaitingHandover(user.getUserId()));
-        req.setAttribute("queue", kitchenService.waitingQueue());
+        /* Ba khối đều đếm theo ĐƠN: bếp nhận cả đơn, làm xong cả đơn và bàn giao cả đơn. */
+        req.setAttribute("taskPage", Page.of(kitchenService.myOrders(user.getUserId()),
+                WebUtil.getInt(req, "taskPage", 1), Page.CARD_SIZE));
+        req.setAttribute("handoverPage", Page.of(kitchenService.ordersAwaitingHandover(user.getUserId()),
+                WebUtil.getInt(req, "handoverPage", 1), Page.CARD_SIZE));
+        /* Hàng chờ tự làm mới bằng JavaScript nên trang đầu do máy chủ dựng, các lần
+           cập nhật sau do trình duyệt cắt lại theo đúng số trang này. */
+        req.setAttribute("queuePage", Page.of(kitchenService.waitingOrders(),
+                WebUtil.getInt(req, "queuePage", 1), Page.CARD_SIZE));
         req.setAttribute("openIssueCount", kitchenService.countOpenIssues());
 
         LocalDate prepDate = parseDate(WebUtil.getString(req, "prepDate"));
         req.setAttribute("prepDate", prepDate);
-        req.setAttribute("prepTasks", prepService.planOf(prepDate));
+        req.setAttribute("prepPage", Page.of(prepService.planOf(prepDate),
+                WebUtil.getInt(req, "prepPage", 1), Page.SMALL_SIZE));
         req.setAttribute("prepProducts", menuService.browse(null, null));
 
         int editId = WebUtil.getInt(req, "editPrep", 0);
@@ -59,6 +67,7 @@ public class KdsQueueServlet extends BaseServlet {
     protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws IOException {
         User user = requireUser(req);
         int itemId = WebUtil.getInt(req, "orderItemId", 0);
+        int orderId = WebUtil.getInt(req, "orderId", 0);
         String action = WebUtil.getString(req, "action");
         String back = WebUtil.safeRedirect(WebUtil.getString(req, "returnTo"), "/kitchen/queue");
 
@@ -67,7 +76,26 @@ public class KdsQueueServlet extends BaseServlet {
             return;
         }
 
+        /* Nút trên màn bếp làm việc theo đơn; ba nhánh lẻ bên dưới chỉ còn trang chi tiết
+           món dùng tới, để bếp xử lý riêng một món hỏng giữa đơn. */
         switch (action == null ? "" : action) {
+            case "claimOrder":
+                handle(req, resp, () -> kitchenService.claimOrder(orderId, user.getUserId()),
+                        "Đã nhận đơn #" + orderId + ". Bắt đầu chế biến.", back);
+                return;
+            case "readyOrder":
+                handle(req, resp, () -> {
+                    boolean orderReady = kitchenService.markOrderReady(orderId, user.getUserId());
+                    WebUtil.flashSuccess(req, orderReady
+                            ? "Đơn #" + orderId + " đã xong, khách đã được báo. "
+                              + "Nhớ bàn giao cả đơn ra quầy."
+                            : "Đã đánh dấu xong phần của bạn trong đơn #" + orderId + ".");
+                }, null, back);
+                return;
+            case "handoverOrder":
+                handle(req, resp, () -> kitchenService.handOverOrder(orderId, user.getUserId()),
+                        "Đã bàn giao đơn #" + orderId + " ra quầy.", back);
+                return;
             case "ready":
                 handle(req, resp, () -> {
                     boolean orderReady = kitchenService.markReady(itemId, user.getUserId());

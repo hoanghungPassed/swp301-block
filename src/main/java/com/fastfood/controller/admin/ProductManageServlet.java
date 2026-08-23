@@ -34,7 +34,9 @@ public class ProductManageServlet extends BaseServlet {
         req.setAttribute("keyword", keyword);
         req.setAttribute("status", status);
         req.setAttribute("stock", stock);
-        req.setAttribute("filterQuery", WebUtil.queryStringWithout(req, "page", "edit"));
+        /* Giữ cả số trang: ngừng bán một món ở trang 3 xong phải quay lại đúng trang 3.
+           Chỉ bỏ "edit" để lưu xong thì khung sửa đóng lại. */
+        req.setAttribute("filterQuery", WebUtil.queryStringWithout(req, "edit"));
         if (editId > 0) {
             req.setAttribute("editing", adminService.findProduct(editId));
         }

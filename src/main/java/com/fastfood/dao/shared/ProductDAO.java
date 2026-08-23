@@ -31,14 +31,48 @@ public class ProductDAO {
         return sort != null && MENU_ORDER.containsKey(sort) ? sort : "DEFAULT";
     }
 
+    /** Trọn thực đơn theo bộ lọc — dùng cho nơi cần cả danh sách, ví dụ ô chọn món. */
     public List<Product> findMenu(Connection con, Integer categoryId, String keyword, String sort)
             throws SQLException {
-        StringBuilder sql = new StringBuilder(
-                "SELECT " + COLS + RATING_COLS +
-                "FROM dbo.Product p JOIN dbo.Category c ON c.category_id = p.category_id " +
-                RATING_JOIN +
-                "WHERE p.status = 'ACTIVE' AND p.is_available = 1 AND c.status = 'ACTIVE' ");
         List<Object> params = new ArrayList<>();
+        String sql = "SELECT " + COLS + RATING_COLS +
+                     "FROM dbo.Product p JOIN dbo.Category c ON c.category_id = p.category_id " +
+                     RATING_JOIN + menuWhere(categoryId, keyword, params) +
+                     "ORDER BY " + MENU_ORDER.get(menuSortOrDefault(sort));
+        return query(con, sql, params, true);
+    }
+
+    public List<Product> findMenu(Connection con, Integer categoryId, String keyword, String sort,
+                                  int offset, int limit) throws SQLException {
+        List<Object> params = new ArrayList<>();
+        String sql = "SELECT " + COLS + RATING_COLS +
+                     "FROM dbo.Product p JOIN dbo.Category c ON c.category_id = p.category_id " +
+                     RATING_JOIN + menuWhere(categoryId, keyword, params) +
+                     "ORDER BY " + MENU_ORDER.get(menuSortOrDefault(sort)) + " " +
+                     "OFFSET ? ROWS FETCH NEXT ? ROWS ONLY";
+        params.add(offset);
+        params.add(limit);
+        return query(con, sql, params, true);
+    }
+
+    public long countMenu(Connection con, Integer categoryId, String keyword) throws SQLException {
+        List<Object> params = new ArrayList<>();
+        String sql = "SELECT COUNT(*) " +
+                     "FROM dbo.Product p JOIN dbo.Category c ON c.category_id = p.category_id " +
+                     menuWhere(categoryId, keyword, params);
+        try (PreparedStatement ps = con.prepareStatement(sql)) {
+            for (int i = 0; i < params.size(); i++) {
+                ps.setObject(i + 1, params.get(i));
+            }
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next() ? rs.getLong(1) : 0L;
+            }
+        }
+    }
+
+    private String menuWhere(Integer categoryId, String keyword, List<Object> params) {
+        StringBuilder sql = new StringBuilder(
+                "WHERE p.status = 'ACTIVE' AND p.is_available = 1 AND c.status = 'ACTIVE' ");
         if (categoryId != null && categoryId > 0) {
             sql.append("AND p.category_id = ? ");
             params.add(categoryId);
@@ -47,8 +81,7 @@ public class ProductDAO {
             sql.append("AND p.name LIKE ? ");
             params.add("%" + keyword.trim() + "%");
         }
-        sql.append("ORDER BY ").append(MENU_ORDER.get(menuSortOrDefault(sort)));
-        return query(con, sql.toString(), params, true);
+        return sql.toString();
     }
 
     public List<Product> searchForAdmin(Connection con, Integer categoryId, String keyword,

@@ -1,5 +1,6 @@
 package com.fastfood.common.util;
 
+import javax.servlet.http.HttpServletRequest;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
@@ -38,7 +39,6 @@ public final class ViewFunctions {
             case "PREPARING":       return "Đang chế biến";
             case "READY":           return "Sẵn sàng";
             case "COMPLETED":       return "Đã giao";
-            case "CANCELLED":       return "Đã huỷ";
             case "EXPIRED":         return "Hết hạn thanh toán";
             default:                return status;
         }
@@ -54,7 +54,6 @@ public final class ViewFunctions {
             case "PREPARING":       return "tag tag-amber";
             case "READY":           return "tag tag-green";
             case "COMPLETED":       return "tag tag-muted";
-            case "CANCELLED":
             case "EXPIRED":         return "tag tag-red";
             default:                return "tag";
         }
@@ -93,7 +92,6 @@ public final class ViewFunctions {
             case "PENDING":  return "Đang xử lý";
             case "PAID":     return "Đã thanh toán";
             case "FAILED":   return "Thất bại";
-            case "REFUNDED": return "Đã hoàn tiền";
             default:         return status;
         }
     }
@@ -106,7 +104,6 @@ public final class ViewFunctions {
             case "PAID":     return "tag tag-green";
             case "PENDING":  return "tag tag-warn";
             case "FAILED":   return "tag tag-red";
-            case "REFUNDED": return "tag tag-info";
             default:         return "tag tag-muted";
         }
     }
@@ -178,7 +175,6 @@ public final class ViewFunctions {
         switch (event) {
             case "ORDER_CONFIRMED": return "Đơn đã được xác nhận";
             case "ORDER_READY":     return "Món đã sẵn sàng";
-            case "ORDER_CANCELLED": return "Đơn đã bị huỷ";
             case "ORDER_EXPIRED":   return "Đơn hết hiệu lực";
             default:                return event;
         }
@@ -191,7 +187,6 @@ public final class ViewFunctions {
         switch (event) {
             case "ORDER_CONFIRMED": return "✅";
             case "ORDER_READY":     return "🔔";
-            case "ORDER_CANCELLED": return "🚫";
             case "ORDER_EXPIRED":   return "⌛";
             default:                return "•";
         }
@@ -204,7 +199,6 @@ public final class ViewFunctions {
         switch (event) {
             case "ORDER_CONFIRMED": return "tag tag-info";
             case "ORDER_READY":     return "tag tag-green";
-            case "ORDER_CANCELLED":
             case "ORDER_EXPIRED":   return "tag tag-red";
             default:                return "tag";
         }
@@ -219,7 +213,7 @@ public final class ViewFunctions {
             case "PAYMENT_INITIATED":    return "Bắt đầu thanh toán";
             case "PAYMENT_PAID":         return "Thanh toán thành công";
             case "PAYMENT_FAILED":       return "Thanh toán thất bại";
-            case "PAYMENT_REFUNDED":     return "Hoàn tiền";
+            case "PAYMENT_ORPHANED":     return "Tiền về sau khi đơn hết hiệu lực";
             case "CALLBACK_IGNORED":     return "Bỏ qua kết quả trùng lặp";
             case "AUTO_CONFIRM":         return "Tự động xác nhận đơn";
             case "POS_CONFIRM":          return "Xác nhận đơn tại quầy";
@@ -235,13 +229,30 @@ public final class ViewFunctions {
             case "PICKUP_VERIFY_OK":     return "Xác minh mã đúng";
             case "PICKUP_VERIFY_FAILED": return "Mã nhận hàng sai";
             case "HANDOFF":              return "Giao món cho khách";
-            case "ORDER_CANCELLED":      return "Huỷ đơn";
             case "ORDER_EXPIRED":        return "Hết hạn thanh toán";
             case "PRODUCT_CHANGED":      return "Thay đổi món ăn";
             case "CATEGORY_CHANGED":     return "Thay đổi nhóm món";
             case "USER_CHANGED":         return "Thay đổi tài khoản";
             default:                     return action;
         }
+    }
+
+    /**
+     * Chuỗi truy vấn hiện tại sau khi bỏ vài tham số, để thẻ phân trang tự nối
+     * số trang mới mà vẫn giữ nguyên bộ lọc người dùng đang xem.
+     *
+     * @param omit danh sách tên tham số cần bỏ, ngăn nhau bằng dấu phẩy
+     * @return chuỗi đã mã hoá URL, không có dấu ? ở đầu; rỗng nếu không còn tham số nào
+     */
+    public static String pageQuery(HttpServletRequest req, String omit) {
+        if (req == null) {
+            return "";
+        }
+        String[] names = omit == null ? new String[0] : omit.split(",");
+        for (int i = 0; i < names.length; i++) {
+            names[i] = names[i].trim();
+        }
+        return WebUtil.queryStringWithout(req, names);
     }
 
     public static String roleName(String role) {

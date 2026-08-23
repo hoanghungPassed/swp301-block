@@ -29,6 +29,33 @@ public class CategoryDAO {
         return list;
     }
 
+    public List<Category> findAllWithCount(Connection con, int offset, int limit) throws SQLException {
+        String sql = "SELECT c.category_id, c.name, c.status, c.display_order, " +
+                     "       (SELECT COUNT(*) FROM dbo.Product p WHERE p.category_id = c.category_id) AS product_count " +
+                     "FROM dbo.Category c ORDER BY c.display_order, c.name, c.category_id " +
+                     "OFFSET ? ROWS FETCH NEXT ? ROWS ONLY";
+        List<Category> list = new ArrayList<>();
+        try (PreparedStatement ps = con.prepareStatement(sql)) {
+            ps.setInt(1, offset);
+            ps.setInt(2, limit);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    Category c = map(rs);
+                    c.setProductCount(rs.getInt("product_count"));
+                    list.add(c);
+                }
+            }
+        }
+        return list;
+    }
+
+    public long countAll(Connection con) throws SQLException {
+        try (PreparedStatement ps = con.prepareStatement("SELECT COUNT(*) FROM dbo.Category");
+             ResultSet rs = ps.executeQuery()) {
+            return rs.next() ? rs.getLong(1) : 0L;
+        }
+    }
+
     public Category findById(Connection con, int id) throws SQLException {
         String sql = "SELECT category_id, name, status, display_order FROM dbo.Category WHERE category_id = ?";
         try (PreparedStatement ps = con.prepareStatement(sql)) {

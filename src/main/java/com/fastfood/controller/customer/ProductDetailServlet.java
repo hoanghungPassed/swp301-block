@@ -3,6 +3,7 @@ package com.fastfood.controller.customer;
 import com.fastfood.common.exception.AppException;
 import com.fastfood.common.util.WebUtil;
 import com.fastfood.controller.BaseServlet;
+import com.fastfood.model.dto.Dtos.Page;
 import com.fastfood.model.entity.UserEntities.User;
 import com.fastfood.service.customer.FavouriteService;
 import com.fastfood.service.customer.ReviewService;
@@ -32,7 +33,8 @@ public class ProductDetailServlet extends BaseServlet {
             Integer customerId = user != null && "CUSTOMER".equals(user.getRoleName())
                     ? user.getUserId() : null;
 
-            req.setAttribute("reviews", reviewService.reviewsOf(productId));
+            req.setAttribute("reviewPage", Page.of(reviewService.reviewsOf(productId),
+                    WebUtil.getInt(req, "reviewPage", 1), Page.SMALL_SIZE));
             req.setAttribute("reviewSummary", reviewService.summaryOf(productId));
             req.setAttribute("myReview", reviewService.myReview(productId, customerId));
             req.setAttribute("canReview", reviewService.canReview(productId, customerId));
@@ -52,7 +54,9 @@ public class ProductDetailServlet extends BaseServlet {
     @Override
     protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws IOException {
         int productId = WebUtil.getInt(req, "productId", 0);
-        String back = "/product/detail?id=" + productId;
+        /* Gửi đánh giá ở trang 2 xong thì vẫn ở trang 2 của danh sách đánh giá. */
+        String back = WebUtil.safeRedirect(WebUtil.getString(req, "returnTo"),
+                "/product/detail?id=" + productId);
 
         User user = userOrLogin(req, resp, back);
         if (user == null) {

@@ -120,6 +120,47 @@ class BusinessMathTest {
             assertTrue(page(5, 20, 100).isLast());
         }
 
+        @Test
+        @DisplayName("Từ trang vượt quá cuối, bấm Trước là về được trang cuối thật")
+        void prevFromOutOfRangePageLandsOnTheLastRealPage() {
+            assertEquals(1, page(999, 20, 40).getPrevPage(),
+                    "Lùi sang trang 998 cũng rỗng thì người dùng bấm mãi không thoát ra được");
+            assertEquals(2, page(999, 20, 40).getNextPage());
+        }
+
+        @Test
+        @DisplayName("Cắt trang trên danh sách sẵn có lấy đúng đoạn của trang đó")
+        void slicesLoadedList() {
+            Page<String> p = Page.of(List.of("a", "b", "c", "d", "e"), 2, 2);
+            assertEquals(List.of("c", "d"), p.getItems());
+            assertEquals(5, p.getTotalItems());
+            assertEquals(3, p.getFirstIndex());
+            assertEquals(4, p.getLastIndex());
+        }
+
+        @Test
+        @DisplayName("Trang cuối chỉ còn mấy dòng thì lấy đúng mấy dòng đó")
+        void lastSliceMayBeShort() {
+            assertEquals(List.of("e"), Page.of(List.of("a", "b", "c", "d", "e"), 3, 2).getItems());
+        }
+
+        @Test
+        @DisplayName("Gõ số trang vượt quá cuối danh sách thì lùi về trang cuối")
+        void clampsBeyondLastPage() {
+            Page<String> p = Page.of(List.of("a", "b", "c"), 9, 2);
+            assertEquals(2, p.getPageNo(), "Trả về trang trống là màn hình trắng không hiểu vì sao");
+            assertEquals(List.of("c"), p.getItems());
+        }
+
+        @Test
+        @DisplayName("Danh sách rỗng vẫn ra trang 1 rỗng, không văng lỗi")
+        void slicesEmptyList() {
+            Page<String> p = Page.of(List.of(), 4, 10);
+            assertEquals(1, p.getPageNo());
+            assertTrue(p.getItems().isEmpty());
+            assertEquals(0, p.getTotalItems());
+        }
+
         private Page<String> page(int no, int size, long total) {
             return new Page<>(List.of(), no, size, total);
         }

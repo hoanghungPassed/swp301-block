@@ -13,9 +13,8 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
-@DisplayName("Doanh thu thuần tính đúng khi có hoàn tiền")
+@DisplayName("Doanh thu cộng đúng theo kỳ và theo ngày")
 class RevenueReportIT extends IntegrationTestBase {
 
     private static final LocalDateTime WINDOW_FROM = LocalDateTime.of(2031, 3, 1, 0, 0);
@@ -27,81 +26,27 @@ class RevenueReportIT extends IntegrationTestBase {
 
     @BeforeEach
     void clearFutureData() {
-        exec("UPDATE dbo.Payment SET paid_at = NULL, refunded_at = NULL " +
+        exec("UPDATE dbo.Payment SET paid_at = NULL " +
              "WHERE order_id IN (SELECT order_id FROM dbo.Orders WHERE created_at >= ?)",
              LocalDateTime.of(2031, 1, 1, 0, 0));
     }
 
     @Test
-    @DisplayName("Thu rồi hoàn trong cùng kỳ: doanh thu bằng 0, không phải số âm")
-    void paidAndRefundedInSamePeriod_netsToZero() {
-        paidOrder(AMOUNT,
-                LocalDateTime.of(2031, 3, 10, 12, 0),
-                LocalDateTime.of(2031, 3, 12, 9, 0));
+    @DisplayName("Khoản thu rơi vào đúng kỳ chứa paid_at, không phải kỳ lập đơn")
+    void revenueLandsInThePeriodTheMoneyArrived() {
+        paidOrder(AMOUNT, LocalDateTime.of(2031, 4, 5, 10, 0));
 
-        DashboardKpi kpi = reportService.loadKpi(WINDOW_FROM, WINDOW_TO);
-
-        assertEquals(0, AMOUNT.compareTo(kpi.getGrossRevenue()),
-                "Tiền đã thu phải được ghi nhận đủ, kể cả khi sau đó hoàn lại");
-        assertEquals(0, AMOUNT.compareTo(kpi.getRefundedAmount()),
-                "Khoản hoàn phải được ghi nhận đúng một lần");
-        assertEquals(0, BigDecimal.ZERO.compareTo(kpi.getNetRevenue()),
-                "Thu 100.000 rồi hoàn 100.000 thì doanh thu thuần phải bằng 0. "
-                + "Ra âm 100.000 nghĩa là lỗi trừ hai lần đã quay lại.");
-    }
-
-    @Test
-    @DisplayName("Doanh thu thuần không bao giờ âm chỉ vì có hoàn tiền trong kỳ")
-    void netRevenueNeverGoesNegativeFromItsOwnRefund() {
-        paidOrder(AMOUNT,
-                LocalDateTime.of(2031, 3, 5, 8, 0),
-                LocalDateTime.of(2031, 3, 5, 18, 0));
-
-        BigDecimal net = reportService.loadKpi(WINDOW_FROM, WINDOW_TO).getNetRevenue();
-
-        assertTrue(net.signum() >= 0,
-                "Doanh thu thuần ra " + net + " — một khoản thu rồi hoàn trong cùng kỳ "
-                + "không được kéo doanh thu xuống dưới 0");
-    }
-
-    @Test
-    @DisplayName("Thu kỳ này, hoàn kỳ sau: kỳ này ghi nhận đủ doanh thu")
-    void refundInLaterPeriod_doesNotReduceEarlierPeriod() {
-        paidOrder(AMOUNT,
-                LocalDateTime.of(2031, 3, 20, 10, 0),
-                LocalDateTime.of(2031, 4, 5, 10, 0));
-
-        DashboardKpi kpi = reportService.loadKpi(WINDOW_FROM, WINDOW_TO);
-
-        assertEquals(0, AMOUNT.compareTo(kpi.getGrossRevenue()));
-        assertEquals(0, BigDecimal.ZERO.compareTo(kpi.getRefundedAmount()),
-                "Khoản hoàn của tháng sau không được tính vào tháng này");
-        assertEquals(0, AMOUNT.compareTo(kpi.getNetRevenue()),
-                "Tháng này đã thu thật thì phải ghi nhận đủ; tháng sau mới bị trừ");
-    }
-
-    @Test
-    @DisplayName("Thu kỳ trước, hoàn kỳ này: kỳ này chỉ chịu khoản hoàn")
-    void refundLandsInThePeriodItHappened() {
-        paidOrder(AMOUNT,
-                LocalDateTime.of(2031, 2, 10, 10, 0),
-                LocalDateTime.of(2031, 3, 15, 10, 0));
-
-        DashboardKpi kpi = reportService.loadKpi(WINDOW_FROM, WINDOW_TO);
-
-        assertEquals(0, BigDecimal.ZERO.compareTo(kpi.getGrossRevenue()),
-                "Không thu đồng nào trong kỳ này");
-        assertEquals(0, AMOUNT.compareTo(kpi.getRefundedAmount()));
-        assertEquals(0, AMOUNT.negate().compareTo(kpi.getNetRevenue()),
-                "Kỳ chỉ có hoàn tiền thì doanh thu thuần âm — đúng, vì tiền đã ghi nhận ở kỳ trước");
+        assertEquals(0, BigDecimal.ZERO.compareTo(
+                        reportService.loadKpi(WINDOW_FROM, WINDOW_TO).getNetRevenue()),
+                "Đơn lập tháng 3 nhưng tiền về tháng 4 thì tháng 3 không được tính — mốc doanh "
+                + "thu là paid_at chứ không phải created_at");
     }
 
     @Test
     @DisplayName("Tổng hai kỳ liền nhau khớp với tổng cả giai đoạn")
     void periodsAddUp() {
-        paidOrder(AMOUNT,
-                LocalDateTime.of(2031, 3, 20, 10, 0),
-                LocalDateTime.of(2031, 4, 5, 10, 0));
+        paidOrder(AMOUNT, LocalDateTime.of(2031, 3, 20, 10, 0));
+        paidOrder(AMOUNT, LocalDateTime.of(2031, 4, 5, 10, 0));
 
         BigDecimal march = reportService.loadKpi(WINDOW_FROM, WINDOW_TO).getNetRevenue();
         BigDecimal april = reportService.loadKpi(
@@ -116,19 +61,17 @@ class RevenueReportIT extends IntegrationTestBase {
     }
 
     @Test
-    @DisplayName("Biểu đồ theo ngày: ngày thu cộng vào, ngày hoàn trừ ra")
-    void revenueByDay_splitsAcrossTwoDays() {
-        paidOrder(AMOUNT,
-                LocalDateTime.of(2031, 3, 8, 11, 0),
-                LocalDateTime.of(2031, 3, 9, 11, 0));
+    @DisplayName("Biểu đồ theo ngày gom khoản thu về đúng ngày của nó")
+    void revenueByDay_groupsByPaidDate() {
+        paidOrder(AMOUNT, LocalDateTime.of(2031, 3, 8, 11, 0));
+        paidOrder(AMOUNT, LocalDateTime.of(2031, 3, 9, 11, 0));
+        paidOrder(AMOUNT, LocalDateTime.of(2031, 3, 9, 19, 0));
 
         List<ReportRow> rows = reportService.revenueByDay(WINDOW_FROM, WINDOW_TO);
 
-        BigDecimal day8 = amountOn(rows, "2031-03-08");
-        BigDecimal day9 = amountOn(rows, "2031-03-09");
-
-        assertEquals(0, AMOUNT.compareTo(day8), "Ngày thu tiền phải là số dương");
-        assertEquals(0, AMOUNT.negate().compareTo(day9), "Ngày hoàn tiền phải là số âm");
+        assertEquals(0, AMOUNT.compareTo(amountOn(rows, "2031-03-08")));
+        assertEquals(0, AMOUNT.multiply(new BigDecimal("2")).compareTo(amountOn(rows, "2031-03-09")),
+                "Hai lần thu trong cùng một ngày phải gộp thành một cột, không thành hai dòng");
     }
 
     @Test
@@ -141,17 +84,15 @@ class RevenueReportIT extends IntegrationTestBase {
 
         DashboardKpi kpi = reportService.loadKpi(WINDOW_FROM, WINDOW_TO);
 
-        assertEquals(0, BigDecimal.ZERO.compareTo(kpi.getGrossRevenue()),
+        assertEquals(0, BigDecimal.ZERO.compareTo(kpi.getNetRevenue()),
                 "Lần thanh toán thất bại không phải doanh thu");
     }
 
-    private void paidOrder(BigDecimal amount, LocalDateTime paidAt, LocalDateTime refundedAt) {
+    private void paidOrder(BigDecimal amount, LocalDateTime paidAt) {
         int orderId = posOrder(amount);
         exec("INSERT INTO dbo.Payment (order_id, method, amount, payment_status, attempt_no, " +
-             "created_at, paid_at, refunded_at) VALUES (?, 'CASH', ?, ?, 1, ?, ?, ?)",
-             orderId, amount,
-             refundedAt == null ? "PAID" : "REFUNDED",
-             paidAt, paidAt, refundedAt);
+             "created_at, paid_at) VALUES (?, 'CASH', ?, 'PAID', 1, ?, ?)",
+             orderId, amount, paidAt, paidAt);
     }
 
     private int posOrder(BigDecimal amount) {

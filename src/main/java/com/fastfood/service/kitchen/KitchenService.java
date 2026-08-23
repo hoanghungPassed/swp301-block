@@ -2,7 +2,6 @@ package com.fastfood.service.kitchen;
 
 import com.fastfood.common.constant.Constants.AuditAction;
 import com.fastfood.common.constant.Constants.IssueType;
-import com.fastfood.common.constant.Constants.OrderStatus;
 import com.fastfood.common.exception.AppException.BusinessException;
 import com.fastfood.common.exception.AppException.NotFoundException;
 import com.fastfood.common.exception.AppException.ValidationException;
@@ -12,6 +11,7 @@ import com.fastfood.dao.shared.OrderDAO;
 import com.fastfood.dao.shared.OrderItemDAO;
 import com.fastfood.dao.shared.ProductDAO;
 import com.fastfood.model.dto.Dtos.KdsItemView;
+import com.fastfood.model.dto.Dtos.KdsOrderView;
 import com.fastfood.model.entity.OperationEntities.KitchenIssue;
 import com.fastfood.model.dto.Dtos.Page;
 import com.fastfood.model.entity.OrderEntities.Order;
@@ -79,6 +79,136 @@ public class KitchenService {
         return item;
     }
 
+    /*
+     * Bếp làm việc theo đơn: nhận cả đơn, xong cả đơn, bàn giao cả đơn. Ba hàm dưới đây dựng
+     * danh sách cho ba khối trên màn hình; phần thao tác lẻ từng món vẫn giữ nguyên bên dưới
+     * và chỉ còn lối vào từ trang chi tiết món, dành cho ca hỏng một món giữa đơn.
+     */
+
+    public List<KdsOrderView> waitingOrders() {
+        return KdsOrderView.group(Tx.read(orderItemDAO::findWaitingQueueOrders));
+    }
+
+    public List<KdsOrderView> myOrders(int userId) {
+        return KdsOrderView.group(Tx.read(con -> orderItemDAO.findMyOrderItems(con, userId)));
+    }
+
+    public List<KdsOrderView> ordersAwaitingHandover(int userId) {
+        return KdsOrderView.group(Tx.read(con -> orderItemDAO.findHandoverOrderItems(con, userId)));
+    }
+
+    /** Nhận trọn một đơn. Đơn đã có người bếp khác đụng vào thì từ chối, không nhận nửa vời. */
+    public void claimOrder(int orderId, int userId) {
+        LocalDateTime now = DateTimeUtil.now();
+        Tx.writeVoid(con -> {
+            Order order = orderDAO.findById(con, orderId);
+            if (order == null) {
+                throw new NotFoundException("Không tìm thấy đơn hàng.");
+            }
+            orderCore.lockOrder(con, orderId);
+            if (order.getReleasedToKdsAt() == null) {
+                throw new BusinessException("Đơn này chưa tới lượt vào bếp nên chưa nhận được. "
+                        + "Đơn đặt trước chỉ xuống bếp trước giờ hẹn của khách.");
+            }
+
+            List<OrderItem> items = orderItemDAO.findByOrder(con, orderId);
+            for (OrderItem item : items) {
+                Integer owner = item.getAssignedToUserId();
+                if (owner != null && owner != userId) {
+                    throw new BusinessException("Đơn này đang do "
+                            + (item.getAssignedToName() == null ? "người khác" : item.getAssignedToName())
+                            + " làm. Mỗi đơn chỉ một người bếp nhận.");
+                }
+            }
+
+            int claimed = 0;
+            for (OrderItem item : items) {
+                if (!"WAITING".equals(item.getItemStatus())) {
+                    continue;
+                }
+                if (orderItemDAO.claim(con, item.getOrderItemId(), userId, now) == 1) {
+                    auditService.log(con, userId, "ORDER_ITEM", item.getOrderItemId(),
+                            AuditAction.ITEM_START, null, "PREPARING");
+                    claimed++;
+                }
+            }
+            if (claimed == 0) {
+                throw new BusinessException("Đơn này vừa được người khác nhận.");
+            }
+            orderCore.recalculateStatus(con, orderId, now);
+        });
+    }
+
+    /** Đánh dấu xong mọi món của đơn mà tôi đang làm. Trả về true nếu cả đơn đã sẵn sàng. */
+    public boolean markOrderReady(int orderId, int userId) {
+        LocalDateTime now = DateTimeUtil.now();
+        return Tx.write(con -> {
+            Order order = orderDAO.findById(con, orderId);
+            if (order == null) {
+                throw new NotFoundException("Không tìm thấy đơn hàng.");
+            }
+            if (!order.isActiveForKitchen()) {
+                throw new BusinessException("Đơn #" + orderId + " đã kết thúc nên không đánh dấu "
+                        + "được nữa. Vui lòng dừng chế biến.");
+            }
+
+            int done = 0;
+            int waiting = 0;
+            for (OrderItem item : orderItemDAO.findByOrder(con, orderId)) {
+                if ("WAITING".equals(item.getItemStatus())) {
+                    waiting++;
+                    continue;
+                }
+                if (!"PREPARING".equals(item.getItemStatus())) {
+                    continue;
+                }
+                if (orderItemDAO.markReady(con, item.getOrderItemId(), userId, now) == 1) {
+                    auditService.log(con, userId, "ORDER_ITEM", item.getOrderItemId(),
+                            AuditAction.ITEM_READY, "PREPARING", "READY");
+                    done++;
+                }
+            }
+            if (done == 0) {
+                throw new BusinessException(waiting > 0
+                        ? "Đơn còn " + waiting + " món chưa ai nhận. Bấm nhận nốt rồi mới đánh dấu xong."
+                        : "Đơn này không còn món nào bạn đang làm.");
+            }
+            return orderCore.recalculateStatus(con, orderId, now);
+        });
+    }
+
+    /** Đẩy cả đơn ra quầy. Đơn còn món chưa xong thì chưa đi được — thu ngân nhận một lần cho gọn. */
+    public void handOverOrder(int orderId, int userId) {
+        LocalDateTime now = DateTimeUtil.now();
+        Tx.writeVoid(con -> {
+            List<OrderItem> items = orderItemDAO.findByOrder(con, orderId);
+            if (items.isEmpty()) {
+                throw new NotFoundException("Không tìm thấy đơn hàng.");
+            }
+            for (OrderItem item : items) {
+                if ("WAITING".equals(item.getItemStatus()) || "PREPARING".equals(item.getItemStatus())) {
+                    throw new BusinessException("Đơn còn món chưa làm xong nên chưa bàn giao được. "
+                            + "Làm xong cả đơn rồi đưa ra quầy một lần.");
+                }
+            }
+
+            int sent = 0;
+            for (OrderItem item : items) {
+                if (item.getHandedOverAt() != null) {
+                    continue;
+                }
+                if (orderItemDAO.handOverToCounter(con, item.getOrderItemId(), userId, now) == 1) {
+                    auditService.log(con, userId, "ORDER_ITEM", item.getOrderItemId(),
+                            AuditAction.ITEM_HANDED_OVER, "READY", "AT_COUNTER");
+                    sent++;
+                }
+            }
+            if (sent == 0) {
+                throw new BusinessException("Đơn này không còn món nào của bạn chờ bàn giao.");
+            }
+        });
+    }
+
     public void claim(int orderItemId, int userId) {
         LocalDateTime now = DateTimeUtil.now();
         Tx.writeVoid(con -> {
@@ -114,10 +244,8 @@ public class KitchenService {
             if (changed == 0) {
                 Order order = orderDAO.findById(con, item.getOrderId());
                 if (order != null && !order.isActiveForKitchen()) {
-                    throw new BusinessException("Đơn #" + item.getOrderId() + " đã "
-                            + (OrderStatus.CANCELLED.name().equals(order.getOrderStatus())
-                               ? "bị huỷ" : "kết thúc")
-                            + " nên không đánh dấu món được nữa. Vui lòng dừng chế biến.");
+                    throw new BusinessException("Đơn #" + item.getOrderId() + " đã kết thúc "
+                            + "nên không đánh dấu món được nữa. Vui lòng dừng chế biến.");
                 }
                 throw new BusinessException("Chỉ người đang chế biến món này mới đánh dấu hoàn thành được.");
             }
@@ -269,6 +397,17 @@ public class KitchenService {
 
     public List<KitchenIssue> recentIssues(int limit) {
         return Tx.read(con -> issueDAO.findRecent(con, limit));
+    }
+
+    /** Sự cố đã khép lại trong số bản ghi gần nhất — hai màn quầy và bếp dùng chung. */
+    public List<KitchenIssue> recentClosedIssues(int limit) {
+        List<KitchenIssue> closed = new ArrayList<>();
+        for (KitchenIssue issue : recentIssues(limit)) {
+            if (!issue.isOpen()) {
+                closed.add(issue);
+            }
+        }
+        return closed;
     }
 
     public KitchenIssue findIssue(int issueId) {

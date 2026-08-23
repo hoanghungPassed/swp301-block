@@ -724,6 +724,26 @@ a.rating-line:hover .stars { filter: brightness(0.9); }
 .kds-card .meta { font-size: 12px; color: var(--muted); display: flex; justify-content: space-between; gap: 8px; }
 .kds-card .actions { margin-top: 10px; }
 
+/* Thẻ trên màn bếp là một ĐƠN, nên phải liệt kê được các món bên trong mà thẻ vẫn gọn. */
+.kds-items, .counter-items { list-style: none; margin: 9px 0 0; padding: 0; }
+.kds-items li, .counter-items li {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+    font-size: 13px;
+    padding: 4px 0;
+    border-top: 1px dashed var(--line);
+}
+.kds-items li:first-child, .counter-items li:first-child { border-top: 0; }
+.qty-inline {
+    font-weight: 700;
+    min-width: 26px;
+    color: var(--ink);
+}
+.kds-items a { color: inherit; }
+.counter-items .inline-form { margin-left: auto; }
+
 .pickup-code {
     font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
     font-size: 27px;
@@ -806,14 +826,26 @@ a.rating-line:hover .stars { filter: brightness(0.9); }
     background: var(--soft);
 }
 
+/* Nếp `* { margin: 0 }` ở đầu tệp đè luôn margin: auto mà trình duyệt dành riêng
+   cho dialog mở bằng showModal(), nên hộp thoại bị dính vào góc trên bên trái.
+   Trả lại margin: auto cho mọi dialog để hộp thoại nằm giữa màn hình. */
+dialog {
+    position: fixed;
+    inset: 0;
+    margin: auto;
+}
+
 .confirm-dialog {
     border: 1px solid var(--line);
     border-radius: var(--radius);
     padding: 20px;
     max-width: 400px;
     width: calc(100% - 32px);
+    max-height: calc(100vh - 32px);
+    overflow: auto;
     color: var(--ink);
     background: var(--paper);
+    box-shadow: var(--shadow-lg);
 }
 .confirm-dialog::backdrop { background: rgba(16, 24, 40, 0.45); }
 .confirm-dialog h2 { margin: 0; }

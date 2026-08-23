@@ -1,16 +1,15 @@
 package com.fastfood.controller.staff;
 
 import com.fastfood.common.constant.Constants.BusinessRule;
-import com.fastfood.common.constant.Constants.PaymentMethod;
 import com.fastfood.common.exception.AppException;
 import com.fastfood.common.util.WebUtil;
 import com.fastfood.controller.BaseServlet;
+import com.fastfood.model.dto.Dtos.Page;
 import com.fastfood.model.dto.Dtos.PosCartLine;
 import com.fastfood.model.dto.Dtos.PosLine;
 import com.fastfood.model.entity.OrderEntities.Order;
 import com.fastfood.model.entity.UserEntities.User;
 import com.fastfood.service.shared.MenuService;
-import com.fastfood.service.staff.PosHoldService;
 import com.fastfood.service.staff.StaffOrderService;
 
 import javax.servlet.ServletException;
@@ -32,12 +31,11 @@ public class PosServlet extends BaseServlet {
 
     private final MenuService menuService = new MenuService();
     private final StaffOrderService orderService = new StaffOrderService();
-    private final PosHoldService holdService = new PosHoldService();
 
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp)
             throws ServletException, IOException {
-        User cashier = requireUser(req);
+        requireUser(req);
         Integer categoryId = WebUtil.getInteger(req, "categoryId");
         String keyword = WebUtil.getString(req, "keyword");
 
@@ -50,19 +48,14 @@ public class PosServlet extends BaseServlet {
             anyUnavailable |= !line.isOrderable();
         }
 
-        req.setAttribute("products", menuService.browse(categoryId, keyword));
+        req.setAttribute("pageData", menuService.browsePage(categoryId, keyword, null,
+                WebUtil.getInt(req, "page", 1), Page.CARD_SIZE));
         req.setAttribute("categories", menuService.activeCategories());
         req.setAttribute("selectedCategory", categoryId);
         req.setAttribute("keyword", keyword);
         req.setAttribute("posLines", lines);
         req.setAttribute("posTotal", total);
         req.setAttribute("posUnavailable", anyUnavailable);
-
-        req.setAttribute("holds", holdService.myHolds(cashier.getUserId()));
-        int editId = WebUtil.getInt(req, "editHold", 0);
-        if (editId > 0) {
-            req.setAttribute("editingHold", holdService.findOwn(editId, cashier.getUserId()));
-        }
         forward(req, resp, "staff/pos.jsp");
     }
 
@@ -71,6 +64,8 @@ public class PosServlet extends BaseServlet {
         User cashier = requireUser(req);
         String action = WebUtil.getString(req, "action");
         Map<Integer, Integer> cart = cart(req);
+        /* Quay lại đúng trang thực đơn mà thu ngân đang mở, không nhảy về đầu. */
+        String back = WebUtil.safeRedirect(WebUtil.getString(req, "returnTo"), "/staff/pos");
 
         switch (action == null ? "" : action) {
             case "add": {
@@ -81,7 +76,7 @@ public class PosServlet extends BaseServlet {
                 } else {
                     cart.put(productId, current + 1);
                 }
-                redirect(req, resp, "/staff/pos");
+                redirect(req, resp, back);
                 return;
             }
             case "setQty": {
@@ -94,97 +89,65 @@ public class PosServlet extends BaseServlet {
                 } else {
                     cart.put(productId, quantity);
                 }
-                redirect(req, resp, "/staff/pos");
+                redirect(req, resp, back);
                 return;
             }
             case "remove": {
                 cart.remove(WebUtil.getInt(req, "productId", 0));
-                redirect(req, resp, "/staff/pos");
+                redirect(req, resp, back);
                 return;
             }
             case "clear": {
                 cart.clear();
-                redirect(req, resp, "/staff/pos");
+                redirect(req, resp, back);
                 return;
             }
             case "pay": {
                 if (cart.isEmpty()) {
                     WebUtil.flashError(req, "Chưa chọn món nào.");
-                    redirect(req, resp, "/staff/pos");
+                    redirect(req, resp, back);
                     return;
                 }
-                String raw = WebUtil.getString(req, "method");
-                PaymentMethod method;
                 try {
-                    method = PaymentMethod.valueOf(raw == null ? "" : raw.trim().toUpperCase());
-                } catch (IllegalArgumentException e) {
-                    WebUtil.flashError(req, "Hình thức thanh toán không hợp lệ.");
-                    redirect(req, resp, "/staff/pos");
-                    return;
-                }
-                String reference = WebUtil.getString(req, "reference");
-
-                List<PosLine> lines = new ArrayList<>();
-                cart.forEach((productId, quantity) -> lines.add(new PosLine(productId, quantity)));
-
-                try {
-                    Order order = orderService.createPosOrder(cashier.getUserId(), lines, method, reference);
+                    Order order = orderService.createPosOrder(cashier.getUserId(), toLines(cart));
                     cart.clear();
                     WebUtil.flashSuccess(req, "Đã lập đơn #" + order.getOrderId()
                             + " và chuyển xuống bếp.");
                     redirect(req, resp, "/staff/order/detail?orderId=" + order.getOrderId());
                 } catch (AppException e) {
                     WebUtil.flashError(req, e.getMessage());
-                    redirect(req, resp, "/staff/pos");
+                    redirect(req, resp, back);
                 }
                 return;
             }
-            case "hold": {
-                Map<Integer, Integer> chup = new LinkedHashMap<>(cart);
-                handle(req, resp, () -> {
-                    holdService.hold(cashier.getUserId(), WebUtil.getString(req, "label"),
-                            WebUtil.getString(req, "note"), chup);
-                    cart.clear();
-                }, "Đã treo phiếu. Giỏ đã trống, mời khách tiếp theo.", "/staff/pos");
-                return;
-            }
-            case "resume": {
-                if (!cart.isEmpty()) {
-                    WebUtil.flashError(req, "Giỏ đang có món của khách khác. "
-                            + "Hãy tính tiền, treo lại, hoặc xoá giỏ trước khi lấy phiếu ra.");
-                    redirect(req, resp, "/staff/pos");
+            case "qr": {
+                if (cart.isEmpty()) {
+                    WebUtil.flashError(req, "Chưa chọn món nào.");
+                    redirect(req, resp, back);
                     return;
                 }
-                int holdId = WebUtil.getInt(req, "holdId", 0);
-                handle(req, resp, () -> cart.putAll(holdService.resume(holdId, cashier.getUserId())),
-                        "Đã lấy phiếu ra. Kiểm lại món rồi thu tiền.", "/staff/pos");
-                return;
-            }
-            case "holdRename": {
-                int holdId = WebUtil.getInt(req, "holdId", 0);
-                handle(req, resp, () -> holdService.rename(holdId, cashier.getUserId(),
-                                WebUtil.getString(req, "label"), WebUtil.getString(req, "note")),
-                        "Đã cập nhật phiếu treo.", "/staff/pos");
-                return;
-            }
-            case "holdSetQty": {
-                int holdId = WebUtil.getInt(req, "holdId", 0);
-                int productId = WebUtil.getInt(req, "productId", 0);
-                int quantity = WebUtil.getInt(req, "quantity", 0);
-                handle(req, resp, () -> holdService.setQuantity(holdId, cashier.getUserId(),
-                                productId, quantity),
-                        null, "/staff/pos");
-                return;
-            }
-            case "holdDiscard": {
-                int holdId = WebUtil.getInt(req, "holdId", 0);
-                handle(req, resp, () -> holdService.discard(holdId, cashier.getUserId()),
-                        "Đã bỏ phiếu treo.", "/staff/pos");
+                try {
+                    Order order = orderService.createPosQrOrder(cashier.getUserId(), toLines(cart));
+                    /* Giỏ dọn ngay dù tiền chưa về: đơn đã có mã, mọi thao tác tiếp theo diễn ra
+                       trên trang mã QR, còn quầy thì rảnh tay phục vụ khách sau. Khách bỏ đi
+                       không trả thì thu ngân huỷ đơn ở chính trang đó. */
+                    cart.clear();
+                    redirect(req, resp, "/staff/pos/qr?orderId=" + order.getOrderId());
+                } catch (AppException e) {
+                    WebUtil.flashError(req, e.getMessage());
+                    redirect(req, resp, back);
+                }
                 return;
             }
             default:
-                redirect(req, resp, "/staff/pos");
+                redirect(req, resp, back);
         }
+    }
+
+    private List<PosLine> toLines(Map<Integer, Integer> cart) {
+        List<PosLine> lines = new ArrayList<>();
+        cart.forEach((productId, quantity) -> lines.add(new PosLine(productId, quantity)));
+        return lines;
     }
 
     private String tooManyMessage() {

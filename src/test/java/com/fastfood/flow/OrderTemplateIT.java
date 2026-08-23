@@ -131,7 +131,8 @@ class OrderTemplateIT extends IntegrationTestBase {
 
             assertTrue(result.isAnythingAdded());
             assertNotNull(templateService.findOwn(id, khach),
-                    "Khác phiếu treo ở quầy: xoá sau lần nạp đầu thì đây chỉ là nút đặt lại rườm rà");
+                    "Mẫu đặt nhanh phải sống lâu hơn một lần dùng: xoá sau lần nạp đầu thì "
+                            + "đây chỉ là nút đặt lại rườm rà");
             templateService.delete(id, khach);
         }
 

@@ -17,12 +17,10 @@ public final class Constants {
 
         COMPLETED,
 
-        CANCELLED,
-
         EXPIRED;
 
         public boolean isFinal() {
-            return this == COMPLETED || this == CANCELLED || this == EXPIRED;
+            return this == COMPLETED || this == EXPIRED;
         }
     }
 
@@ -80,9 +78,7 @@ public final class Constants {
 
         PAID,
 
-        FAILED,
-
-        REFUNDED;
+        FAILED;
 
         public boolean isRetryable() {
             return this == FAILED;
@@ -144,7 +140,6 @@ public final class Constants {
 
         ORDER_CONFIRMED,
         ORDER_READY,
-        ORDER_CANCELLED,
         ORDER_EXPIRED
     }
 
@@ -153,14 +148,16 @@ public final class Constants {
         public static final String PAYMENT_INITIATED = "PAYMENT_INITIATED";
         public static final String PAYMENT_PAID      = "PAYMENT_PAID";
         public static final String PAYMENT_FAILED    = "PAYMENT_FAILED";
-        public static final String PAYMENT_REFUNDED  = "PAYMENT_REFUNDED";
+        /* Tiền về sau khi đơn đã hết hiệu lực. Khoản thu giữ nguyên PAID vì ngân hàng đã
+           thu thật; dòng nhật ký này là chỗ duy nhất chỉ ra nó không thuộc đơn nào còn
+           sống, để người đối soát tìm ra và xử lý tay. */
+        public static final String PAYMENT_ORPHANED  = "PAYMENT_ORPHANED";
         public static final String CALLBACK_IGNORED  = "CALLBACK_IGNORED";
 
         public static final String ORDER_CREATED     = "ORDER_CREATED";
         public static final String AUTO_CONFIRM      = "AUTO_CONFIRM";
         public static final String POS_CONFIRM       = "POS_CONFIRM";
         public static final String ORDER_EXPIRED     = "ORDER_EXPIRED";
-        public static final String ORDER_CANCELLED   = "ORDER_CANCELLED";
         public static final String ORDER_COMPLETED   = "ORDER_COMPLETED";
 
         public static final String KDS_RELEASE       = "KDS_RELEASE";

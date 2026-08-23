@@ -45,15 +45,20 @@ public class OrderTrackingServlet extends BaseServlet {
         }
     }
 
+    /**
+     * Khách bỏ đơn chưa thanh toán của mình.
+     *
+     * <p>Ở lại trang này chứ không đẩy sang giỏ hàng: bỏ xong khách phải nhìn thấy đơn đã
+     * chuyển sang hết hiệu lực bằng chính mắt mình, rồi mới tự quyết đi đặt lại hay thôi.
+     */
     @Override
     protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws IOException {
         User user = requireUser(req);
         int orderId = WebUtil.getInt(req, "orderId", 0);
-        handle(req, resp, () -> {
-            boolean refunded = orderService.cancelByCustomer(orderId, user.getUserId());
-            WebUtil.flashSuccess(req, refunded
-                    ? "Đã huỷ đơn hàng. Toàn bộ số tiền sẽ được hoàn về phương thức thanh toán của bạn."
-                    : "Đã huỷ đơn hàng. Đơn chưa thanh toán nên bạn không bị trừ tiền.");
-        }, null, "/order/track?orderId=" + orderId);
+
+        handle(req, resp, () -> orderService.cancelPendingOrder(orderId, user.getUserId()),
+                "Đã bỏ đơn #" + orderId + ". Giỏ hàng của bạn vẫn còn nguyên món cũ, "
+                        + "vào giỏ là đặt lại được ngay.",
+                "/order/track?orderId=" + orderId);
     }
 }

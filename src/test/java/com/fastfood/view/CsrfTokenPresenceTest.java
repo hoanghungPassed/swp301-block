@@ -47,7 +47,9 @@ class CsrfTokenPresenceTest {
             }
         }
 
-        assertTrue(checked >= 80,
+        /* Ngưỡng này chỉ để bắt lỗi test trỏ nhầm thư mục — sai đường dẫn thì checked = 0.
+           Để chùng hơn số biểu mẫu thật, nếu không thì mỗi lần gỡ một tính năng lại đỏ oan. */
+        assertTrue(checked >= 70,
                 "Chi tim thay " + checked + " bieu mau POST — sai duong dan, hay bo test dang do nham cho?");
         assertTrue(missing.isEmpty(),
                 "Bieu mau POST thieu <input type=\"hidden\" name=\"_csrf\" value=\"${csrfToken}\">: " + missing);

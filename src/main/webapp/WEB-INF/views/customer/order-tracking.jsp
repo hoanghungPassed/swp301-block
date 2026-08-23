@@ -16,7 +16,7 @@
       </span>
     </div>
 
-    <c:if test="${order.orderStatus ne 'CANCELLED' and order.orderStatus ne 'EXPIRED'}">
+    <c:if test="${order.orderStatus ne 'EXPIRED'}">
       <ol class="steps" aria-label="Tiến trình đơn hàng">
         <c:set var="s" value="${order.orderStatus}" />
         <li class="step ${s ne 'PENDING_PAYMENT' ? 'done' : 'current'}"
@@ -40,17 +40,26 @@
     <c:if test="${order.orderStatus eq 'PENDING_PAYMENT'}">
       <div class="alert alert-warn">
         Đơn chưa được thanh toán nên cửa hàng chưa nhận. Thanh toán để giữ suất.
-        <div class="mt">
+        <div class="mt actions">
           <a class="btn btn-primary btn-sm" href="${ctx}/payment/start?orderId=${order.orderId}">
             Thanh toán ngay
           </a>
+          <form method="post" action="${ctx}/order/track" class="inline-form"
+                data-confirm="Bỏ đơn #${order.orderId}? Nếu bạn đang mở trang thanh toán ở tab khác thì đóng nó lại trước, đừng trả tiền cho đơn đã bỏ.">
+            <input type="hidden" name="_csrf" value="${csrfToken}">
+            <input type="hidden" name="orderId" value="${order.orderId}">
+            <button type="submit" class="btn btn-sm">Bỏ đơn này</button>
+          </form>
         </div>
       </div>
     </c:if>
 
     <c:if test="${order.orderStatus eq 'EXPIRED'}">
       <div class="alert alert-error">
-        Đơn đã hết hạn thanh toán và không còn hiệu lực. Bạn có thể đặt lại đơn mới.
+        Đơn không còn hiệu lực nên cửa hàng không nhận nữa, và bạn không bị trừ tiền.
+        <div class="mt">
+          <a class="btn btn-sm" href="${ctx}/cart">Mở giỏ hàng đặt lại</a>
+        </div>
       </div>
     </c:if>
 
@@ -155,28 +164,17 @@
     </div>
   </c:if>
 
-  <c:if test="${order.cancellable}">
+  <c:if test="${order.orderStatus eq 'PENDING_PAYMENT'}">
     <div class="card">
-      <h3>Huỷ đơn</h3>
-      <p class="small muted mb">
-        <c:choose>
-          <c:when test="${order.orderStatus eq 'PENDING_PAYMENT'}">
-            Đơn chưa thanh toán nên huỷ được ngay, bạn không bị trừ đồng nào. Huỷ xong là đặt
-            đơn mới được — mỗi lúc chỉ giữ một đơn chờ thanh toán.
-          </c:when>
-          <c:otherwise>
-            Bếp chưa nhận làm món nào của đơn này nên bạn vẫn huỷ được, tiền sẽ hoàn lại đầy đủ.
-            Khi có đầu bếp bắt đầu chế biến thì không huỷ ở đây được nữa — lúc đó vui lòng liên hệ
-            nhân viên tại quầy.
-          </c:otherwise>
-        </c:choose>
+      <h3>Chưa muốn thanh toán nữa?</h3>
+      <p class="small muted">
+        Bấm <strong>Bỏ đơn này</strong> ở trên là xong ngay — không bị trừ đồng nào, và bạn
+        đặt được đơn mới liền, vì mỗi lúc chỉ giữ một đơn chờ thanh toán. Món cũ vẫn nằm
+        nguyên trong giỏ hàng nên không phải chọn lại từ đầu.
       </p>
-      <form method="post" action="${ctx}/order/track"
-            data-confirm="Huỷ đơn hàng này?">
-        <input type="hidden" name="_csrf" value="${csrfToken}">
-        <input type="hidden" name="orderId" value="${order.orderId}">
-        <button type="submit" class="btn btn-danger">Huỷ đơn hàng</button>
-      </form>
+      <p class="small muted">
+        Không bấm gì cũng được: đơn tự hết hiệu lực sau 15 phút.
+      </p>
     </div>
   </c:if>
 

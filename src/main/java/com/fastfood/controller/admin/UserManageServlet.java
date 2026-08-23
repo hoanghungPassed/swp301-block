@@ -31,7 +31,9 @@ public class UserManageServlet extends BaseServlet {
         req.setAttribute("role", roleName);
         req.setAttribute("keyword", keyword);
         req.setAttribute("status", status);
-        req.setAttribute("filterQuery", WebUtil.queryStringWithout(req, "page", "edit"));
+        /* Giữ cả số trang: khoá một tài khoản ở trang 3 xong phải quay lại đúng trang 3.
+           Chỉ bỏ "edit" để lưu xong thì khung sửa đóng lại. */
+        req.setAttribute("filterQuery", WebUtil.queryStringWithout(req, "edit"));
         if (editId > 0) {
             req.setAttribute("editing", adminService.findUser(editId));
         }

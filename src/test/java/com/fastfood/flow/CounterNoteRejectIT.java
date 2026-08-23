@@ -1,7 +1,6 @@
 package com.fastfood.flow;
 
 import com.fastfood.common.constant.Constants.IssueType;
-import com.fastfood.common.constant.Constants.PaymentMethod;
 import com.fastfood.common.exception.AppException.BusinessException;
 import com.fastfood.common.exception.AppException.NotFoundException;
 import com.fastfood.common.exception.AppException.ValidationException;
@@ -35,7 +34,7 @@ class CounterNoteRejectIT extends IntegrationTestBase {
 
     private Order posOrder() {
         return orderService.createPosOrder(userId(CASHIER_1),
-                List.of(new PosLine(anyOrderableProductId(), 1)), PaymentMethod.CASH, null);
+                List.of(new PosLine(anyOrderableProductId(), 1)));
     }
 
     private Order orderWithItemOnCounter() {

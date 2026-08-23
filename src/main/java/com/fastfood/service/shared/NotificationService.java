@@ -47,22 +47,6 @@ public class NotificationService {
         record(con, order, NotificationEvent.ORDER_READY, subject, content);
     }
 
-    public void notifyOrderCancelled(Connection con, Order order, String reason, boolean refunded)
-            throws SQLException {
-        if (!order.isOnline() || order.getCustomerId() == null) {
-            return;
-        }
-        String subject = "Đơn hàng #" + order.getOrderId() + " đã bị huỷ";
-        String content = String.format("Đơn #%d đã bị huỷ. Lý do: %s.%s",
-                order.getOrderId(),
-                reason == null || reason.isBlank() ? "không ghi rõ" : reason,
-                refunded
-                        ? " Toàn bộ " + MoneyUtil.format(order.getTotalAmount())
-                          + " đã được hoàn lại về phương thức thanh toán ban đầu."
-                        : "");
-        record(con, order, NotificationEvent.ORDER_CANCELLED, subject, content);
-    }
-
     public void notifyOrderExpired(Connection con, Order order) throws SQLException {
         if (!order.isOnline() || order.getCustomerId() == null) {
             return;
@@ -75,16 +59,20 @@ public class NotificationService {
         record(con, order, NotificationEvent.ORDER_EXPIRED, subject, content);
     }
 
-    public void notifyRefundedOrderGone(Connection con, Order order) throws SQLException {
+    /* Tiền vào tài khoản cửa hàng nhưng đơn đã hết hiệu lực từ trước. Không hứa hoàn tự động
+       — hệ thống không làm được việc đó — mà nói thẳng số tiền và mã đơn để khách cầm đúng
+       thông tin đi hỏi, và mời khách liên hệ. Im lặng ở đây là tệ nhất: khách vừa mất suất
+       ăn vừa thấy tài khoản bị trừ. */
+    public void notifyPaymentOrphaned(Connection con, Order order) throws SQLException {
         if (!order.isOnline() || order.getCustomerId() == null) {
             return;
         }
-        String subject = "Đã hoàn tiền cho đơn hàng #" + order.getOrderId();
+        String subject = "Cần đối chiếu khoản thanh toán cho đơn hàng #" + order.getOrderId();
         String content = String.format(
-                "Khoản thanh toán %s cho đơn #%d đã được hoàn lại. Đơn hết hiệu lực trước khi "
-                + "giao dịch hoàn tất nên cửa hàng không giữ lại khoản tiền này. "
-                + "Tiền về tài khoản theo thời gian xử lý của ngân hàng.",
-                MoneyUtil.format(order.getTotalAmount()), order.getOrderId());
+                "Khoản thanh toán %s đã được ghi nhận, nhưng đơn #%d hết hiệu lực trước khi giao "
+                + "dịch hoàn tất nên đơn không được giữ. Vui lòng liên hệ cửa hàng kèm mã đơn "
+                + "#%d để được đối chiếu và xử lý khoản tiền này.",
+                MoneyUtil.format(order.getTotalAmount()), order.getOrderId(), order.getOrderId());
         record(con, order, NotificationEvent.ORDER_EXPIRED, subject, content);
     }
 

@@ -61,7 +61,8 @@
                 <td class="small"><c:out value="${p.categoryName}"/></td>
                 <td class="num">${ff:money(p.price)}</td>
                 <td>
-                  <form method="post" action="${ctx}/admin/products" class="inline-form">
+                  <form method="post" action="${ctx}/admin/products" class="inline-form"
+                        data-confirm="${p.available ? 'Đánh dấu món này tạm hết hàng? Khách sẽ không đặt được cho tới khi bật lại.' : 'Đánh dấu món này còn hàng trở lại?'}">
                     <input type="hidden" name="_csrf" value="${csrfToken}">
                     <input type="hidden" name="action" value="toggle">
                     <input type="hidden" name="productId" value="${p.productId}">
@@ -79,7 +80,8 @@
                 </td>
                 <td class="center">
                   <a class="btn btn-sm" href="?${fn:escapeXml(qs)}edit=${p.productId}">Sửa</a>
-                  <form method="post" action="${ctx}/admin/products" class="inline-form">
+                  <form method="post" action="${ctx}/admin/products" class="inline-form"
+                        data-confirm="${p.status eq 'ACTIVE' ? 'Ngừng bán món này? Món sẽ không còn hiện trên thực đơn.' : 'Bán lại món này trên thực đơn?'}">
                     <input type="hidden" name="_csrf" value="${csrfToken}">
                     <input type="hidden" name="action" value="${p.status eq 'ACTIVE' ? 'retire' : 'restore'}">
                     <input type="hidden" name="productId" value="${p.productId}">
@@ -96,13 +98,14 @@
             </c:if>
           </tbody>
         </table>
-        <%@ include file="/WEB-INF/views/layout/pager.jspf" %>
+        <ui:pager page="${pageData}" label="món" />
       </div>
     </div>
 
     <div class="card">
       <h2>${empty editing ? 'Thêm món mới' : 'Sửa món'}</h2>
-      <form method="post" action="${ctx}/admin/products">
+      <form method="post" action="${ctx}/admin/products"
+            data-confirm="${empty editing ? 'Thêm món mới vào thực đơn?' : 'Lưu thay đổi cho món này?'}">
         <input type="hidden" name="_csrf" value="${csrfToken}">
         <input type="hidden" name="productId" value="${editing.productId}">
         <input type="hidden" name="back" value="<c:out value="${filterQuery}"/>">

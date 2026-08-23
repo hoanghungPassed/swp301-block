@@ -8,7 +8,8 @@
   <c:if test="${cart.hasUnavailable}">
     <div class="alert alert-warn">
       Có món trong giỏ vừa hết hàng hoặc ngừng bán. Bỏ các món đó ra để tiếp tục đặt hàng.
-      <form method="post" action="${ctx}/cart" class="inline-form">
+      <form method="post" action="${ctx}/cart" class="inline-form"
+            data-confirm="Bỏ các món không còn bán ra khỏi giỏ?">
         <input type="hidden" name="_csrf" value="${csrfToken}">
         <input type="hidden" name="action" value="removeUnavailable">
         <button type="submit" class="btn btn-sm">Bỏ các món đó</button>
@@ -56,7 +57,8 @@
                 </td>
                 <td class="num" data-label="Thành tiền" data-line-total>${ff:money(item.lineTotal)}</td>
                 <td class="center" data-label="">
-                  <form method="post" action="${ctx}/cart" class="inline-form">
+                  <form method="post" action="${ctx}/cart" class="inline-form"
+                        data-confirm="Bỏ món này khỏi giỏ hàng?">
                     <input type="hidden" name="_csrf" value="${csrfToken}">
                     <input type="hidden" name="action" value="remove">
                     <input type="hidden" name="cartItemId" value="${item.cartItemId}">
@@ -92,7 +94,8 @@
           </div>
         </c:when>
         <c:when test="${cart.checkoutable}">
-          <form method="post" action="${ctx}/cart" class="card">
+          <form method="post" action="${ctx}/cart" class="card"
+                data-confirm="Đặt đơn ${ff:money(cart.totalAmount)} và chuyển sang trang thanh toán?">
             <input type="hidden" name="_csrf" value="${csrfToken}">
             <h2>Chọn giờ đến lấy</h2>
             <p class="small muted mb">Món sẽ được làm sát giờ bạn hẹn để còn nóng khi bạn tới.</p>

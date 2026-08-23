@@ -1,6 +1,10 @@
 <c:set var="pageTitle" value="${product.name}" /><c:set var="nav" value="menu" />
 <c:set var="mainClass" value="container medium" />
 <%@ include file="/WEB-INF/views/layout/page-start.jspf" %>
+  <%-- Gửi hay sửa đánh giá xong thì quay lại đúng trang đánh giá đang xem. --%>
+  <c:set var="revQuery" value="${ff:pageQuery(pageContext.request, 'editReview')}" />
+  <c:set var="revBack"  value="/product/detail${empty revQuery ? '' : '?'.concat(revQuery)}" />
+  <c:set var="revReturn"><input type="hidden" name="returnTo" value="<c:out value="${revBack}"/>#danh-gia"></c:set>
   <p class="small mb"><a href="${ctx}/menu">← Quay lại thực đơn</a></p>
 
   <%@ include file="/WEB-INF/views/layout/flash.jspf" %>
@@ -59,7 +63,8 @@
       <c:if test="${not empty me and me.roleName eq 'CUSTOMER'}">
         <c:choose>
           <c:when test="${isFavourite}">
-            <form method="post" action="${ctx}/menu">
+            <form method="post" action="${ctx}/menu"
+                  data-confirm="Bỏ món này khỏi danh sách món quen?">
               <input type="hidden" name="_csrf" value="${csrfToken}">
               <input type="hidden" name="action" value="favRemoveByProduct">
               <input type="hidden" name="productId" value="${product.productId}">
@@ -111,9 +116,10 @@
             <div class="actions">
               <a class="btn btn-sm" href="${ctx}/product/detail?id=${product.productId}&editReview=true">Sửa</a>
               <form method="post" action="${ctx}/product/detail" class="inline-form"
-                    onsubmit="return confirm('Xoá đánh giá của bạn?');">
+                    data-confirm="Xoá đánh giá của bạn cho món này?">
                 <input type="hidden" name="_csrf" value="${csrfToken}">
                 <input type="hidden" name="action" value="reviewDelete">
+                ${revReturn}
                 <input type="hidden" name="reviewId" value="${myReview.reviewId}">
                 <input type="hidden" name="productId" value="${product.productId}">
                 <button type="submit" class="btn btn-sm btn-danger">Xoá</button>
@@ -123,9 +129,11 @@
         </div>
 
         <c:if test="${editingReview}">
-          <form method="post" action="${ctx}/product/detail" class="stack mb">
+          <form method="post" action="${ctx}/product/detail" class="stack mb"
+                data-confirm="Lưu thay đổi cho đánh giá của bạn?">
             <input type="hidden" name="_csrf" value="${csrfToken}">
             <input type="hidden" name="action" value="reviewUpdate">
+            ${revReturn}
             <input type="hidden" name="reviewId" value="${myReview.reviewId}">
             <input type="hidden" name="productId" value="${product.productId}">
             <div class="field">
@@ -149,9 +157,11 @@
       </c:when>
 
       <c:when test="${canReview}">
-        <form method="post" action="${ctx}/product/detail" class="stack mb">
+        <form method="post" action="${ctx}/product/detail" class="stack mb"
+              data-confirm="Gửi đánh giá này? Đánh giá sẽ hiện công khai cho người khác xem.">
           <input type="hidden" name="_csrf" value="${csrfToken}">
           <input type="hidden" name="action" value="reviewAdd">
+          ${revReturn}
           <input type="hidden" name="productId" value="${product.productId}">
           <div class="field">
             <label for="rating">Bạn thấy món này thế nào?</label>
@@ -185,13 +195,13 @@
     </c:choose>
 
     <c:choose>
-      <c:when test="${empty reviews}">
+      <c:when test="${reviewPage.totalItems == 0}">
         <div class="empty"><div class="icon" aria-hidden="true">💬</div>
           Chưa có đánh giá nào cho món này.
         </div>
       </c:when>
       <c:otherwise>
-        <c:forEach var="r" items="${reviews}">
+        <c:forEach var="r" items="${reviewPage.items}">
           <div class="review">
             <div class="row-between">
               <div>
@@ -208,6 +218,7 @@
             </c:if>
           </div>
         </c:forEach>
+        <ui:pager page="${reviewPage}" pageParam="reviewPage" anchor="danh-gia" label="đánh giá" />
       </c:otherwise>
     </c:choose>
   </div>

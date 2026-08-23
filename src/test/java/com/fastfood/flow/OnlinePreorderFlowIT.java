@@ -1,9 +1,9 @@
 package com.fastfood.flow;
 
 import com.fastfood.common.exception.AppException.BusinessException;
+import com.fastfood.common.exception.AppException.NotFoundException;
 import com.fastfood.integration.payment.GatewayCallback;
-import com.fastfood.config.AppConfig;
-import com.fastfood.integration.payment.VnPayGateway;
+import com.fastfood.integration.payment.PayOsGateway;
 import com.fastfood.model.entity.OrderEntities.Order;
 import com.fastfood.model.entity.OrderEntities.OrderItem;
 import com.fastfood.service.customer.CartService;
@@ -12,17 +12,14 @@ import com.fastfood.service.customer.CustomerOrderService;
 import com.fastfood.service.staff.StaffOrderService;
 import com.fastfood.service.shared.PaymentService;
 import com.fastfood.service.shared.ScheduleService;
+import com.fastfood.testsupport.FakePayOs;
 import com.fastfood.testsupport.IntegrationTestBase;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
-import java.net.URI;
 import java.time.LocalDateTime;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
-import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -36,7 +33,12 @@ class OnlinePreorderFlowIT extends IntegrationTestBase {
     private final CartService cartService = new CartService();
     private final CustomerOrderService customerOrders = new CustomerOrderService();
     private final StaffOrderService staffOrders = new StaffOrderService();
-    private final PaymentService paymentService = new PaymentService();
+    /* Cổng PayOS thật, chỉ có đường truyền là giả — xem FakePayOs. Nhờ vậy các bài dưới đây
+       vẫn đi qua đúng phần dựng mã đơn, ký và đọc kết quả của mã sản phẩm, mà không đòi mạng
+       cũng không đòi bộ khoá thật của cửa hàng. */
+    private final FakePayOs payos = new FakePayOs();
+    private final PayOsGateway gateway = payos.gateway();
+    private final PaymentService paymentService = new PaymentService(gateway);
     private final ScheduleService scheduleService = new ScheduleService();
     private final KitchenService kitchenService = new KitchenService();
 
@@ -116,7 +118,7 @@ class OnlinePreorderFlowIT extends IntegrationTestBase {
         assertEquals(1, count("SELECT COUNT(*) FROM dbo.Payment WHERE order_id = ? AND payment_status = 'PAID'",
                 order.getOrderId()), "Không được sinh thêm khoản thu");
         assertEquals(1, count("SELECT COUNT(*) FROM dbo.PaymentTransaction WHERE external_transaction_id = ?",
-                cb.externalId), "Một mã giao dịch chỉ ghi được đúng một lần");
+                cb.externalId()), "Một mã giao dịch chỉ ghi được đúng một lần");
     }
 
     @Test
@@ -139,11 +141,77 @@ class OnlinePreorderFlowIT extends IntegrationTestBase {
                         + "AND payment_status = 'PAID'", order.getOrderId()),
                 "Không được ghi nhận đồng nào");
         assertEquals(1, count("SELECT COUNT(*) FROM dbo.PaymentTransaction "
-                        + "WHERE external_transaction_id = ? AND status = 'MISMATCH'", thieu.externalId),
+                        + "WHERE external_transaction_id = ? AND status = 'MISMATCH'", thieu.externalId()),
                 "Khoản tiền vẫn phải nằm lại trong sổ đối soát, và nằm dưới đúng tên của nó: "
                         + "tiền đã thật sự rời tài khoản khách, chỉ là không đúng số");
 
         assertEquals(PaymentService.CallbackResult.PAID, paymentService.handleCallback(dung.toGateway()));
+        assertEquals("CONFIRMED", statusOf(order.getOrderId()));
+    }
+
+    @Test
+    @DisplayName("Khách bỏ đơn chưa thanh toán thì đặt lại được ngay, giỏ hàng còn nguyên")
+    void cancellingAPendingOrderFreesTheCustomerToOrderAgain() {
+        cartService.addProduct(customerId, anyOrderableProductId(), 1);
+        Order first = customerOrders.createOnlineOrder(customerId, safePickupTime(),
+                "idem-bo-" + System.nanoTime());
+
+        assertThrows(BusinessException.class,
+                () -> customerOrders.createOnlineOrder(customerId, safePickupTime(),
+                        "idem-ke-" + System.nanoTime()),
+                "Đang có đơn chờ thanh toán thì chưa được đặt đơn thứ hai");
+
+        customerOrders.cancelPendingOrder(first.getOrderId(), customerId);
+
+        assertEquals("EXPIRED", statusOf(first.getOrderId()));
+        assertTrue(count("SELECT COUNT(*) FROM dbo.CartItem ci JOIN dbo.Cart c "
+                        + "ON c.cart_id = ci.cart_id WHERE c.user_id = ?", customerId) > 0,
+                "Giỏ phải còn nguyên món: bỏ đơn xong mà phải chọn lại từ đầu thì chẳng ai bỏ");
+
+        Order second = customerOrders.createOnlineOrder(customerId, safePickupTime(),
+                "idem-lai-" + System.nanoTime());
+        assertTrue(second.getOrderId() != first.getOrderId(), "Phải là một đơn mới");
+        assertEquals("PENDING_PAYMENT", statusOf(second.getOrderId()));
+    }
+
+    @Test
+    @DisplayName("Bỏ đơn thì khoản thu dở dang đóng lại, và nhật ký ghi tên người bấm")
+    void cancellingClosesThePendingPaymentAndNamesTheActor() {
+        cartService.addProduct(customerId, anyOrderableProductId(), 1);
+        Order order = customerOrders.createOnlineOrder(customerId, safePickupTime(),
+                "idem-bo-thu-" + System.nanoTime());
+        startPayment(order.getOrderId());
+
+        customerOrders.cancelPendingOrder(order.getOrderId(), customerId);
+
+        assertEquals(0, count("SELECT COUNT(*) FROM dbo.Payment WHERE order_id = ? "
+                        + "AND payment_status = 'PENDING'", order.getOrderId()),
+                "Để khoản thu treo ở PENDING thì đối soát cuối ngày không biết nó đã chết");
+        assertEquals(1, count("SELECT COUNT(*) FROM dbo.AuditLog WHERE entity_type = 'ORDER' "
+                        + "AND entity_id = ? AND action = 'ORDER_EXPIRED' AND actor_id = ?",
+                        String.valueOf(order.getOrderId()), customerId),
+                "Khách tự bỏ và bộ hẹn giờ đóng đơn cùng ghi ORDER_EXPIRED — cột actor_id là "
+                        + "chỗ duy nhất phân biệt được hai việc đó");
+    }
+
+    @Test
+    @DisplayName("Không bỏ được đơn của người khác, cũng không bỏ được đơn đã trả tiền")
+    void cancellingIsFencedOff() {
+        cartService.addProduct(customerId, anyOrderableProductId(), 1);
+        Order order = customerOrders.createOnlineOrder(customerId, safePickupTime(),
+                "idem-rao-" + System.nanoTime());
+
+        assertThrows(NotFoundException.class,
+                () -> customerOrders.cancelPendingOrder(order.getOrderId(), userId(CUSTOMER_1)),
+                "Đơn của người khác phải trông như không tồn tại, không phải báo lỗi quyền");
+        assertEquals("PENDING_PAYMENT", statusOf(order.getOrderId()));
+
+        Callback cb = startPayment(order.getOrderId());
+        assertEquals(PaymentService.CallbackResult.PAID, paymentService.handleCallback(cb.toGateway()));
+
+        assertThrows(BusinessException.class,
+                () -> customerOrders.cancelPendingOrder(order.getOrderId(), customerId),
+                "Đơn đã có tiền thật của khách thì không được biến mất bằng một cú bấm");
         assertEquals("CONFIRMED", statusOf(order.getOrderId()));
     }
 
@@ -282,21 +350,6 @@ class OnlinePreorderFlowIT extends IntegrationTestBase {
     }
 
     @Test
-    @DisplayName("Đơn đã hoàn tiền thì không giao món, và nói rõ lý do")
-    void refundedOrderCannotBeHandedOff() {
-        Order order = readyOrder();
-        exec("UPDATE dbo.Payment SET payment_status = 'REFUNDED', refunded_at = ? WHERE order_id = ?",
-             LocalDateTime.now(), order.getOrderId());
-
-        BusinessException e = assertThrows(BusinessException.class,
-                () -> staffOrders.handoff(order.getOrderId(), userId(CASHIER_1),
-                        pickupCodeOf(order.getOrderId())));
-
-        assertTrue(e.getMessage().contains("hoàn tiền"),
-                "Phải phân biệt 'chưa từng thu' với 'đã thu rồi hoàn': " + e.getMessage());
-    }
-
-    @Test
     @DisplayName("Giờ hẹn quá gần thì bị từ chối (BR-05)")
     void pickupTimeTooSoonIsRejected() {
         cartService.addProduct(customerId, anyOrderableProductId(), 1);
@@ -358,24 +411,23 @@ class OnlinePreorderFlowIT extends IntegrationTestBase {
     }
 
     /**
-     * Đi qua đúng bước mở cổng thật: gọi startOnlinePayment, đọc lại địa chỉ VNPAY mà nó dựng
-     * ra, rồi dựng gói tham số VNPAY sẽ gửi ngược về. Nhờ vậy bài kiểm tra vẫn sập nếu tham số
-     * gửi đi bị đổi tên hay thiếu.
+     * Đi qua đúng bước mở cổng thật: gọi startOnlinePayment, đọc lại mã đơn mà nó gửi sang
+     * PayOS, rồi dựng lần báo kết quả mà PayOS sẽ gửi ngược về. Nhờ vậy bài kiểm tra vẫn sập
+     * nếu mã đơn gửi đi bị đổi cách tính, hoặc nếu hai đường báo về đọc lệch nhau.
      */
     private Callback startPayment(int orderId) {
-        Map<String, String> q = queryParams(
-                paymentService.startOnlinePayment(orderId, customerId, "http://test"));
-        return Callback.of(q.get("vnp_TxnRef"), new BigDecimal(q.get("vnp_Amount")).movePointLeft(2));
+        String checkoutUrl = paymentService.startOnlinePayment(orderId, customerId, "http://test");
+        long orderCode = orderCodeOf(checkoutUrl);
+        BigDecimal amount = money("SELECT amount FROM dbo.Payment WHERE payment_id = ?",
+                gateway.paymentIdFrom(orderCode));
+        return new Callback(orderCode, amount, "TF" + orderCode);
     }
 
-    private static Map<String, String> queryParams(String url) {
-        Map<String, String> map = new HashMap<>();
-        String query = URI.create(url).getQuery();
-        for (String pair : query.split("&")) {
-            int i = pair.indexOf('=');
-            map.put(pair.substring(0, i), pair.substring(i + 1));
-        }
-        return map;
+    /* PayOS giả dựng địa chỉ trả tiền là .../web/link-<orderCode>, nên đọc ngược ra được mã
+       đơn mà mã sản phẩm vừa gửi đi — không phải mở cửa hậu nào vào PaymentService. */
+    private static long orderCodeOf(String checkoutUrl) {
+        String duoi = checkoutUrl.substring(checkoutUrl.lastIndexOf("link-") + "link-".length());
+        return Long.parseLong(duoi);
     }
 
     private static String statusOf(int orderId) {
@@ -391,64 +443,36 @@ class OnlinePreorderFlowIT extends IntegrationTestBase {
                 "SELECT released_to_kds_at FROM dbo.Orders WHERE order_id = ?", orderId);
     }
 
-    /* Cùng chuỗi bí mật với cấu hình đang chạy, nên chữ ký dựng ở đây khớp với chữ ký
-       PaymentService kiểm lại — đúng như VNPAY thật ký gói gửi về. Dựng lúc gọi chứ không để
-       thành hằng số: app.properties chỉ được nạp trong @BeforeAll, còn hằng số static thì đã
-       chạy xong từ lúc nạp lớp, và sẽ chộp phải chuỗi bí mật rỗng. */
-    private static VnPayGateway vnpay() {
-        return new VnPayGateway(AppConfig.vnpayTmnCode(), AppConfig.vnpayHashSecret(), "", "", 15);
-    }
+    /**
+     * Một lần PayOS báo kết quả về.
+     *
+     * <p>Dựng qua {@code PayOsCallbacks} thì đúng hơn, nhưng lớp ấy nằm trong package của
+     * servlet nên bài kiểm tra tầng dịch vụ không với tới. Chỗ hai đường phải khớp nhau — mã
+     * giao dịch dựng từ mã tham chiếu ngân hàng — được kiểm riêng ở
+     * {@code PayOsWebhookServletTest}.
+     */
+    private record Callback(long orderCode, BigDecimal amount, String reference) {
 
-    /** Một lần VNPAY báo kết quả về, đã ký sẵn. */
-    private record Callback(int paymentId, String externalId, BigDecimal amount,
-                            Map<String, String> params) {
-
-        /* Mã giao dịch phải khác nhau giữa các đơn: bảng giao dịch có ràng buộc duy nhất trên
-           cột này, nên dùng chung một hằng số thì đơn thứ hai trong cùng lần chạy bị coi là
-           gọi trùng. Mã tham chiếu đã đủ duy nhất rồi, lấy luôn phần số của nó. */
-        private static String transactionNo(String txnRef) {
-            return txnRef.replace("-", "");
+        /** Mã giao dịch như hai đường báo kết quả của PayOS dựng ra — xem PayOsCallbacks. */
+        String externalId() {
+            return "PAYOS-" + reference;
         }
 
-        static Callback of(String txnRef, BigDecimal amount) {
-            String transactionNo = transactionNo(txnRef);
-            Map<String, String> p = new LinkedHashMap<>();
-            p.put("vnp_TmnCode", AppConfig.vnpayTmnCode());
-            p.put("vnp_Amount", amount.movePointRight(2).toBigInteger().toString());
-            p.put("vnp_BankCode", "NCB");
-            p.put("vnp_CardType", "ATM");
-            p.put("vnp_OrderInfo", "Thanh toan don hang");
-            p.put("vnp_PayDate", "20250101120000");
-            p.put("vnp_ResponseCode", VnPayGateway.CODE_SUCCESS);
-            p.put("vnp_TransactionStatus", VnPayGateway.CODE_SUCCESS);
-            p.put("vnp_TransactionNo", transactionNo);
-            p.put("vnp_TxnRef", txnRef);
-            p.put("vnp_SecureHash", vnpay().sign(p));
-            return new Callback(vnpay().paymentIdFrom(txnRef), "VNPAY-" + transactionNo, amount, p);
-        }
-
-        /** Cùng một lần trả tiền nhưng số tiền về không đúng — ký lại cho hợp lệ về chữ ký. */
+        /** Cùng một khoản thu nhưng ngân hàng chuyển về số khác. */
         Callback withAmount(BigDecimal other) {
-            String transactionNo = transactionNo(params.get("vnp_TxnRef")) + "9";
-            Map<String, String> p = new LinkedHashMap<>(params);
-            p.remove("vnp_SecureHash");
-            p.put("vnp_Amount", other.movePointRight(2).toBigInteger().toString());
-            /* Mã giao dịch phải khác lần trả đúng, nếu không lần này bị coi là gọi trùng chứ
+            /* Mã tham chiếu phải khác lần trả đúng, nếu không lần này bị coi là gọi trùng chứ
                không phải lệch tiền, và bài kiểm tra đo nhầm thứ. */
-            p.put("vnp_TransactionNo", transactionNo);
-            p.put("vnp_SecureHash", vnpay().sign(p));
-            return new Callback(paymentId, "VNPAY-" + transactionNo, other, p);
+            return new Callback(orderCode, other, reference + "-LECH");
         }
 
         GatewayCallback toGateway() {
             GatewayCallback cb = new GatewayCallback();
-            cb.setPaymentId(paymentId);
-            cb.setExternalTransactionId(externalId);
+            cb.setTrusted(true);
+            cb.setPaymentId((int) orderCode);
+            cb.setExternalTransactionId(externalId());
             cb.setSuccess(true);
             cb.setAmount(amount);
-            cb.setSignature(params.get("vnp_SecureHash"));
-            cb.setParams(params);
-            cb.setRawPayload("vnp_TxnRef=" + params.get("vnp_TxnRef"));
+            cb.setRawPayload("{\"orderCode\":" + orderCode + "}");
             return cb;
         }
     }

@@ -43,14 +43,15 @@ class JspCompileTest {
             fail("Bo dich JSP bao loi: " + e.getMessage(), e);
         }
 
-        List<Path> jsps = findJsps();
+        // Mỗi tệp .tag cũng sinh ra một lớp Java, nên đếm cả hai loại mới khớp.
+        int can_co = findJsps().size() + findTags().size();
         long sinh_ra;
         try (Stream<Path> walk = Files.walk(outDir)) {
             sinh_ra = walk.filter(p -> p.toString().endsWith(".java")).count();
         }
 
-        assertEquals(jsps.size(), sinh_ra,
-                "Co trang khong dich duoc. So trang: " + jsps.size() + ", so tep sinh ra: " + sinh_ra
+        assertEquals(can_co, sinh_ra,
+                "Co trang khong dich duoc. So trang va the: " + can_co + ", so tep sinh ra: " + sinh_ra
                         + ". Xem thong bao cua Jasper o phia tren.");
 
         xoaDe(outDir);
@@ -73,10 +74,12 @@ class JspCompileTest {
     }
 
     @Test
-    @DisplayName("Mảnh .jspf nào cũng tự khai báo pageEncoding=\"UTF-8\"")
+    @DisplayName("Mảnh .jspf và thẻ .tag nào cũng tự khai báo pageEncoding=\"UTF-8\"")
     void jspfsDeclareUtf8() throws Exception {
         List<String> thieu = new ArrayList<>();
-        for (Path jspf : findJspfs()) {
+        List<Path> canKiemTra = new ArrayList<>(findJspfs());
+        canKiemTra.addAll(findTags());
+        for (Path jspf : canKiemTra) {
             String noi_dung = Files.readString(jspf, StandardCharsets.UTF_8);
             if (!noi_dung.contains("pageEncoding=\"UTF-8\"")) {
                 thieu.add(WEBAPP.toAbsolutePath().relativize(jspf).toString());
@@ -94,6 +97,14 @@ class JspCompileTest {
         try (Stream<Path> walk = Files.walk(WEBAPP.toAbsolutePath())) {
             List<Path> list = new ArrayList<>();
             walk.filter(p -> p.toString().endsWith(".jspf")).forEach(list::add);
+            return list;
+        }
+    }
+
+    private List<Path> findTags() throws Exception {
+        try (Stream<Path> walk = Files.walk(WEBAPP.toAbsolutePath())) {
+            List<Path> list = new ArrayList<>();
+            walk.filter(p -> p.toString().endsWith(".tag")).forEach(list::add);
             return list;
         }
     }

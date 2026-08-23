@@ -60,7 +60,8 @@
                 <td class="center">
                   <div class="actions center">
                     <a class="btn btn-sm" href="?${fn:escapeXml(qs)}edit=${u.userId}">Sửa</a>
-                    <form method="post" action="${ctx}/admin/users" class="inline-form">
+                    <form method="post" action="${ctx}/admin/users" class="inline-form"
+                          data-confirm="${u.active ? 'Khoá tài khoản này? Người dùng sẽ không đăng nhập được nữa.' : 'Mở khoá tài khoản này?'}">
                       <input type="hidden" name="_csrf" value="${csrfToken}">
                       <input type="hidden" name="action" value="${u.active ? 'lock' : 'unlock'}">
                       <input type="hidden" name="userId" value="${u.userId}">
@@ -86,7 +87,7 @@
             </c:if>
           </tbody>
         </table>
-        <%@ include file="/WEB-INF/views/layout/pager.jspf" %>
+        <ui:pager page="${pageData}" label="tài khoản" />
       </div>
       <p class="small muted">Mật khẩu tạm sinh ngẫu nhiên và chỉ hiện một lần ngay sau khi đặt
         lại — chép lại trước khi rời trang. Người dùng buộc phải tự đổi ở lần đăng nhập kế tiếp.</p>
@@ -99,7 +100,8 @@
           <p class="small muted mb">
             Vai trò chỉ chọn được lúc tạo tài khoản, mật khẩu đổi bằng nút đặt lại.
           </p>
-          <form method="post" action="${ctx}/admin/users">
+          <form method="post" action="${ctx}/admin/users"
+                data-confirm="Lưu thay đổi thông tin của tài khoản này?">
             <input type="hidden" name="_csrf" value="${csrfToken}">
             <input type="hidden" name="action" value="updateInfo">
             <input type="hidden" name="userId" value="${editing.userId}">
@@ -128,7 +130,8 @@
     <div class="card">
       <h2>Tạo tài khoản nhân viên</h2>
       <p class="small muted mb">Khách hàng tự đăng ký. Tài khoản nhân viên do quản trị viên tạo.</p>
-      <form method="post" action="${ctx}/admin/users">
+      <form method="post" action="${ctx}/admin/users"
+            data-confirm="Tạo tài khoản nhân viên này? Vai trò không đổi được sau khi tạo.">
         <input type="hidden" name="_csrf" value="${csrfToken}">
         <input type="hidden" name="action" value="create">
         <input type="hidden" name="back" value="<c:out value="${filterQuery}"/>">

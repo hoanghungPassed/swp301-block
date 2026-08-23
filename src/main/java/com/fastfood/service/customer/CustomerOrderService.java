@@ -4,6 +4,7 @@ import com.fastfood.common.constant.Constants.AuditAction;
 import com.fastfood.common.constant.Constants.OrderItemStatus;
 import com.fastfood.common.constant.Constants.OrderSource;
 import com.fastfood.common.constant.Constants.OrderStatus;
+import com.fastfood.common.constant.Constants.PaymentStatus;
 import com.fastfood.common.exception.AppException.BusinessException;
 import com.fastfood.common.exception.AppException.NotFoundException;
 import com.fastfood.common.exception.AppException.ValidationException;
@@ -13,17 +14,18 @@ import com.fastfood.dao.customer.CartDAO;
 import com.fastfood.dao.JdbcSupport;
 import com.fastfood.dao.shared.OrderDAO;
 import com.fastfood.dao.shared.OrderItemDAO;
+import com.fastfood.dao.shared.PaymentDAO;
 import com.fastfood.dao.shared.ProductDAO;
 import com.fastfood.dao.shared.UserDAO;
 import com.fastfood.model.dto.Dtos.Page;
 import com.fastfood.model.entity.OrderEntities.CartItem;
 import com.fastfood.model.entity.OrderEntities.Order;
 import com.fastfood.model.entity.OrderEntities.OrderItem;
+import com.fastfood.model.entity.OrderEntities.Payment;
 import com.fastfood.model.entity.MenuEntities.Product;
 import com.fastfood.model.entity.UserEntities.User;
 import com.fastfood.service.Tx;
 import com.fastfood.service.shared.AuditService;
-import com.fastfood.service.shared.NotificationService;
 import com.fastfood.service.shared.OrderCoreService;
 
 import java.math.BigDecimal;
@@ -34,16 +36,13 @@ import java.util.List;
 
 public class CustomerOrderService {
 
-    private static final String KITCHEN_ALREADY_STARTED =
-            "Bếp đã bắt đầu chuẩn bị đơn này nên không thể huỷ. Vui lòng liên hệ nhân viên tại quầy.";
-
     private final OrderDAO orderDAO = new OrderDAO();
     private final OrderItemDAO orderItemDAO = new OrderItemDAO();
     private final ProductDAO productDAO = new ProductDAO();
     private final CartDAO cartDAO = new CartDAO();
+    private final PaymentDAO paymentDAO = new PaymentDAO();
     private final UserDAO userDAO = new UserDAO();
     private final AuditService auditService = new AuditService();
-    private final NotificationService notificationService = new NotificationService();
     private final OrderCoreService orderCore = new OrderCoreService();
 
     public Order createOnlineOrder(int customerId, LocalDateTime pickupTime, String idempotencyKey) {
@@ -181,6 +180,58 @@ public class CustomerOrderService {
         return candidate;
     }
 
+    /**
+     * Khách tự bỏ đơn của mình khi chưa trả tiền, để đặt lại đơn khác ngay.
+     *
+     * <p>Không có trạng thái "đã huỷ" riêng: đơn đi vào đúng EXPIRED như khi hết 15 phút giữ
+     * chỗ. Thêm một trạng thái nữa chỉ để phân biệt "khách bấm bỏ" với "hết giờ" là bắt mọi
+     * câu truy vấn, mọi bộ lọc và mọi màn hình về sau phải nhớ thêm một nhánh, trong khi hai
+     * việc ấy kết thúc y hệt nhau: đơn không còn hiệu lực và không ai bị trừ tiền. Ai bấm thì
+     * đã nằm ở cột actor_id của dòng nhật ký.
+     *
+     * <p>Khoá đơn rồi mới đọc lại, và từ chối nếu đã có khoản thu PAID: khách có thể vừa bấm
+     * bỏ ở tab này đúng lúc tiền từ tab thanh toán kia về tới. Trường hợp tiền về sau khi đơn
+     * đã đóng thì đã có đường xử lý riêng — xem PAYMENT_ORPHANED trong PaymentService.
+     *
+     * <p>Giỏ hàng giữ nguyên: món chỉ bị dọn khỏi giỏ lúc đơn được thanh toán xong, nên bỏ đơn
+     * xong khách vào giỏ là đặt lại được ngay, không phải chọn lại từ đầu.
+     */
+    public void cancelPendingOrder(int orderId, int customerId) {
+        LocalDateTime now = DateTimeUtil.now();
+        Tx.writeVoid(con -> {
+            orderDAO.lockForUpdate(con, orderId);
+            Order order = orderDAO.findById(con, orderId);
+            if (order == null || order.getCustomerId() == null
+                    || order.getCustomerId() != customerId) {
+                throw new NotFoundException("Không tìm thấy đơn hàng.");
+            }
+            if (!OrderStatus.PENDING_PAYMENT.name().equals(order.getOrderStatus())) {
+                throw new BusinessException("Đơn #" + orderId + " không còn ở trạng thái chờ "
+                        + "thanh toán nên không bỏ được. Trạng thái hiện tại: "
+                        + order.getOrderStatus() + ".");
+            }
+
+            Payment payment = paymentDAO.findLatestByOrder(con, orderId);
+            if (payment != null && payment.isPaid()) {
+                throw new BusinessException("Đơn #" + orderId + " vừa nhận được thanh toán nên "
+                        + "không bỏ được nữa. Tải lại trang để xem trạng thái mới.");
+            }
+            if (orderDAO.markExpired(con, orderId, now) == 0) {
+                throw new BusinessException("Đơn #" + orderId + " vừa đổi trạng thái. "
+                        + "Tải lại trang rồi thử lại.");
+            }
+            if (payment != null && payment.isPending()) {
+                paymentDAO.markFailed(con, payment.getPaymentId());
+                auditService.log(con, customerId, "PAYMENT", payment.getPaymentId(),
+                        AuditAction.PAYMENT_FAILED, payment.getPaymentStatus(),
+                        PaymentStatus.FAILED.name());
+            }
+            auditService.log(con, customerId, "ORDER", orderId, AuditAction.ORDER_EXPIRED,
+                    OrderStatus.PENDING_PAYMENT.name(),
+                    OrderStatus.EXPIRED.name() + ": khach tu bo don truoc khi thanh toan");
+        });
+    }
+
     public Order findForCustomer(int orderId, int customerId) {
         Order order = Tx.read(con -> orderCore.loadFull(con, orderId));
         if (order == null || order.getCustomerId() == null || order.getCustomerId() != customerId) {
@@ -219,46 +270,4 @@ public class CustomerOrderService {
         return Tx.read(con -> orderDAO.findActiveByCustomer(con, customerId));
     }
 
-    public boolean cancelByCustomer(int orderId, int customerId) {
-        return Tx.write(con -> {
-            Order order = orderDAO.findById(con, orderId);
-            if (order == null || order.getCustomerId() == null || order.getCustomerId() != customerId) {
-                throw new NotFoundException("Không tìm thấy đơn hàng.");
-            }
-            String before = order.getOrderStatus();
-            boolean unpaid = OrderStatus.PENDING_PAYMENT.name().equals(before);
-            if (!unpaid && !OrderStatus.CONFIRMED.name().equals(before)) {
-                throw new BusinessException(cannotCancelReason(before));
-            }
-
-            orderDAO.lockForUpdate(con, orderId);
-            if (orderItemDAO.countInProgress(con, orderId) > 0) {
-                throw new BusinessException(KITCHEN_ALREADY_STARTED);
-            }
-
-            int changed = orderDAO.markCancelled(con, orderId, DateTimeUtil.now());
-            if (changed == 0) {
-                throw new BusinessException("Đơn vừa được xử lý bởi người khác. Vui lòng tải lại.");
-            }
-            auditService.log(con, customerId, "ORDER", orderId, AuditAction.ORDER_CANCELLED,
-                    before, OrderStatus.CANCELLED.name());
-            boolean refunded = orderCore.refundIfPaid(con, orderId, customerId);
-
-            if (!unpaid) {
-                notificationService.notifyOrderCancelled(con, order, "khách tự huỷ", refunded);
-            }
-            return refunded;
-        });
-    }
-
-    private static String cannotCancelReason(String status) {
-        OrderStatus current = OrderStatus.valueOf(status);
-        return switch (current) {
-            case PREPARING, READY -> KITCHEN_ALREADY_STARTED;
-            case COMPLETED -> "Đơn này đã được giao cho khách nên không huỷ được nữa.";
-            case CANCELLED -> "Đơn này đã được huỷ trước đó rồi.";
-            case EXPIRED -> "Đơn này đã hết hiệu lực vì quá hạn thanh toán. Vui lòng đặt lại.";
-            default -> "Đơn này không còn ở trạng thái huỷ được.";
-        };
-    }
 }

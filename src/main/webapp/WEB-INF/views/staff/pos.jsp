@@ -1,5 +1,9 @@
 <c:set var="pageTitle" value="Bán tại quầy" /><c:set var="nav" value="pos" />
 <%@ include file="/WEB-INF/views/layout/page-start.jspf" %>
+  <%-- Thao tác nào cũng quay lại đúng trang thực đơn thu ngân đang mở. --%>
+  <c:set var="posQuery" value="${ff:pageQuery(pageContext.request, '')}" />
+  <c:set var="posBack"  value="/staff/pos${empty posQuery ? '' : '?'.concat(posQuery)}" />
+  <c:set var="posReturn"><input type="hidden" name="returnTo" value="<c:out value="${posBack}"/>"></c:set>
   <div class="page-head">
     <h1>Bán tại quầy</h1>
     <p>Khách đứng đợi tại chỗ. Thu tiền xong đơn xuống bếp ngay, không cần mã nhận hàng.</p>
@@ -28,12 +32,14 @@
         </form>
       </div>
 
-      <div class="menu-grid" id="live-results" data-live-region>
-        <c:forEach var="p" items="${products}">
+      <div id="live-results" data-live-region>
+      <div class="menu-grid">
+        <c:forEach var="p" items="${pageData.items}">
           <form method="post" action="${ctx}/staff/pos" class="product">
             <input type="hidden" name="_csrf" value="${csrfToken}">
             <input type="hidden" name="action" value="add">
             <input type="hidden" name="productId" value="${p.productId}">
+            ${posReturn}
             <div class="body">
               <span class="tag tag-muted"><c:out value="${p.categoryName}"/></span>
               <div class="name"><c:out value="${p.name}"/></div>
@@ -44,6 +50,11 @@
             </div>
           </form>
         </c:forEach>
+        <c:if test="${pageData.emptyPage}">
+          <div class="card empty">Không có món nào khớp bộ lọc.</div>
+        </c:if>
+      </div>
+      <ui:pager page="${pageData}" label="món" />
       </div>
     </div>
 
@@ -51,9 +62,11 @@
       <div class="row-between mb">
         <h2>Phiếu tính tiền</h2>
         <c:if test="${not empty posLines}">
-          <form method="post" action="${ctx}/staff/pos" class="inline-form">
+          <form method="post" action="${ctx}/staff/pos" class="inline-form"
+                data-confirm="Xoá hết món trong giỏ đang tính tiền?">
             <input type="hidden" name="_csrf" value="${csrfToken}">
             <input type="hidden" name="action" value="clear">
+            ${posReturn}
             <button type="submit" class="btn btn-sm btn-danger">Xoá hết</button>
           </form>
         </c:if>
@@ -82,6 +95,7 @@
                 <form method="post" action="${ctx}/staff/pos" class="row-tight">
                   <input type="hidden" name="_csrf" value="${csrfToken}">
                   <input type="hidden" name="action" value="setQty">
+                  ${posReturn}
                   <input type="hidden" name="productId" value="${line.productId}">
                   <input type="number" name="quantity" value="${line.quantity}" min="0" max="50"
                          class="qty-input" data-autosubmit
@@ -108,155 +122,24 @@
               <h3 class="mt">Thu tiền</h3>
               <div class="stack">
                 <form method="post" action="${ctx}/staff/pos"
-                      data-change-form data-total="${posTotal}">
+                      data-confirm="Thu ${ff:money(posTotal)} tiền mặt và tạo đơn? Đơn sẽ xuống bếp ngay.">
                   <input type="hidden" name="_csrf" value="${csrfToken}">
                   <input type="hidden" name="action" value="pay">
-                  <input type="hidden" name="method" value="CASH">
-                  <label for="posTendered">Khách đưa (đ)</label>
-                  <input type="number" id="posTendered" min="0" step="1000" inputmode="numeric"
-                         autocomplete="off" placeholder="Bỏ trống cũng thu tiền được"
-                         data-change-input>
-                  <p class="total-line grand" data-change-output hidden aria-live="polite"></p>
                   <button type="submit" class="btn btn-green btn-block touch">Khách trả tiền mặt</button>
                 </form>
-                <form method="post" action="${ctx}/staff/pos">
+                <form method="post" action="${ctx}/staff/pos"
+                      data-confirm="Tạo mã QR cho khách quét? Đơn chỉ xuống bếp sau khi bạn bấm Xong ở trang mã QR.">
                   <input type="hidden" name="_csrf" value="${csrfToken}">
-                  <input type="hidden" name="action" value="pay">
-                  <input type="hidden" name="method" value="ONLINE_GATEWAY">
-                  <label for="posReference">Mã giao dịch trên biên lai</label>
-                  <input type="text" id="posReference" name="reference" required maxlength="100"
-                         autocomplete="off" placeholder="Gõ lại mã in trên biên lai máy thanh toán">
-                  <p class="muted small">Nhập sau khi máy báo giao dịch thành công. Mã này dùng để đối soát
-                    với sao kê, và mỗi mã chỉ dùng được cho một đơn.</p>
-                  <button type="submit" class="btn btn-blue btn-block touch">Khách quẹt thẻ hoặc quét mã QR</button>
+                  <input type="hidden" name="action" value="qr">
+                  <button type="submit" class="btn btn-blue btn-block touch">Khách quét mã QR</button>
+                  <p class="muted small">Mã QR hiện ra trên màn hình để khách quét bằng điện thoại.
+                    Khách trả xong, bấm <strong>Xong</strong> ở trang đó thì đơn mới xuống bếp.</p>
                 </form>
               </div>
             </c:otherwise>
           </c:choose>
-
-          <h3 class="mt">Chưa tính tiền được ngay?</h3>
-          <form method="post" action="${ctx}/staff/pos" class="stack">
-            <input type="hidden" name="_csrf" value="${csrfToken}">
-            <input type="hidden" name="action" value="hold">
-            <label for="holdLabel">Treo phiếu lại với tên</label>
-            <input type="text" id="holdLabel" name="label" required maxlength="100"
-                   autocomplete="off" placeholder="Bàn 3, anh áo xanh...">
-            <input type="text" name="note" maxlength="500" class="input-sm"
-                   placeholder="Ghi chú (không bắt buộc)">
-            <p class="muted small">Giỏ được cất lại để phục vụ khách tiếp theo. Phiếu treo chưa
-              phải là đơn hàng: chưa có mã đơn, chưa thu tiền, bếp chưa thấy gì.</p>
-            <button type="submit" class="btn btn-block">Treo phiếu</button>
-          </form>
         </c:otherwise>
       </c:choose>
     </div>
-  </div>
-
-  <div class="card mt">
-    <div class="row-between mb">
-      <h2>Phiếu đang treo <c:if test="${not empty holds}">(${fn:length(holds)})</c:if></h2>
-    </div>
-
-    <c:choose>
-      <c:when test="${empty holds}">
-        <div class="empty"><div class="icon" aria-hidden="true">📌</div>
-          Chưa treo phiếu nào. Khi khách bảo chờ, treo phiếu lại rồi phục vụ người tiếp theo.
-        </div>
-      </c:when>
-      <c:otherwise>
-        <table class="table">
-          <thead>
-            <tr>
-              <th>Phiếu</th>
-              <th>Món</th>
-              <th class="num">Tổng tiền</th>
-              <th>Treo lúc</th>
-              <th class="actions">Thao tác</th>
-            </tr>
-          </thead>
-          <tbody>
-            <c:forEach var="h" items="${holds}">
-              <tr>
-                <td>
-                  <strong><c:out value="${h.label}"/></strong>
-                  <c:if test="${not empty h.note}">
-                    <div class="small muted"><c:out value="${h.note}"/></div>
-                  </c:if>
-                  <c:if test="${h.anyUnavailable}">
-                    <span class="tag tag-red">Có món không còn bán</span>
-                  </c:if>
-                </td>
-                <td>
-                  <c:forEach var="i" items="${h.items}" varStatus="st">
-                    <div class="row-between middle">
-                      <span class="${i.orderable ? '' : 'muted'}">
-                        <c:out value="${i.productName}"/>
-                        <c:if test="${not i.orderable}"> — không còn bán</c:if>
-                      </span>
-                      <form method="post" action="${ctx}/staff/pos" class="row-tight">
-                        <input type="hidden" name="_csrf" value="${csrfToken}">
-                        <input type="hidden" name="action" value="holdSetQty">
-                        <input type="hidden" name="holdId" value="${h.holdId}">
-                        <input type="hidden" name="productId" value="${i.productId}">
-                        <input type="number" name="quantity" value="${i.quantity}" min="0" max="50"
-                               class="qty-input" data-autosubmit
-                               title="Đặt về 0 để bỏ món khỏi phiếu"
-                               aria-label="Số lượng của <c:out value="${i.productName}"/> trong phiếu <c:out value="${h.label}"/>">
-                      </form>
-                    </div>
-                  </c:forEach>
-                </td>
-                <td class="num">${ff:money(h.total)}</td>
-                <td>
-                  ${ff:dateTime(h.createdAt)}
-                  <c:if test="${not empty h.updatedAt}">
-                    <div class="small muted">đã sửa</div>
-                  </c:if>
-                </td>
-                <td class="actions">
-                  <form method="post" action="${ctx}/staff/pos" class="inline-form">
-                    <input type="hidden" name="_csrf" value="${csrfToken}">
-                    <input type="hidden" name="action" value="resume">
-                    <input type="hidden" name="holdId" value="${h.holdId}">
-                    <button type="submit" class="btn btn-sm btn-primary">Lấy ra tính tiền</button>
-                  </form>
-                  <a class="btn btn-sm" href="${ctx}/staff/pos?editHold=${h.holdId}">Sửa tên</a>
-                  <form method="post" action="${ctx}/staff/pos" class="inline-form"
-                        data-confirm="Bỏ hẳn phiếu &quot;${fn:escapeXml(h.label)}&quot;?">
-                    <input type="hidden" name="_csrf" value="${csrfToken}">
-                    <input type="hidden" name="action" value="holdDiscard">
-                    <input type="hidden" name="holdId" value="${h.holdId}">
-                    <button type="submit" class="btn btn-sm btn-danger">Bỏ phiếu</button>
-                  </form>
-                </td>
-              </tr>
-              <c:if test="${not empty editingHold and editingHold.holdId eq h.holdId}">
-                <tr class="note-row">
-                  <td colspan="5">
-                    <form method="post" action="${ctx}/staff/pos" class="form-row">
-                      <input type="hidden" name="_csrf" value="${csrfToken}">
-                      <input type="hidden" name="action" value="holdRename">
-                      <input type="hidden" name="holdId" value="${h.holdId}">
-                      <div class="field">
-                        <label for="editLabel">Tên phiếu</label>
-                        <input type="text" id="editLabel" name="label" required maxlength="100"
-                               value="<c:out value="${editingHold.label}"/>">
-                      </div>
-                      <div class="field">
-                        <label for="editNote">Ghi chú</label>
-                        <input type="text" id="editNote" name="note" maxlength="500"
-                               value="<c:out value="${editingHold.note}"/>">
-                      </div>
-                      <button type="submit" class="btn btn-primary">Lưu</button>
-                      <a class="btn" href="${ctx}/staff/pos">Thôi</a>
-                    </form>
-                  </td>
-                </tr>
-              </c:if>
-            </c:forEach>
-          </tbody>
-        </table>
-      </c:otherwise>
-    </c:choose>
   </div>
 <%@ include file="/WEB-INF/views/layout/page-end.jspf" %>

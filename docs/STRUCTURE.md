@@ -47,8 +47,8 @@ Chỗ **có** dùng giao diện là nơi thật sự cần thay thế được: 
 `NotificationSender`. Mỗi cái có hai bản cài đặt thật sự khác nhau về cách hoạt động, chọn
 bằng đúng một dòng trong `app.properties`:
 
-- `payment.gateway.provider` — `VnPayGateway` (cổng chuyển hướng, mặc định trỏ vào sandbox
-  của VNPAY — xem §3.6) hoặc `SePayGateway` (chuyển khoản thật qua mã VietQR — xem §3.7),
+- `payment.gateway.provider` — `PayOsGateway` (mặc định, gọi API payOS xin liên kết trả tiền
+  — xem §3.6) hoặc `SePayGateway` (chuyển khoản thật qua mã VietQR — xem §3.7),
   chọn ở `PaymentGateways`.
 - `notification.channel` — `MockNotificationSender` ghi ra log hoặc `SmtpNotificationSender`
   gửi thư thật, chọn ở `NotificationSenders` — xem §3.9.
@@ -72,18 +72,19 @@ swp301-block/
     │   ├── model/dto/          1  Dtos — 9 lớp dữ liệu đã gộp sẵn cho tầng hiển thị
     │   ├── dao/               25  24 lớp truy vấn chia theo vai trò + JdbcSupport, xem §2.2
     │   ├── service/           28  27 lớp nghiệp vụ chia theo vai trò + Tx, xem §2.1
-    │   ├── integration/       10  Cổng thanh toán (VNPAY, SePay), kênh gửi tin (log và SMTP)
+    │   ├── integration/       11  Cổng thanh toán (payOS, SePay), kênh gửi tin (log và SMTP)
     │   ├── filter/             5  Bốn bộ lọc chạy theo thứ tự + RequestPath dùng chung
     │   ├── listener/           2  Vòng đời ứng dụng
     │   ├── scheduler/          2  Hai công việc chạy nền
-    │   └── controller/        36  34 servlet chia theo vai trò + BaseServlet + VnPayCallbacks
+    │   └── controller/        36  34 servlet chia theo vai trò + BaseServlet + PayOsCallbacks
     ├── resources/                  db.properties · app.properties
     └── webapp/
         ├── assets/css/main.css
         ├── META-INF/context.xml    SameSite cho cookie phiên — xem §5
         └── WEB-INF/
             ├── web.xml · fastfood.tld
-            └── views/               29 trang + 8 tệp bố cục dùng chung + 1 tệp khối chỉ tiêu
+            ├── tags/pager.tag       Thanh chuyển trang dùng chung cho mọi màn hình danh sách
+            └── views/               29 trang + 7 tệp bố cục dùng chung + 1 tệp khối chỉ tiêu
 ```
 
 ### 2.1 Tầng Service chia theo vai trò
@@ -95,7 +96,7 @@ nghiệp vụ của một vai trò, không phải lần qua một lớp chung kh
 service/
 ├── Tx.java                 Mở/đóng giao dịch — ở gốc gói vì không thuộc vai trò nào,
 │                           giống controller/BaseServlet
-├── customer/   CustomerOrderService   Đặt trước, xem lại, khách tự huỷ
+├── customer/   CustomerOrderService   Đặt trước, xem lại lịch sử đơn
 │            CartService            Giỏ hàng
 │            FavouriteService       Món quen kèm ghi chú riêng
 │            OrderTemplateService   Mẫu đặt nhanh, nạp lại vào giỏ
@@ -103,7 +104,6 @@ service/
 ├── staff/      StaffOrderService      Bán tại quầy, điều phối, nhận món, giao món
 │            OrderNoteService       Ghi chú điều phối trên đơn
 │            CounterRejectService   Từ chối nhận món bếp đưa ra quầy
-│            PosHoldService         Phiếu treo tại quầy
 ├── kitchen/    KitchenService         Hàng chờ, nhận việc, báo xong, bàn giao, sự cố
 │            PrepService            Kế hoạch chuẩn bị sẵn trong ca
 │            KitchenNoteService     Ghi chú chế biến và sổ bàn giao ca
@@ -114,9 +114,9 @@ service/
 │            PasswordResetService   Quên mật khẩu: cấp và tiêu mã đặt lại
 │            LoginThrottle          Đếm số lần sai, tạm khoá cửa
 │            SessionGuard           Đồng bộ phiên với trạng thái tài khoản thật
-└── shared/     OrderCoreService       Nạp đơn, xác nhận sau thanh toán, hoàn tiền,
+└── shared/     OrderCoreService       Nạp đơn, xác nhận sau thanh toán,
     │                                  suy ra trạng thái đơn từ trạng thái các món
-    │           PaymentService         Thu tiền, cổng gọi về, hoàn tiền
+    │           PaymentService         Thu tiền và nhận kết quả cổng gọi về
     │           MenuService            Thực đơn — khách xem, quầy cũng dùng
     │           ScheduleService        Hai công việc chạy nền
     │           NotificationService    Gửi tin cho khách, và hộp thông báo họ đọc lại
@@ -129,9 +129,9 @@ Ba mảnh mới bám đúng ranh giới người dùng:
 
 | Lớp mới | Việc | Dòng |
 |---|---|---|
-| `customer/CustomerOrderService` | Đặt trước, kiểm giờ hẹn, lịch sử đơn, khách tự huỷ | ~300 |
-| `staff/StaffOrderService` | Bán tại quầy, 4 tab điều phối, tra mã, nhận món, giao món, thu ngân đóng đơn | ~350 |
-| `shared/OrderCoreService` | Phần cả hai đường cùng đi qua: nạp đơn, xác nhận sau thanh toán, hoàn tiền, suy ra trạng thái đơn | ~190 |
+| `customer/CustomerOrderService` | Đặt trước, kiểm giờ hẹn, lịch sử đơn | ~260 |
+| `staff/StaffOrderService` | Bán tại quầy, 4 tab điều phối, tra mã, nhận món, giao món | ~310 |
+| `shared/OrderCoreService` | Phần cả hai đường cùng đi qua: nạp đơn, xác nhận sau thanh toán, suy ra trạng thái đơn | ~175 |
 
 **Vì sao có `shared/` chứ không nhân bản ra từng vai trò.** Sáu lớp trong đó phục vụ nhiều vai
 trò cùng lúc: khách trả tiền và thu ngân xem lại đều đi qua `PaymentService`; trạng thái đơn do
@@ -156,7 +156,6 @@ Cùng trục với `controller/` và `service/`. `JdbcSupport` ở gốc gói v�
 dao/
 ├── JdbcSupport.java     Nhận diện lỗi trùng khoá, đọc khoá vừa sinh
 ├── staff/     OrderNoteDAO         → OrderNote
-│            PosHoldDAO           → PosHold · PosHoldItem
 ├── customer/  CartDAO              → Cart · CartItem
 │            FavouriteDAO         → Favourite
 │            OrderTemplateDAO     → OrderTemplate · OrderTemplateItem
@@ -173,9 +172,9 @@ dao/
                NotificationDAO      → Notification      AuditLogDAO     → AuditLog
 ```
 
-**Vì sao 10 trong 22 lớp nằm ở `shared/`.** Mười hai lớp chia được
+**Vì sao 12 trong 22 lớp nằm ở `shared/`.** Mười lớp chia được
 vì bảng của chúng chỉ một vai trò đụng tới: giỏ hàng, món quen, mẫu đặt nhanh và đánh giá là của
-khách; sự cố bếp và kế hoạch chuẩn bị là của bếp; ghi chú điều phối và phiếu treo là của thu ngân; báo
+khách; sự cố bếp và kế hoạch chuẩn bị là của bếp; ghi chú điều phối là của thu ngân; báo
 cáo doanh thu và chỉ tiêu là của quản trị. Số còn lại gắn với bảng mà nhiều vai trò cùng dùng:
 
 | Lớp | Vai trò đi qua nó |
@@ -186,8 +185,8 @@ cáo doanh thu và chỉ tiêu là của quản trị. Số còn lại gắn v�
 | `UserDAO` · `RoleDAO` · `PasswordResetTokenDAO` | đăng nhập · quản trị |
 | `NotificationDAO` · `AuditLogDAO` | mọi luồng đều ghi vào |
 
-Thu ngân trước đây không có bảng riêng nên `dao/staff/` không tồn tại. Ghi chú điều phối và
-phiếu treo tại quầy là thứ thuộc về riêng họ, và thư mục đó ra đời cùng với chúng.
+Thu ngân trước đây không có bảng riêng nên `dao/staff/` không tồn tại. Ghi chú điều phối trên
+đơn là thứ thuộc về riêng họ, và thư mục đó ra đời cùng với nó.
 Cùng lý do, `dao/customer/` từ một lớp nay lên bốn: món quen, mẫu đặt nhanh và đánh giá đều là
 dữ liệu chỉ khách sở hữu.
 
@@ -220,10 +219,6 @@ chỗ cảnh báo đỏ trên màn hình thu ngân. Một dòng "khách dặn í
 hiện thành sự cố chưa xử lý và làm cảnh báo mất ý nghĩa — nên `KitchenNoteService` đứng riêng.
 `PrepService` cũng đứng riêng vì đó là phần việc duy nhất của bếp **không bắt nguồn từ đơn nào**
 và cũng không làm đổi trạng thái đơn nào.
-
-**`service/staff` — phiếu treo không phá nguyên tắc "giỏ POS không ghi xuống cơ sở dữ liệu".**
-Giỏ tạm vẫn nằm trong phiên làm việc. Treo đơn là một thao tác cố ý — thu ngân phải đặt tên cho
-phiếu thì mới treo được — nên bấm nhầm không sinh ra bản ghi nào.
 
 **`dao/customer` — vì sao `hasCompletedPurchase` nằm ở `ReviewDAO`.** Truy vấn này ghép qua
 `Orders` và `OrderItem` chứ không thuộc bảng `Review`. Nó ở đây vì chỉ đánh giá cần tới nó, và vì
@@ -298,7 +293,7 @@ Khách chọn giờ → CartServlet (action=placeOrder)                      [cu
      → CustomerOrderService.createOnlineOrder   đọc lại giá và tình trạng từng món
                                                 tạo đơn ở trạng thái chờ thanh toán
      → PaymentService.startOnlinePayment        tạo bản ghi thanh toán, chuyển sang cổng
-     ← VnPayReturnServlet / VnPayIpnServlet     VNPAY gửi kết quả về (§3.6)
+     ← PayOsWebhookServlet / PayOsReturnServlet payOS gửi kết quả về (§3.6)
      → PaymentService.handleCallback            kiểm chữ ký → ghi mã giao dịch (chống trùng)
                                                 → đối chiếu số tiền (§3.5)
                                                 → ghi nhận tiền → xác nhận đơn
@@ -343,17 +338,17 @@ khi ấy là bấm nhận đúng món vừa bị chê. Thu hồi phiếu thì **
 Bấm thu tiền thì `StaffOrderService.createPosOrder` làm liền một mạch: lập đơn → ghi nhận
 tiền → xác nhận → đưa xuống bếp. Không có giờ hẹn, không có mã nhận hàng.
 
-Hai hình thức thu tiền được xác nhận theo hai cách khác nhau, và đây là chỗ dễ bỏ sót nhất:
+Quầy có đúng hai đường thu tiền, và chúng khác nhau ở chỗ **lúc bấm nút thì tiền đã về chưa**:
 
-| | Cách xác nhận | Dấu vết đối soát |
+| | Cách xác nhận | Đơn xuống bếp lúc nào |
 |---|---|---|
-| Tiền mặt | Thu ngân đếm tiền | Chỉ có chính bản ghi thanh toán |
-| Thẻ hoặc mã QR | Máy thanh toán ở quầy báo thành công | **Bắt buộc** nhập mã giao dịch trên biên lai |
+| Tiền mặt | Thu ngân đếm tiền | Ngay lúc bấm — tiền đã nằm trong két |
+| Mã QR | Cổng thanh toán báo về, hoặc thu ngân bấm **Xong** khi nhìn thấy khách trả xong | Chỉ khi tiền được xác nhận, ở `confirmQrPayment` |
 
-Tiền của lần quẹt thẻ không chạy qua hệ thống mà chạy qua máy đặt ở quầy, nên dòng "đã thu"
-ghi ở đây chỉ là lời khai của thu ngân. Vì vậy mã biên lai được lưu vào cùng bảng nhật ký với
-giao dịch của cổng trực tuyến: báo cáo đối soát chỉ phải đọc một nơi, và ràng buộc duy nhất
-trên mã bảo vệ cả hai đường thu tiền như nhau — một biên lai không lập được thành hai đơn.
+Tiền mặt là đường duy nhất mà người bấm nút cũng chính là người cầm tiền, nên `createPosOrder`
+ghi khoản thu PAID và mở đường xuống bếp trong cùng một giao dịch. Mã QR thì tiền đi qua bên
+thứ ba: đơn lập ra ở trạng thái chờ, bếp chưa thấy gì, và khách bỏ đi giữa chừng thì tác vụ nền
+dọn đơn đi sau 15 phút — không ai làm món cho một đơn chưa trả tiền.
 
 **Phiếu tính tiền nói đúng thứ sắp xảy ra.** `StaffOrderService.describeCart` dựng phiếu bằng
 đúng câu truy vấn mà `createPosOrder` dùng lúc thu tiền (`findForCheckout`, tính cả nhóm món
@@ -375,16 +370,25 @@ giỏ — tổng tiền trên màn hình thiếu một món, và lỗi chỉ n�
 | Khách bấm thanh toán ở hai tab | `(order_id, attempt_no)` duy nhất; đọc lại số thứ tự rồi thử tiếp | `PaymentService.startOnlinePayment` |
 | Hai người cùng lúc làm phát sinh giỏ hàng | `user_id` duy nhất; trùng thì đọc lại giỏ vừa tạo | `CartDAO.getOrCreateCartId` |
 | Mã nhận hàng sinh trùng mã đã có | Sinh lại mã khác, tối đa 5 lần, ngay trong giao dịch thanh toán | `OrderCoreService.confirmOnlineAfterPaid` |
-| Một lần quẹt thẻ ở quầy bị lập thành hai đơn | Mã biên lai có ràng buộc duy nhất; lần hai bị từ chối kèm thông báo rõ | `StaffOrderService.createPosOrder` |
 
 ### 3.4 Tiền về sau khi đơn đã hết hiệu lực
 
 Khách để trang thanh toán mở quá 15 phút, bộ hẹn giờ cho đơn hết hiệu lực, rồi khách mới bấm
 trả tiền. Tiền lúc đó đã thật sự vào, nhưng đơn không còn để xác nhận.
 
-`PaymentService.handleCallback` nhận ra `confirmOnlineAfterPaid` trả về false, hoàn tiền ngay
-trong cùng giao dịch với lúc ghi nhận, và trả về `REFUNDED_ORDER_GONE` để khách được báo đúng
-chuyện gì đã xảy ra. Không có khoảnh khắc nào khoản tiền nằm lại mà không có đơn tương ứng.
+`PaymentService.handleCallback` nhận ra `confirmOnlineAfterPaid` trả về false và đi vào nhánh
+`orphan`: khoản thu **vẫn được ghi `PAID`**, kèm một dòng `PAYMENT_ORPHANED` trong nhật ký, một
+tin cho khách, một cảnh báo mức `SEVERE` trong log máy chủ, và mã trả về `ORDER_GONE`.
+
+Ghi `PAID` chứ không phải `FAILED` là có chủ đích: ngân hàng đã trừ tiền thật, nên ghi ngược lại
+sẽ làm sổ sách lệch với sao kê — đúng thứ mà đối soát cần tìm ra thì lại bị giấu đi. Hệ thống
+không có đường hoàn tiền tự động (§8), nên việc duy nhất làm được là để dấu vết thật rõ cho
+người trực xử lý tay qua cổng thanh toán.
+
+Nhánh này còn bắt một trường hợp thứ hai: đơn tại quầy bị bộ hẹn giờ đóng vì quá 15 phút không
+ai trả tiền, khoản thu bị đánh dấu `FAILED` theo, rồi tiền mới về. Lúc đó `markPaid` không ghi
+được gì (nó chỉ nhận `PENDING`/`UNPAID`), và nếu chỉ nhìn số dòng bị ảnh hưởng thì chuyện này
+trông y hệt một callback trùng lặp. `markPaidLate` tách hai chuyện đó ra.
 
 ### 3.5 Tiền về không đúng số tiền của đơn
 
@@ -399,72 +403,125 @@ sang đơn khác — cả ba đều cần người xử lý. Khoản tiền vẫ
 dưới trạng thái `MISMATCH` để đối soát, và đơn hết hiệu lực theo bộ hẹn giờ như mọi đơn không
 ai trả tiền.
 
-### 3.6 VNPAY — cổng chuyển hướng, và hai đường báo kết quả về
+### 3.6 payOS — cổng gọi API, và hai đường báo kết quả về
 
-Cổng mặc định. Khác SePay ở chỗ khách **rời ứng dụng**: mình dựng một địa chỉ có chữ ký, đẩy
-khách sang trang của VNPAY, khách chọn ngân hàng và trả tiền ở bên đó.
+Cổng mặc định. Khác SePay ở chỗ khách **rời ứng dụng**; khác một cổng chuyển hướng thuần như
+VNPAY ở chỗ mình không tự dựng được địa chỉ trả tiền mà phải **gọi API xin** một liên kết.
 
 ```
 Khách bấm thanh toán → PaymentStartServlet
      → PaymentService.startOnlinePayment        tạo bản ghi thanh toán như thường
-     → VnPayGateway.initiate                    dựng địa chỉ vpcpay.html kèm vnp_SecureHash
+     → PayOsGateway.initiate                    POST /v2/payment-requests, kèm chữ ký
+                                                ← checkoutUrl + qrCode (VietQR) + paymentLinkId
                                                 → chuyển hướng khách ra ngoài
 
-     ... khách chọn ngân hàng, nhập thẻ, xác thực OTP trên trang của VNPAY ...
+     ... khách quét VietQR bằng ứng dụng ngân hàng, hoặc trả bằng thẻ, trên trang payOS ...
 
-     ← VnPayReturnServlet    /payment/vnpay/return   khách quay lại bằng trình duyệt
-     ← VnPayIpnServlet       /payment/vnpay/ipn      VNPAY gọi thẳng vào máy chủ
-     → VnPayCallbacks.from                      nhặt tham số vnp_*, đọc paymentId từ vnp_TxnRef
-     → VnPayGateway.verifySignature             ký lại gói tham số, so với vnp_SecureHash
+     ← PayOsWebhookServlet  /payment/payos/webhook   payOS gọi thẳng vào máy chủ (CÓ chữ ký)
+         → PayOsCallbacks.fromWebhook           trải khối data ra để còn kiểm chữ ký
+         → PayOsGateway.verifySignature         ký lại khối data, so với signature
+
+     ← PayOsReturnServlet   /payment/payos/return    khách quay lại (KHÔNG có chữ ký)
+         → PayOsGateway.lookup                  GET /v2/payment-requests/{orderCode}
+         → PayOsCallbacks.fromLookup            dựng callback, đánh dấu trusted
+
      → PaymentService.handleCallback            từ đây trở đi giống hệt mọi cổng khác
 ```
 
-**Hai đường báo về, cùng một chỗ xử lý.** Đường khách quay lại luôn chạy được, kể cả trên máy
-cá nhân không có địa chỉ công khai — nhưng khách đóng tab giữa chừng thì nó không bao giờ chạy.
-Đường IPN thì ngược lại: chắc chắn tới, nhưng đòi máy chủ ra được Internet và phải khai báo
-trong cổng quản trị VNPAY. Bật cả hai không thu tiền hai lần: lần thứ hai đụng ràng buộc duy
-nhất trên `external_transaction_id` và trả về `DUPLICATE` (§3.3).
+**Đường khách quay lại không có chữ ký.** Đây là khác biệt lớn nhất so với bản trước, hồi còn
+chạy VNPAY — ở đó cả gói tham số quay về đều nằm dưới một chữ ký HMAC. payOS gắn
+`code`, `id`, `cancel`, `status`, `orderCode` vào địa chỉ quay về rồi thôi — không ký gì cả.
+Tin thẳng `status=PAID` đọc từ thanh địa chỉ nghĩa là bất kỳ ai gõ tay được địa chỉ ấy cũng tự
+cho đơn của mình là đã trả tiền, không mất đồng nào.
 
-Hai đường đọc tham số bằng **cùng một** `VnPayCallbacks.from`. Tách ra hai chỗ đọc là mở đường
-cho chúng lệch nhau, mà triệu chứng của lệch chỉ là "Dữ liệu thanh toán không hợp lệ" — không
-nói được trường nào sai.
+Vì vậy `PayOsReturnServlet` chỉ lấy đúng **một** thứ từ địa chỉ — `orderCode`, để biết phải hỏi
+về khoản nào — rồi tự gọi ngược sang payOS bằng khoá API của cửa hàng. Trạng thái ghi vào cơ sở
+dữ liệu là trạng thái payOS trả lời trong lời gọi đó. Một `orderCode` bịa ra thì không tra được
+gì; một `orderCode` thật của người khác thì chỉ đọc ra đúng trạng thái thật của nó.
 
-**Nối lệnh gọi về với đơn nào**: qua `vnp_TxnRef`, dựng theo khuôn `<payment_id>-<yyyyMMddHHmmss>`.
-Phần đuôi thời gian không mang thông tin gì cho mình, nó ở đó vì VNPAY đòi mã tham chiếu không
-được trùng — nạp lại cơ sở dữ liệu thì `payment_id` quay về từ đầu, và nếu mã tham chiếu chỉ
-có mỗi số đó thì lần chạy thử thứ hai trong ngày bị VNPAY từ chối.
+Kết quả lấy về kiểu ấy mang cờ `GatewayCallback.trusted`, và `handleCallback` bỏ qua bước kiểm
+chữ ký cho nó. Đây **không** phải lối tắt cho tiện: chữ ký sinh ra để biết dữ liệu đi qua tay
+khách có bị sửa không, còn ở đây dữ liệu không đi qua tay khách — nó là câu trả lời của một lời
+gọi HTTPS do chính máy chủ phát ra tới `api-merchant.payos.vn`, kèm khoá API. Đúng một chỗ
+trong toàn hệ thống bật cờ này, và nó nằm ngay cạnh lời gọi ấy.
 
-**Thành công phải đúng cả hai mã**: `vnp_ResponseCode` nói kết quả của lần đặt lệnh, còn
-`vnp_TransactionStatus` nói tiền đã thực sự về hay chưa. Tin mỗi mã đầu thì có lúc ghi nhận đã
-trả cho một giao dịch còn đang treo.
+**Hai đường báo về, cùng một chỗ xử lý.** Webhook chắc chắn tới kể cả khi khách đóng tab, nhưng
+đòi máy chủ có địa chỉ **https** công khai và phải khai báo trong my.payos.vn. Đường khách quay
+lại thì ngược lại: chạy được ở mọi nơi kể cả `localhost`, nhưng khách đóng tab giữa chừng là
+mất. Bật cả hai không thu tiền hai lần — xem ngay dưới đây.
 
-**Ba chỗ dễ sai khi ký**, cả ba đều làm chữ ký lệch mà không báo lỗi rõ ràng:
+**Nối lệnh gọi về với đơn nào**: qua `orderCode`, một con số. payOS đòi nó **duy nhất trên toàn
+tài khoản merchant và không bao giờ dùng lại**, kể cả sau khi liên kết đã huỷ. Ở đây lấy thẳng
+`payment_id` cộng `payment.payos.orderCodeOffset`, nên đọc ngược ra được mà không phải lưu thêm
+bảng tra nào. Cái giá: nạp lại cơ sở dữ liệu thì `payment_id` quay về đếm từ 1 và đụng nguyên
+vào những mã đã tiêu ở lần cài trước — lúc ấy tăng `orderCodeOffset` lên là xong (README §*Nối
+payOS vào*).
+
+**Chống thu tiền hai lần nằm ở mã giao dịch.** Cả hai đường đều dựng
+`external_transaction_id = "PAYOS-" + reference`, với `reference` là mã tham chiếu ngân hàng —
+cùng một lần trả tiền thì webhook và lượt tra cứu cho ra **cùng một chuỗi**, nên lần thứ hai
+đụng ràng buộc duy nhất và trả về `DUPLICATE` (§3.3). Dựng lệch nhau ở hai chỗ là cùng một
+khoản tiền được ghi nhận hai lần mà không có gì báo động, nên `PayOsCallbacksTest` canh riêng
+đúng bất biến đó.
+
+**Thành công phải đúng cả hai mức**: `success` ở ngoài nói lời gọi webhook có hợp lệ không, còn
+`data.code` mới nói giao dịch có thành công không. Tin mỗi mức ngoài là ghi nhận một lần trả
+tiền hỏng.
+
+**Hai kiểu chữ ký, đừng lẫn** — cả hai đều HMAC-SHA256 với `checksumKey`:
+
+| | Chuỗi đem ký | Dùng ở đâu |
+|---|---|---|
+| Lời xin liên kết | Đúng năm trường, thứ tự **cố định**: `amount`, `cancelUrl`, `description`, `orderCode`, `returnUrl` | `signPaymentRequest` |
+| Kết quả gửi về | **Toàn bộ** khối `data`, khoá xếp theo bảng chữ cái, null → chuỗi rỗng | `signData` |
+
+Hai chỗ dễ sai khi ký khối `data`, cả hai đều làm mọi webhook thật bị từ chối:
 
 | | Phải làm | Sai thì |
 |---|---|---|
-| Thứ tự tham số | Xếp theo bảng chữ cái | Chữ ký lệch, VNPAY trả mã 70 |
-| Mã hoá giá trị | Mã hoá URL **trước** khi nối chuỗi đem ký, bằng US-ASCII | Chuỗi ký và chuỗi gửi đi khác nhau |
-| Số tiền | Đồng **nhân 100**, không phần thập phân | Khách bị thu ít hơn đúng 100 lần |
+| Trường null | Thành chuỗi rỗng, **vẫn nằm** trong chuỗi ký | Lệch ở đúng những giao dịch thiếu thông tin người chuyển |
+| Số | Giữ nguyên chữ số payOS gửi | Đọc thành số rồi in lại ra `3000.0` là lệch trên mọi giao dịch |
 
-`VnPayGateway` dùng chung đúng một hàm để dựng chuỗi đem ký và chuỗi truy vấn gửi đi, nên hai
-chuỗi không thể lệch nhau; `VnPayGatewayTest` canh lại điều đó bằng cách tách chữ ký ra khỏi
-địa chỉ vừa dựng rồi ký lại chính phần còn lại.
+`PayOsGatewayTest` neo hai giá trị chữ ký **tính tay ngoài Java** — đó là chỗ duy nhất trong bộ
+test bắt được lỗi sai khuôn chuỗi ký, vì mọi chỗ khác đều so chữ ký do cùng một hàm sinh ra.
 
-**Không đòi đăng nhập ở đường quay lại.** Khách vừa đi vòng qua trang của VNPAY, và ở vài trình
-duyệt hoặc ứng dụng ngân hàng thì lần quay lại này không mang theo cookie phiên. Chỗ dựa để tin
-kết quả không phải phiên đăng nhập mà là chữ ký — thiếu chữ ký hợp lệ thì `handleCallback` ném
-lỗi trước khi ghi bất cứ thứ gì, nên mở công khai không mở thêm đường nào cho ai tự khai là đã
-trả tiền.
+**Mở lại trang không đẻ thêm liên kết.** Màn hình quầy (§3.8) dựng lại mã QR mỗi lần mở. payOS
+từ chối tạo hai liên kết cùng một `orderCode`, và `PayOsGateway.initiate` bắt lấy lời từ chối
+đó rồi tra cứu trả về đúng liên kết cũ. Nếu mỗi lần mở lại sinh ra một liên kết nữa thì cùng
+một đơn có mấy chỗ trả tiền còn sống cùng lúc, mà hệ thống không có đường hoàn tiền tự động.
+Nhánh này **không bám vào một mã lỗi cụ thể** của payOS — danh sách mã của họ có thể đổi, còn
+câu hỏi "liên kết cho `orderCode` này có sẵn chưa" thì đúng bất kể họ đánh số thế nào. Liên kết
+cũ đã huỷ, hoặc mang số tiền khác, thì **không** dùng lại: số tiền lệch là dấu hiệu mã đơn đang
+đụng dữ liệu của lần cài trước.
+
+**Mở cổng là một lời gọi mạng**, khác hẳn VNPAY nơi mọi thứ là phép tính cục bộ. Mất mạng ra
+Internet thì không có liên kết nào để đưa khách đi, và `initiate` hỏng ngay tại chỗ kèm lý do
+đọc được. `HttpPayOsApi` đặt hạn 5 giây để nối và 15 giây cho cả lời gọi: nó nằm trên đường
+khách bấm nút, nên payOS chậm là khách ngồi nhìn trang trắng.
+
+Đường truyền tách sau `PayOsApi` để bài kiểm tra thay được bằng bản giả (`FakePayOs`). Không có
+chỗ nối ấy thì mọi bài kiểm tra chạm tới thanh toán đều đòi mạng và đòi khoá thật — tức là trên
+thực tế không ai chạy chúng. `PaymentService` có thêm một hàm dựng nhận cổng từ ngoài vào chính
+vì việc này.
+
+**Không đòi đăng nhập ở đường quay lại.** Khách vừa đi vòng qua trang của payOS, và ở vài trình
+duyệt hoặc ứng dụng ngân hàng thì lần quay lại này không mang theo cookie phiên. Mở công khai
+không mở thêm đường nào cho ai tự khai là đã trả tiền, vì thứ quyết định là câu trả lời của
+payOS chứ không phải tham số trên địa chỉ.
+
+**Webhook luôn trả 2xx sau khi chữ ký đã qua.** payOS coi mã ngoài 2xx là "chưa nhận được" và
+gọi lại nhiều lần; trả lỗi vì một chuyện bên mình (đơn không tìm thấy, cơ sở dữ liệu trục trặc)
+chỉ đổi một sự cố im lặng thành một trận dội webhook. Chuyện hỏng đi vào log mức `SEVERE`.
 
 **Không còn cổng giả lập.** Bản trước có một trang trong ứng dụng với nút "Thanh toán thành
 công" bấm là đơn thành đã trả. Nó tiện lúc trình bày nhưng đổi lại hai thứ: bất kỳ ai đăng nhập
 được cũng tự cho đơn của mình là đã trả tiền, và luồng thật chưa từng được chạy lần nào nên
-không có gì bảo đảm nó đúng. Sandbox VNPAY thay được cả hai — vẫn không có tiền thật chuyển
-đi, mà đường đi thì đúng đường sẽ chạy lúc lên thật.
+không có gì bảo đảm nó đúng. Lưu ý payOS **không có sandbox**: khoá lấy về là khoá thật và tiền
+chuyển là tiền thật, nên chạy thử thì đặt món rẻ nhất rồi tự chuyển khoản cho chính mình.
 
 ### 3.7 SePay — thu tiền bằng chuyển khoản có mã VietQR
 
-Bật bằng `payment.gateway.provider=SEPAY` trong `app.properties`. Mặc định là `VNPAY` (§3.6).
+Bật bằng `payment.gateway.provider=SEPAY` trong `app.properties`. Mặc định là `PAYOS` (§3.6).
 
 **SePay không phải cổng thanh toán kiểu chuyển hướng**, và điều đó đổi hình dạng cả luồng.
 Nó không giữ tiền và không có trang thanh toán riêng: tiền đi thẳng từ tài khoản khách vào tài
@@ -506,13 +563,13 @@ chuyển khoản (kiểu `SEVN63DC8E5C`), mà mã đó là chữ số mười s�
 hai chữ `FF` ở giữa. Khớp lỏng thì `SEVNFF12ABCD` bị đọc thành mã thanh toán 12 và tiền được
 ghi cho đơn của người khác — `SePayGatewayTest` canh đúng chuyện này.
 
-### 3.8 Hộp thông báo — nơi khách đọc được bốn tin của một đơn
+### 3.8 Hộp thông báo — nơi khách đọc lại những gì đã xảy ra với đơn
 
-`NotificationService` sinh tin cho bốn sự kiện: đơn được xác nhận, món sẵn sàng, đơn bị huỷ,
-đơn hết hiệu lực. Tin đi qua `NotificationSender`, mà kênh mặc định vẫn là lớp giả lập —
+`NotificationService` sinh tin cho ba sự kiện: đơn được xác nhận, món sẵn sàng, đơn hết hiệu
+lực. Tin đi qua `NotificationSender`, mà kênh mặc định vẫn là lớp giả lập —
 **không có bức thư nào thật sự tới hộp thư của khách cho tới khi bật SMTP** (§3.9). Vì vậy
 `/notifications` là nơi duy nhất họ đọc được những tin đó, và nó không phải một tiện ích thêm
-vào cho đẹp: tình huống ở §3.4 kết thúc bằng một khoản tiền được hoàn lại, mà nếu khách đã đóng
+vào cho đẹp: tình huống ở §3.4 kết thúc bằng một khoản tiền cần đối chiếu, mà nếu khách đã đóng
 trang thanh toán thì cả câu chuyện chỉ còn nằm ở đây. Kể cả khi đã bật thư thật, hộp trong ứng
 dụng vẫn cần: thư rơi vào mục rác hoặc gửi hỏng, và `status = 'FAILED'` chỉ có ý nghĩa nếu có
 chỗ để khách đọc bù.
@@ -526,8 +583,8 @@ Ba mảnh ghép lại thành một mạch:
 | `/order/track` | Mở đơn ra là đọc tin của riêng đơn đó, nên huy hiệu không nói dối |
 
 Đánh dấu đã đọc **không** chạy khi khách chỉ mở `/notifications`: danh sách dài hơn một màn
-hình thì mở trang không có nghĩa là đã đọc hết, và tin quan trọng nhất — báo hoàn tiền — lại
-hay nằm dưới cùng. Ở đó có nút bấm tay, còn việc tự đánh dấu chỉ xảy ra tại trang theo dõi đơn,
+hình thì mở trang không có nghĩa là đã đọc hết, và tin quan trọng nhất — báo có khoản tiền cần
+đối chiếu — lại hay nằm dưới cùng. Ở đó có nút bấm tay, còn việc tự đánh dấu chỉ xảy ra tại trang theo dõi đơn,
 nơi tin thật sự hiện ra trước mắt.
 
 ### 3.9 Xác thực email — chứng minh địa chỉ có thật trước khi nhận đơn
@@ -593,7 +650,7 @@ nào, để không phải mở từng file ra dò.
 | Vai trò | Thư mục controller | Thư mục service | DAO đi qua | Bảng |
 |---|---|---|---|---|
 | **Khách hàng** | `controller/customer` | `service/customer`<br>+ `shared` (thanh toán, thực đơn) | `dao/customer` CartDAO · FavouriteDAO · OrderTemplateDAO · ReviewDAO<br>`dao/shared` OrderDAO · OrderItemDAO · ProductDAO · CategoryDAO · PaymentDAO · TransactionDAO · NotificationDAO | Cart · CartItem · Favourite · OrderTemplate · OrderTemplateItem · Review · Orders · OrderItem · Product · Category · Payment · PaymentTransaction · Notification |
-| **Thu ngân** | `controller/staff` | `service/staff`<br>+ `kitchen` (quầy giao nhận)<br>+ `shared` | `dao/staff` OrderNoteDAO · PosHoldDAO<br>`dao/kitchen` KitchenIssueDAO<br>`dao/shared` OrderDAO · OrderItemDAO · PaymentDAO · TransactionDAO · ProductDAO · AuditLogDAO | OrderNote · PosHold · PosHoldItem · KitchenIssue · Orders · OrderItem · Payment · PaymentTransaction · Product · AuditLog |
+| **Thu ngân** | `controller/staff` | `service/staff`<br>+ `kitchen` (quầy giao nhận)<br>+ `shared` | `dao/staff` OrderNoteDAO<br>`dao/kitchen` KitchenIssueDAO<br>`dao/shared` OrderDAO · OrderItemDAO · PaymentDAO · TransactionDAO · ProductDAO · AuditLogDAO | OrderNote · KitchenIssue · Orders · OrderItem · Payment · PaymentTransaction · Product · AuditLog |
 | **Bếp** | `controller/kitchen`<br>`controller/api` (KDS) | `service/kitchen` | `dao/kitchen` KitchenIssueDAO · PrepTaskDAO · KitchenNoteDAO<br>`dao/shared` OrderItemDAO · OrderDAO · ProductDAO | KitchenIssue · PrepTask · OrderItemNote · KitchenNote · OrderItem · Orders · Product |
 | **Quản trị** | `controller/admin` | `service/admin`<br>+ `shared` (nhật ký) | `dao/admin` ReportDAO · RevenueTargetDAO<br>`dao/shared` ProductDAO · CategoryDAO · UserDAO · RoleDAO · AuditLogDAO | RevenueTarget · Product · Category · Users · Role · AuditLog |
 | **Đăng nhập** | `controller/auth` | `service/auth` | `dao/shared` UserDAO · RoleDAO · PasswordResetTokenDAO | Users · Role · PasswordResetToken |
@@ -629,20 +686,20 @@ về cách kiểm tra quyền lẫn cách viết ca kiểm thử.
 | Địa chỉ | Servlet | Trang |
 |---|---|---|
 | `/cart` | CartServlet | customer/cart.jsp — giỏ hàng **và** chọn giờ đến lấy |
-| `/payment/sepay` | SePayCheckoutServlet | customer/payment-sepay.jsp — **mã VietQR chuyển khoản**, chỉ sống khi `payment.gateway.provider=SEPAY`; cổng mặc định VNPAY đưa khách ra ngoài nên không có trang nào trong ứng dụng. Xem §3.7 |
+| `/payment/sepay` | SePayCheckoutServlet | customer/payment-sepay.jsp — **mã VietQR chuyển khoản**, chỉ sống khi `payment.gateway.provider=SEPAY`; cổng mặc định payOS đưa khách ra ngoài nên không có trang nào trong ứng dụng. Xem §3.7 |
 | `/order/track` | OrderTrackingServlet | customer/order-tracking.jsp |
 | `/order/history` | OrderHistoryServlet | customer/order-history.jsp — kèm **mẫu đặt nhanh**, lọc theo trạng thái và khoảng ngày |
 | `/notifications` | NotificationServlet | customer/notifications.jsp — **hộp thông báo**, xem §3.8 |
 | `/profile` | ProfileServlet | customer/profile.jsp |
 
 Cộng hai trang công khai `/menu` và `/product/detail` là **8 màn hình** khách hàng đi qua.
-Trang thanh toán chỉ có mặt khi chạy SePay: cổng mặc định VNPAY đẩy khách sang trang của bên
+Trang thanh toán chỉ có mặt khi chạy SePay: cổng mặc định payOS đẩy khách sang trang của bên
 thứ ba, còn `/payment/sepay` trả 404.
 
 ### Thu ngân — 5 trang, `/staff/*`
 | Địa chỉ | Servlet | Trang |
 |---|---|---|
-| `/staff/pos` | PosServlet | staff/pos.jsp — kèm **phiếu treo**, **trạng thái ca** và ô tính tiền thối |
+| `/staff/pos` | PosServlet | staff/pos.jsp — thu **tiền mặt** hoặc sinh **mã QR** cho khách quét |
 | `/staff/orders` | OrderDashboardServlet | staff/order-dashboard.jsp — kèm ô **tra mã nhận hàng** và **ghi chú điều phối** |
 | `/staff/order/detail` | OrderDetailServlet | staff/order-detail.jsp — kèm **hoá đơn in** |
 | `/staff/counter` | CounterServlet | staff/counter.jsp — nhận **hoặc từ chối** món bếp đưa ra, và xem sự cố bếp |
@@ -671,12 +728,36 @@ của danh sách đang lọc thì xong việc vẫn đứng nguyên chỗ đó. 
 nút là phải gõ lại bộ lọc và lật lại từng trang — thao tác quản trị thường đi thành chuỗi
 chứ hiếm khi chỉ có một lần.
 
+### Phân trang — một thẻ dùng chung cho mọi danh sách
+
+Mọi màn hình có danh sách đều phân trang bằng cùng một thẻ `WEB-INF/tags/pager.tag`, nhận vào
+đối tượng `Dtos.Page` và tự dựng chuỗi truy vấn cho các liên kết. Hai cách lấy trang:
+
+* **Cắt dưới SQL** (`OFFSET … FETCH NEXT`) cho bảng lớn tra cứu theo bộ lọc: thực đơn, món và
+  tài khoản ở màn quản trị, nhóm món, lịch sử đơn, nhật ký thao tác, hộp thông báo.
+* **Cắt trên danh sách đã nạp** (`Dtos.Page.of`) cho màn hình vận hành — hàng chờ bếp, quầy
+  giao nhận, sự cố: những màn này vốn phải đọc trọn danh sách để đếm và tô màu
+  cảnh báo, hỏi thêm một câu `COUNT` nữa chỉ tốn thêm một vòng đi về cơ sở dữ liệu.
+
+Trang nào có nhiều bảng thì mỗi bảng mang **tên tham số riêng** (`issuePage`, `prepPage`,
+`readyPage`…) kèm một mỏ neo `#id`, nên lật bảng này không kéo bảng kia về đầu và bấm xong thì
+màn hình dừng lại đúng chỗ vừa bấm. Mọi nút ghi dữ liệu trên các màn hình đó đều gửi kèm
+`returnTo` là địa chỉ hiện tại, để nhận một món ở trang 3 xong vẫn còn đứng ở trang 3.
+
+Riêng hàng chờ bếp tự làm mới bằng JavaScript: máy chủ dựng đúng trang đang xem, còn mỗi lần
+hỏi lại `/api/kds/queue` thì trình duyệt cắt lại đúng khoảng đó. Thẻ món tự cập nhật được,
+nhưng thanh chuyển trang thì do máy chủ dựng nên không — nên nó chỉ nhắc tải lại khi **số
+trang đổi thật** hoặc khi món đã trôi hết khỏi trang đang xem; hàng chờ nhích vài món trong
+cùng một trang thì im lặng, vì nhắc liên tục là kiểu cảnh báo mà bếp sẽ học cách bỏ qua. Hết
+sạch hàng chờ thì thanh bị giấu đi, để không có cảnh khung báo "hết món" nằm ngay trên dòng
+"đang xem 1–12 trong 12 đơn".
+
 ### Không phải trang — endpoint hành động và tích hợp
 | Địa chỉ | Servlet | Bản chất |
 |---|---|---|
-| `/payment/start` | PaymentStartServlet | Lập một lần thanh toán rồi chuyển hướng sang cổng. Không hiển thị gì. Chỉ chủ đơn gọi được. Chuyển hướng đi đúng địa chỉ cổng trả về, không gắn thêm tham số nào — thêm một tham số là chữ ký VNPAY lệch |
-| `/payment/vnpay/return` | VnPayReturnServlet | VNPAY đưa khách quay lại sau khi trả tiền, có thể không kèm phiên đăng nhập. Kiểm chữ ký trên gói `vnp_*`, đối chiếu số tiền, chống gọi trùng bằng ràng buộc duy nhất trên mã giao dịch. Xem §3.6 |
-| `/payment/vnpay/ipn` | VnPayIpnServlet | VNPAY gọi thẳng vào máy chủ, không qua trình duyệt. Cùng cách kiểm và cùng `PaymentService.handleCallback` như trên, chỉ khác ở chỗ trả về JSON `RspCode`/`Message` đúng khuôn VNPAY đòi. Xem §3.6 |
+| `/payment/start` | PaymentStartServlet | Lập một lần thanh toán rồi chuyển hướng sang địa chỉ payOS trả về. Không hiển thị gì. Chỉ chủ đơn gọi được |
+| `/payment/payos/return` | PayOsReturnServlet | payOS đưa khách quay lại sau khi trả tiền, có thể không kèm phiên đăng nhập. Các tham số trên địa chỉ **không có chữ ký** nên không được tin: chỉ lấy `orderCode` rồi gọi ngược sang payOS hỏi trạng thái thật. Xem §3.6 |
+| `/payment/payos/webhook` | PayOsWebhookServlet | payOS gọi thẳng vào máy chủ, không qua trình duyệt. Kiểm chữ ký trên khối `data` rồi đi vào cùng `PaymentService.handleCallback`. Luôn trả 2xx sau khi chữ ký đã qua, kể cả khi xử lý hỏng — trả lỗi chỉ làm payOS gọi lại nhiều lần. Xem §3.6 |
 | `/payment/sepay/webhook` | SePayWebhookServlet | SePay báo có tiền về, không có phiên đăng nhập. Kiểm khoá API ở header `Authorization`, đọc mã thanh toán từ nội dung chuyển khoản, rồi đi vào đúng `PaymentService.handleCallback` như trên. Xem §3.7 |
 | `/api/kds/queue` | KdsApiServlet | JSON cho màn hình bếp, hỏi lại mỗi 5 giây — chỉ vai trò Bếp và Quản trị. Chỉ trả dữ liệu bếp cần, không kèm thông tin khách hay thanh toán |
 | `/api/order/status` | OrderStatusApiServlet | JSON cho trang theo dõi đơn, hỏi lại mỗi 10 giây |
@@ -722,8 +803,7 @@ kê đúng những màn hình đó, kèm thực thể chính và cách thao tác
 | | `/menu` | Favourite | Xoá hẳn — dữ liệu riêng của khách |
 | | `/order/history` | OrderTemplate · OrderTemplateItem | Xoá hẳn, dòng món đi theo bằng cascade |
 | | `/product/detail` | Review | Xoá hẳn, điểm trung bình tự tính lại |
-| **Thu ngân** | `/staff/pos` | PosHold · PosHoldItem | Xoá hẳn — phiếu treo chưa phải đơn hàng |
-| | `/staff/orders` | OrderNote | Xoá hẳn |
+| **Thu ngân** | `/staff/orders` | OrderNote | Xoá hẳn |
 | | `/staff/counter` | KitchenIssue loại `COUNTER_REJECT` | Mềm: `status = CANCELLED` |
 | **Bếp** | `/kitchen/queue` | PrepTask | Mềm: `status = CANCELLED` |
 | | `/kitchen/item` | OrderItemNote | Xoá hẳn |
@@ -860,13 +940,13 @@ Chia hai nhóm bằng đuôi tên lớp:
 
 | Nhóm | Đuôi | Chạy ở đâu | Số bài |
 |---|---|---|---|
-| Không chạm cơ sở dữ liệu | `*Test` | Mọi máy, không cần gì thêm | 203 |
-| Chạy thật xuống cơ sở dữ liệu | `*IT` | Cần SQL Server ở `localhost:1433` | 357 |
+| Không chạm cơ sở dữ liệu | `*Test` | Mọi máy, không cần gì thêm | 220 |
+| Chạy thật xuống cơ sở dữ liệu | `*IT` | Cần SQL Server ở `localhost:1433` | 340 |
 
-Nhóm đầu gồm 196 bài logic thuần (`BusinessMathTest`, `PickupCodeGeneratorTest`,
+Nhóm đầu gồm 213 bài logic thuần (`BusinessMathTest`, `PickupCodeGeneratorTest`,
 `OrderStateTest`, `PasswordPolicyTest`, `SafeRedirectTest`, `LoginThrottleTest`,
-`CsrfTokenTest`, ba bài về cổng thanh toán: `VnPayGatewayTest` — xem §3.6 — cùng
-`SePayGatewayTest` và `SePayWebhookServletTest` — xem §3.7, và bốn bài về bộ lọc:
+`CsrfTokenTest`, bốn bài về cổng thanh toán: `PayOsGatewayTest` và `PayOsCallbacksTest`
+— xem §3.6 — cùng `SePayGatewayTest` và `SePayWebhookServletTest` — xem §3.7, và bốn bài về bộ lọc:
 `RoleAuthorizationFilterTest`, `CsrfFilterTest`, `RequestPathTest`, `RoutePolicyTest`)
 và 7 bài dựng
 tầng hiển thị (`BeanNamingTest`, `CsrfTokenPresenceTest`, `JspCompileTest` — chạy Jasper biên
@@ -891,20 +971,18 @@ hai bản lệch nhau lúc nào không ai biết, và bộ test sẽ xanh trên 
 
 | Lớp | Kiểm chứng điều gì |
 |---|---|
-| `RevenueReportIT` | Doanh thu thuần khi có hoàn tiền — xem ghi chú bên dưới |
+| `RevenueReportIT` | Doanh thu chia kỳ theo `paid_at` — xem ghi chú bên dưới |
 | `SchemaConstraintIT` | 21 ràng buộc và trigger, ghi thẳng bằng SQL để **cố tình bỏ qua** tầng Service |
 | `OnlinePreorderFlowIT` | Cả vòng đời đơn đặt trước, chạy qua tầng Service thật — kể cả khi tiền về không đúng số tiền của đơn (§3.5) |
-| `PosOrderIT` | Bán tại quầy, và mã biên lai bắt buộc khi quẹt thẻ |
+| `PosOrderIT` | Bán tại quầy bằng tiền mặt: đơn xuống bếp ngay, và phiếu tính tiền đọc giá mới nhất |
 | `KitchenFlowIT` | Bếp làm món, trạng thái đơn tự suy ra, bàn giao ra quầy, sự cố bếp |
-| `CancelRuleIT` | Mốc chặn huỷ đơn, hoàn tiền tự động và không lặp |
 | `OrderDashboardIT` | Bốn tab phủ kín mọi đơn chưa kết thúc |
-| `CounterQueueIT` | Hàng chờ của quầy giao nhận — kể cả món của đơn đã huỷ |
+| `CounterQueueIT` | Hàng chờ của quầy giao nhận — kể cả món của đơn đã đóng |
 | `KitchenPrepIT` | Kế hoạch chuẩn bị sẵn: một món một dòng mỗi ngày, dòng đã chốt thì đóng băng, chỉ người lập mới thu hồi |
 | `AdminCatalogIT` | Đủ bốn thao tác trên món và nhóm món, và chứng minh Xoá đi đường riêng: sửa nội dung không được đụng tới trạng thái kinh doanh |
 | `AdminListingIT` | Hai danh sách quản trị: câu đếm dùng chung mệnh đề lọc với câu lấy dữ liệu, trang 2 không lặp trang 1, giá trị lọc lạ hiểu thành không lọc, và nhóm đang ẩn vẫn nằm trong ô chọn nhóm |
 | `KitchenNoteIT` | Ghi chú chế biến và sổ bàn giao — và bằng chứng ghi chú **không** làm tăng số sự cố đang mở |
 | `CounterNoteRejectIT` | Ghi chú điều phối, và từ chối nhận món chỉ trong khoảng bếp đã bàn giao mà quầy chưa nhận |
-| `PosHoldIT` | Phiếu treo tại quầy: lấy ra là xoá phiếu, giá đọc mới, không đụng phiếu người khác |
 | `AdminAccountIT` | Mật khẩu đặt hộ, chống tự hạ quyền |
 | `AdminRoleAssignmentIT` | Vai trò gán cho tài khoản: mã vai trò lạ bị chặn ở tầng dịch vụ chứ không đợi khoá ngoại, không tạo được tài khoản khách qua màn hình nhân viên dù gửi thẳng mã vai trò, và nhật ký ghi tên vai trò chứ không ghi mã |
 | `AuthFlowIT` | Đăng nhập, khoá cửa sau nhiều lần sai, và trọn vòng đời mã quên mật khẩu |
@@ -963,20 +1041,23 @@ thêm một thư viện giả lập vào `pom.xml`. Phương thức chưa dựng
 không lặng lẽ trả `null` — bài test sau này cần thêm gì sẽ đọc được ngay, thay vì đi tìm một giá
 trị rỗng không rõ từ đâu ra.
 
-**Vì sao `RevenueReportIT` đáng đọc trước.** Bảng `Payment` chỉ có một cột trạng thái, và hoàn
-tiền ghi đè `PAID` thành `REFUNDED`. Cách viết trông hợp lý nhất — lọc vế thu theo
-`payment_status = 'PAID'` — làm một khoản đã thu rồi hoàn biến mất khỏi vế thu nhưng vẫn còn ở
-vế hoàn, tức là bị trừ hai lần: đơn 100.000đ cho ra **âm** 100.000đ. Bộ test này được kiểm
-ngược bằng cách tạm khôi phục công thức cũ; nó bắt lỗi ở 4 bài. Cách đúng là mỗi vế đếm theo
-mốc thời gian của chính nó — thu theo `paid_at`, hoàn theo `refunded_at`.
+**Vì sao `RevenueReportIT` đáng đọc trước.** Mốc chia kỳ của doanh thu là `Payment.paid_at`,
+không phải `Orders.created_at` — và hai cái đó lệch nhau đúng ở chỗ khó thấy nhất: đơn lập cuối
+tháng 3, khách trả tiền đầu tháng 4. Lấy nhầm mốc thì từng kỳ trông vẫn hợp lý, chỉ có tổng các
+kỳ là không khớp tổng toàn thời gian. Bộ test này canh cả hai điều đó: khoản thu rơi vào đúng kỳ
+của `paid_at`, và tháng 3 cộng tháng 4 bằng đúng con số tính gộp.
 
 ---
 
 ## 8. Ngoài phạm vi — không có trong mã nguồn
 
 Không giao hàng tận nơi, không nhiều chi nhánh, không quản lý kho và nhà cung cấp,
-không mã giảm giá, không tích điểm, không hoàn tiền một phần,
+không mã giảm giá, không tích điểm, **không huỷ đơn và không hoàn tiền**,
 không đặt trước mà không đăng nhập, không trả tiền mặt cho đơn đặt trước.
+
+Đơn đã lập chỉ đi tới `COMPLETED`, hoặc dừng ở `EXPIRED` khi khách không hoàn tất thanh toán
+trong 15 phút. Khách muốn bỏ đơn chưa trả tiền thì cứ để nguyên cho nó hết hạn; mọi trường hợp
+cần trả lại tiền đều xử lý tay ngoài hệ thống, qua cổng thanh toán.
 
 **Đánh giá món** trước đây nằm trong danh sách này, nay đã có: viết ở `/product/detail`, và điểm
 trung bình hiện trên từng thẻ món ở `/menu`.

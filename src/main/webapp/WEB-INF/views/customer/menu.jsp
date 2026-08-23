@@ -1,5 +1,9 @@
 <c:set var="pageTitle" value="Thực đơn" /><c:set var="nav" value="menu" />
 <%@ include file="/WEB-INF/views/layout/page-start.jspf" %>
+  <%-- Nút thêm giỏ / món quen quay về đúng trang và bộ lọc khách đang xem. --%>
+  <c:set var="menuQuery" value="${ff:pageQuery(pageContext.request, 'editFav')}" />
+  <c:set var="menuBack"  value="/menu${empty menuQuery ? '' : '?'.concat(menuQuery)}" />
+  <c:set var="menuMore"  value="${fn:contains(menuBack, '?') ? '&amp;' : '?'}" />
   <c:url var="urlAllCategories" value="/menu">
     <c:if test="${not empty keyword}"><c:param name="keyword" value="${keyword}"/></c:if>
     <c:if test="${sort ne 'DEFAULT'}"><c:param name="sort" value="${sort}"/></c:if>
@@ -66,10 +70,10 @@
 
   <%@ include file="/WEB-INF/views/layout/flash.jspf" %>
 
-  <c:if test="${not empty favourites}">
-    <div class="card pad0 table-wrap">
+  <c:if test="${favouritePage.totalItems > 0}">
+    <div class="card pad0 table-wrap" id="mon-quen">
       <div class="card-head">
-        <h2>Món quen của tôi (${fn:length(favourites)})</h2>
+        <h2>Món quen của tôi (${favouritePage.totalItems})</h2>
         <span class="small muted">Ghi chú ở đây là để bạn nhớ, chưa gửi sang bếp</span>
       </div>
       <table class="table-cards">
@@ -78,7 +82,7 @@
               <th scope="col" class="num">Giá</th><th scope="col" class="actions">Thao tác</th></tr>
         </thead>
         <tbody>
-          <c:forEach var="f" items="${favourites}">
+          <c:forEach var="f" items="${favouritePage.items}">
             <tr>
               <td data-label="Món">
                 <a href="${ctx}/product/detail?id=${f.productId}"><c:out value="${f.productName}"/></a>
@@ -102,16 +106,17 @@
                     <input type="hidden" name="action" value="add">
                     <input type="hidden" name="productId" value="${f.productId}">
                     <input type="hidden" name="quantity" value="1">
-                    <input type="hidden" name="returnTo" value="/menu">
+                    <input type="hidden" name="returnTo" value="<c:out value="${menuBack}"/>">
                     <button type="submit" class="btn btn-sm btn-primary">Thêm vào giỏ</button>
                   </form>
                 </c:if>
-                <a class="btn btn-sm" href="${ctx}/menu?editFav=${f.favouriteId}">Sửa ghi chú</a>
-                <form method="post" action="${ctx}/menu" class="inline-form">
+                <a class="btn btn-sm" href="${ctx}<c:out value="${menuBack}"/>${menuMore}editFav=${f.favouriteId}#mon-quen">Sửa ghi chú</a>
+                <form method="post" action="${ctx}/menu" class="inline-form"
+                      data-confirm="Bỏ món này khỏi danh sách món quen?">
                   <input type="hidden" name="_csrf" value="${csrfToken}">
                   <input type="hidden" name="action" value="favRemove">
                   <input type="hidden" name="favouriteId" value="${f.favouriteId}">
-                  <input type="hidden" name="returnTo" value="/menu">
+                  <input type="hidden" name="returnTo" value="<c:out value="${menuBack}"/>">
                   <button type="submit" class="btn btn-sm btn-danger">Bỏ</button>
                 </form>
               </td>
@@ -119,11 +124,12 @@
             <c:if test="${not empty editingFavourite and editingFavourite.favouriteId eq f.favouriteId}">
               <tr class="note-row">
                 <td colspan="4">
-                  <form method="post" action="${ctx}/menu" class="form-row">
+                  <form method="post" action="${ctx}/menu" class="form-row"
+                        data-confirm="Lưu ghi chú riêng cho món quen này?">
                     <input type="hidden" name="_csrf" value="${csrfToken}">
                     <input type="hidden" name="action" value="favNote">
                     <input type="hidden" name="favouriteId" value="${f.favouriteId}">
-                    <input type="hidden" name="returnTo" value="/menu">
+                    <input type="hidden" name="returnTo" value="<c:out value="${menuBack}"/>">
                     <div class="field">
                       <label for="favNote">Ghi chú riêng cho món này</label>
                       <input type="text" id="favNote" name="note" maxlength="255"
@@ -131,7 +137,7 @@
                              value="<c:out value="${editingFavourite.note}"/>">
                     </div>
                     <button type="submit" class="btn btn-primary">Lưu</button>
-                    <a class="btn" href="${ctx}/menu">Thôi</a>
+                    <a class="btn" href="${ctx}<c:out value="${menuBack}"/>#mon-quen">Thôi</a>
                   </form>
                 </td>
               </tr>
@@ -139,6 +145,7 @@
           </c:forEach>
         </tbody>
       </table>
+      <ui:pager page="${favouritePage}" pageParam="favPage" anchor="mon-quen" label="món quen" />
     </div>
   </c:if>
 
@@ -180,8 +187,8 @@
   <div class="row-between result-line">
     <p class="small muted">
       <c:choose>
-        <c:when test="${empty products}">Không có món nào khớp</c:when>
-        <c:otherwise><strong>${fn:length(products)}</strong> món</c:otherwise>
+        <c:when test="${pageData.totalItems == 0}">Không có món nào khớp</c:when>
+        <c:otherwise><strong>${pageData.totalItems}</strong> món</c:otherwise>
       </c:choose>
       <c:if test="${not empty keyword}"> cho “<c:out value="${keyword}"/>”</c:if>
     </p>
@@ -191,7 +198,7 @@
   </div>
 
   <c:choose>
-    <c:when test="${empty products}">
+    <c:when test="${pageData.emptyPage}">
       <div class="card empty">
         <div class="icon" aria-hidden="true">🍽️</div>
         <p>Không tìm thấy món nào phù hợp với bộ lọc đang chọn.</p>
@@ -202,7 +209,7 @@
     </c:when>
     <c:otherwise>
       <div class="menu-grid">
-        <c:forEach var="p" items="${products}">
+        <c:forEach var="p" items="${pageData.items}">
           <article class="product">
             <c:choose>
               <c:when test="${not empty p.imageUrl}">
@@ -241,16 +248,17 @@
                     <input type="hidden" name="action" value="add">
                     <input type="hidden" name="productId" value="${p.productId}">
                     <input type="hidden" name="quantity" value="1">
-                    <input type="hidden" name="returnTo" value="/menu">
+                    <input type="hidden" name="returnTo" value="<c:out value="${menuBack}"/>">
                     <button type="submit" class="btn btn-primary btn-block">Thêm vào giỏ</button>
                   </form>
                   <c:choose>
                     <c:when test="${favouriteIds.contains(p.productId)}">
-                      <form method="post" action="${ctx}/menu">
+                      <form method="post" action="${ctx}/menu"
+                            data-confirm="Bỏ món này khỏi danh sách món quen?">
                         <input type="hidden" name="_csrf" value="${csrfToken}">
                         <input type="hidden" name="action" value="favRemoveByProduct">
                         <input type="hidden" name="productId" value="${p.productId}">
-                        <input type="hidden" name="returnTo" value="/menu">
+                        <input type="hidden" name="returnTo" value="<c:out value="${menuBack}"/>">
                         <button type="submit" class="btn btn-block btn-fav on"
                                 title="Bỏ khỏi món quen">★ Món quen</button>
                       </form>
@@ -260,7 +268,7 @@
                         <input type="hidden" name="_csrf" value="${csrfToken}">
                         <input type="hidden" name="action" value="favAdd">
                         <input type="hidden" name="productId" value="${p.productId}">
-                        <input type="hidden" name="returnTo" value="/menu">
+                        <input type="hidden" name="returnTo" value="<c:out value="${menuBack}"/>">
                         <button type="submit" class="btn btn-block btn-fav"
                                 title="Lưu vào món quen">☆ Lưu món quen</button>
                       </form>
@@ -274,5 +282,7 @@
       </div>
     </c:otherwise>
   </c:choose>
+
+  <ui:pager page="${pageData}" label="món" />
   </div>
 <%@ include file="/WEB-INF/views/layout/page-end.jspf" %>

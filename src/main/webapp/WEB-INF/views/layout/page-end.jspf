@@ -8,7 +8,7 @@
     <p class="mt" data-field="message"></p>
     <div class="actions center mt">
       <button type="submit" value="cancel" class="btn touch" autofocus>Không</button>
-      <button type="submit" value="ok" class="btn btn-danger touch">Đồng ý</button>
+      <button type="submit" value="ok" class="btn btn-primary touch" data-field="ok">Đồng ý</button>
     </div>
   </form>
 </dialog>

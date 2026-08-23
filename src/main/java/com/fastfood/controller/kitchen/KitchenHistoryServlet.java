@@ -28,7 +28,6 @@ public class KitchenHistoryServlet extends BaseServlet {
         req.setAttribute("mineOnly", mineOnly);
         req.setAttribute("pageData", kitchenService.recentReady(
                 WebUtil.getInt(req, "page", 1), mineOnly ? user.getUserId() : 0));
-        req.setAttribute("filterQuery", WebUtil.queryStringWithout(req, "page"));
         req.setAttribute("handovers", noteService.recentHandovers());
         req.setAttribute("today", LocalDate.now());
 

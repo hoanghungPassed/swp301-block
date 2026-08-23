@@ -1,6 +1,5 @@
 package com.fastfood.flow;
 
-import com.fastfood.common.constant.Constants.PaymentMethod;
 import com.fastfood.common.exception.AppException.BusinessException;
 import com.fastfood.common.exception.AppException.ValidationException;
 import com.fastfood.model.dto.Dtos.PosCartLine;
@@ -33,7 +32,7 @@ class PosOrderIT extends IntegrationTestBase {
     @Test
     @DisplayName("Thu tiền mặt: lập đơn, thu tiền và đưa xuống bếp trong một nhịp")
     void cashOrderIsConfirmedAndReleasedImmediately() {
-        Order order = staffOrders.createPosOrder(userId(CASHIER_1), oneItem(), PaymentMethod.CASH, null);
+        Order order = staffOrders.createPosOrder(userId(CASHIER_1), oneItem());
 
         assertEquals("CONFIRMED", order.getOrderStatus());
         assertEquals("POS", order.getOrderSource());
@@ -50,77 +49,10 @@ class PosOrderIT extends IntegrationTestBase {
     }
 
     @Test
-    @DisplayName("Thu tiền mặt không cần mã biên lai")
-    void cashOrderNeedsNoReference() {
-        Order order = staffOrders.createPosOrder(userId(CASHIER_1), oneItem(), PaymentMethod.CASH, "   ");
-        assertEquals("CONFIRMED", order.getOrderStatus());
-    }
-
-    @Test
-    @DisplayName("Quẹt thẻ mà bỏ trống mã biên lai thì bị từ chối")
-    void cardPaymentRequiresReference() {
-        ValidationException e = assertThrows(ValidationException.class,
-                () -> staffOrders.createPosOrder(userId(CASHIER_1), oneItem(),
-                        PaymentMethod.ONLINE_GATEWAY, null));
-
-        assertTrue(e.getMessage().contains("mã giao dịch"),
-                "Thông báo phải nói rõ cần nhập gì, nhưng là: " + e.getMessage());
-    }
-
-    @Test
-    @DisplayName("Quẹt thẻ có mã biên lai thì ghi lại dấu vết đối soát")
-    void cardPaymentRecordsTransactionForReconciliation() {
-        String reference = "POS-REF-" + System.nanoTime();
-
-        Order order = staffOrders.createPosOrder(userId(CASHIER_1), oneItem(),
-                PaymentMethod.ONLINE_GATEWAY, reference);
-
-        String gateway = text("SELECT t.gateway FROM dbo.PaymentTransaction t " +
-                "JOIN dbo.Payment p ON p.payment_id = t.payment_id WHERE p.order_id = ?", order.getOrderId());
-        String externalId = text("SELECT t.external_transaction_id FROM dbo.PaymentTransaction t " +
-                "JOIN dbo.Payment p ON p.payment_id = t.payment_id WHERE p.order_id = ?", order.getOrderId());
-
-        assertEquals("POS_TERMINAL", gateway,
-                "Phải phân biệt được khoản thu ở quầy với khoản thu qua cổng trực tuyến");
-        assertEquals(reference.toUpperCase(), externalId,
-                "Mã biên lai được chuẩn hoá về chữ hoa để tra cứu không phụ thuộc cách gõ");
-    }
-
-    @Test
-    @DisplayName("Một biên lai không lập được thành hai đơn")
-    void sameReferenceCannotCreateTwoOrders() {
-        String reference = "POS-DUP-" + System.nanoTime();
-        staffOrders.createPosOrder(userId(CASHIER_1), oneItem(), PaymentMethod.ONLINE_GATEWAY, reference);
-
-        int before = count("SELECT COUNT(*) FROM dbo.Orders");
-
-        BusinessException e = assertThrows(BusinessException.class,
-                () -> staffOrders.createPosOrder(userId(CASHIER_1), oneItem(),
-                        PaymentMethod.ONLINE_GATEWAY, reference));
-
-        assertTrue(e.getMessage().contains("đã được ghi nhận"),
-                "Thông báo phải giải thích được cho thu ngân đang đứng trước khách: " + e.getMessage());
-        assertEquals(before, count("SELECT COUNT(*) FROM dbo.Orders"),
-                "Lần lập đơn hỏng phải được huỷ sạch, không để lại đơn mồ côi không có tiền");
-    }
-
-    @Test
-    @DisplayName("Mã biên lai không phân biệt hoa thường khi kiểm tra trùng")
-    void referenceComparisonIgnoresCase() {
-        String reference = "pos-case-" + System.nanoTime();
-        staffOrders.createPosOrder(userId(CASHIER_1), oneItem(), PaymentMethod.ONLINE_GATEWAY, reference);
-
-        assertThrows(BusinessException.class,
-                () -> staffOrders.createPosOrder(userId(CASHIER_1), oneItem(),
-                        PaymentMethod.ONLINE_GATEWAY, reference.toUpperCase()),
-                "Gõ lại cùng mã bằng chữ hoa vẫn là cùng một biên lai");
-    }
-
-    @Test
     @DisplayName("Phiếu trống thì không lập đơn")
     void emptyCartIsRejected() {
         assertThrows(ValidationException.class,
-                () -> staffOrders.createPosOrder(userId(CASHIER_1), List.of(), PaymentMethod.CASH, null));
+                () -> staffOrders.createPosOrder(userId(CASHIER_1), List.of()));
     }
 
     @Test
@@ -128,7 +60,7 @@ class PosOrderIT extends IntegrationTestBase {
     void quantityIsValidatedServerSide() {
         List<PosLine> bad = List.of(new PosLine(anyOrderableProductId(), 0));
         assertThrows(ValidationException.class,
-                () -> staffOrders.createPosOrder(userId(CASHIER_1), bad, PaymentMethod.CASH, null));
+                () -> staffOrders.createPosOrder(userId(CASHIER_1), bad));
     }
 
     @Test
@@ -140,7 +72,7 @@ class PosOrderIT extends IntegrationTestBase {
 
         assertThrows(BusinessException.class,
                 () -> staffOrders.createPosOrder(userId(CASHIER_1),
-                        List.of(new PosLine(offMenu, 1)), PaymentMethod.CASH, null));
+                        List.of(new PosLine(offMenu, 1))));
     }
 
     @Test
@@ -193,7 +125,7 @@ class PosOrderIT extends IntegrationTestBase {
     @Test
     @DisplayName("Đơn lưu bản sao tên và giá tại thời điểm bán (BR-02)")
     void orderItemKeepsSnapshotOfNameAndPrice() {
-        Order order = staffOrders.createPosOrder(userId(CASHIER_1), oneItem(), PaymentMethod.CASH, null);
+        Order order = staffOrders.createPosOrder(userId(CASHIER_1), oneItem());
 
         assertEquals(1, count("SELECT COUNT(*) FROM dbo.OrderItem " +
                         "WHERE order_id = ? AND product_name_snapshot IS NOT NULL AND unit_price > 0",

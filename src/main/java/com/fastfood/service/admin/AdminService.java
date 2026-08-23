@@ -114,6 +114,16 @@ public class AdminService {
         return Tx.read(categoryDAO::findAllWithCount);
     }
 
+    public Page<Category> listCategories(int pageNo) {
+        int page = Page.safePage(pageNo);
+        return Tx.read(con -> {
+            long total = categoryDAO.countAll(con);
+            List<Category> items = categoryDAO.findAllWithCount(con,
+                    Page.offset(page, Page.SIZE), Page.SIZE);
+            return new Page<>(items, page, Page.SIZE, total);
+        });
+    }
+
     public Category findCategory(int categoryId) {
         Category c = Tx.read(con -> categoryDAO.findById(con, categoryId));
         if (c == null) {

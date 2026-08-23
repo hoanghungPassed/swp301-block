@@ -4,6 +4,7 @@ import com.fastfood.common.constant.Constants.OrderStatus;
 import com.fastfood.common.exception.AppException;
 import com.fastfood.common.util.WebUtil;
 import com.fastfood.controller.BaseServlet;
+import com.fastfood.model.dto.Dtos.Page;
 import com.fastfood.model.entity.OrderEntities.Order;
 import com.fastfood.model.entity.OrderEntities.OrderNote;
 import com.fastfood.model.entity.UserEntities.User;
@@ -43,9 +44,11 @@ public class OrderDashboardServlet extends BaseServlet {
             byTab.put(name, orderService.dashboard(name));
         }
         List<Order> current = byTab.getOrDefault(tab, byTab.get("POS"));
+        /* Cắt trang ngay trên danh sách đã nạp: bốn thẻ đều cần đếm nên đằng nào cũng đọc hết. */
+        Page<Order> orders = Page.of(current, WebUtil.getInt(req, "page", 1), Page.SIZE);
 
         req.setAttribute("tab", tab);
-        req.setAttribute("orders", current);
+        req.setAttribute("pageData", orders);
         req.setAttribute("countPos", byTab.get("POS").size());
         req.setAttribute("countScheduled", byTab.get("SCHEDULED").size());
         req.setAttribute("countReady", byTab.get("READY").size());
@@ -54,7 +57,7 @@ public class OrderDashboardServlet extends BaseServlet {
         req.setAttribute("awaitingCounterCount", orderService.countAwaitingCounter());
 
         Map<Integer, List<OrderNote>> notesByOrder = noteService.notesOfOrders(
-                current.stream().map(Order::getOrderId).collect(Collectors.toList()));
+                orders.getItems().stream().map(Order::getOrderId).collect(Collectors.toList()));
         req.setAttribute("notesByOrder", notesByOrder);
 
         int editId = WebUtil.getInt(req, "editNote", 0);
@@ -96,8 +99,7 @@ public class OrderDashboardServlet extends BaseServlet {
         User user = requireUser(req);
         int noteId = WebUtil.getInt(req, "noteId", 0);
         String content = WebUtil.getString(req, "content");
-        String tab = WebUtil.getString(req, "tab");
-        String back = "/staff/orders" + (tab == null || tab.isBlank() ? "" : "?tab=" + tab);
+        String back = WebUtil.safeRedirect(WebUtil.getString(req, "returnTo"), "/staff/orders");
 
         switch (WebUtil.getString(req, "action") == null ? "" : WebUtil.getString(req, "action")) {
             case "noteUpdate":

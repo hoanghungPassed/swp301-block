@@ -25,24 +25,25 @@
    NỘI DUNG
      1. Tạo database
      2. Xoá đối tượng cũ
-     3. 27 bảng          (nhóm: danh mục · giỏ hàng · đơn hàng · thanh toán · vận hành ·
-                          bếp · đơn treo · quản trị · của riêng khách)
-     4. 29 index
+     3. 24 bảng          (nhóm: danh mục · giỏ hàng · đơn hàng · thanh toán · vận hành ·
+                          bếp · quản trị · của riêng khách)
+     4. 27 index
      5. 2 view           (suy ra trạng thái release & KPI đúng hẹn)
      6. 6 trigger        (BR-04 + chặn hard-delete BR-20)
-     7. Dữ liệu mẫu     (7 user · 13 món · 2 giỏ hàng · 11 đơn phủ đủ 7 trạng thái · 2 ca làm
-                          việc · 2 phiếu treo · chỉ tiêu doanh thu · món quen, mẫu đặt nhanh và
-                          đánh giá của khách · tin báo và nhật ký thao tác suy ra từ chính các
-                          mốc thời gian)
+     7. Dữ liệu mẫu     (7 user · 13 món · 2 giỏ hàng · 11 đơn phủ đủ 7 trạng thái · chỉ tiêu
+                          doanh thu · món quen, mẫu đặt nhanh và đánh giá của khách · tin báo
+                          và nhật ký thao tác suy ra từ chính các mốc thời gian)
      8. Kiểm tra sau khi chạy — 10 bảng đối chiếu, in ra ngay sau khi chạy xong
 
    MỖI BẢNG MỚI PHẢI CÓ DÒNG DROP Ở MỤC 2. Quên dòng đó thì file chạy được đúng một lần: từ
    lần thứ hai, DROP bảng cha vấp phải khoá ngoại và cả phần dựng lược đồ dừng giữa chừng.
-   Số bảng ở mục 3 và số dòng DROP ở mục 2 phải luôn bằng nhau — hiện là 27.
+   Số dòng DROP ở mục 2 không bao giờ ít hơn số bảng ở mục 3 — hiện 24 bảng và 27 dòng DROP.
+   Ba dòng dư là bảng của bản cũ (Shift, PosHold, PosHoldItem): tính năng đã bỏ nhưng dòng
+   DROP phải ở lại, nếu không thì cơ sở dữ liệu dựng bằng bản trước sẽ kẹt khi chạy lại file.
 
-   Hai trong số 27 bảng — PasswordResetToken và EmailVerificationToken — cố ý rỗng sau khi
+   Hai trong số 24 bảng — PasswordResetToken và EmailVerificationToken — cố ý rỗng sau khi
    chạy file: mã chỉ sinh ra khi có người bấm "Quên mật khẩu" hay "Gửi lại thư xác thực".
-   Vì vậy bảng đối chiếu ở mục 8.1 chỉ liệt kê 25 bảng còn lại.
+   Vì vậy bảng đối chiếu ở mục 8.1 chỉ liệt kê 22 bảng còn lại.
 
    BA TÊN BẢNG KHÁC TÀI LIỆU — vì trùng từ khoá SQL Server:
      User -> Users        Order -> Orders        Transaction -> PaymentTransaction
@@ -88,7 +89,7 @@ DROP VIEW  IF EXISTS dbo.vw_OrderReleaseState;
 DROP TABLE IF EXISTS dbo.AuditLog;
 DROP TABLE IF EXISTS dbo.PasswordResetToken;
 DROP TABLE IF EXISTS dbo.EmailVerificationToken;
-/* Bảy bảng dưới đây đều trỏ tới Users và/hoặc Product, nên phải xoá trước hai bảng đó.
+/* Năm bảng dưới đây đều trỏ tới Users và/hoặc Product, nên phải xoá trước hai bảng đó.
    Bảng con xoá trước bảng cha ngay cả khi đã có ON DELETE CASCADE: cascade chỉ áp dụng cho
    việc xoá DÒNG, không áp dụng cho DROP TABLE. */
 DROP TABLE IF EXISTS dbo.Review;
@@ -96,6 +97,8 @@ DROP TABLE IF EXISTS dbo.OrderTemplateItem;
 DROP TABLE IF EXISTS dbo.OrderTemplate;
 DROP TABLE IF EXISTS dbo.Favourite;
 DROP TABLE IF EXISTS dbo.RevenueTarget;
+-- Hai bảng của bản cũ, đã bỏ cùng tính năng treo phiếu. Vẫn phải xoá ở đây, cùng lý do với
+-- Shift bên dưới: cơ sở dữ liệu dựng bằng bản trước còn khoá ngoại PosHold → Users.
 DROP TABLE IF EXISTS dbo.PosHoldItem;
 DROP TABLE IF EXISTS dbo.PosHold;
 /* Ba bảng của bếp. PrepTask trỏ tới Product và Users, OrderItemNote trỏ tới OrderItem, nên cả
@@ -222,8 +225,8 @@ GO
 
 /* Chỉ khách Online đã đăng nhập mới có giỏ trong DB.
    POS dựng giỏ tạm trong session của Cashier, không ghi xuống đây — nếu ghi thì mỗi khách
-   vãng lai lại sinh một dòng rác. Muốn giữ phiếu lại để phục vụ người khác trước thì thu ngân
-   TREO đơn, và chỉ lúc đó mới có bản ghi — xem dbo.PosHold. */
+   vãng lai lại sinh một dòng rác. Giỏ ấy sống đúng bằng lần phục vụ một khách: thu tiền xong
+   là dọn, thu ngân đóng trình duyệt cũng mất, và không có gì phải dọn rác về sau. */
 CREATE TABLE dbo.Cart (
     cart_id    INT IDENTITY(1,1) NOT NULL,
     user_id    INT               NOT NULL,
@@ -284,7 +287,6 @@ CREATE TABLE dbo.Orders (
     handoff_by_user_id INT               NULL,          -- Cashier thực hiện giao món
     created_at         DATETIME2(0)      NOT NULL CONSTRAINT DF_Orders_createdAt DEFAULT (SYSDATETIME()),
     completed_at       DATETIME2(0)      NULL,
-    cancelled_at       DATETIME2(0)      NULL,
     expired_at         DATETIME2(0)      NULL,
 
     CONSTRAINT PK_Orders           PRIMARY KEY (order_id),
@@ -295,8 +297,10 @@ CREATE TABLE dbo.Orders (
     -- chặn mọi kênh ngoài phạm vi MVP lọt vào hệ thống
     CONSTRAINT CK_Orders_source CHECK (order_source IN ('ONLINE_PREORDER','POS')),
 
+    /* Không có trạng thái huỷ: đơn đã lập chỉ đi tới COMPLETED, hoặc dừng ở EXPIRED khi
+       khách không hoàn tất thanh toán trong thời gian giữ chỗ. */
     CONSTRAINT CK_Orders_status CHECK (order_status IN
-        ('PENDING_PAYMENT','CONFIRMED','PREPARING','READY','COMPLETED','CANCELLED','EXPIRED')),
+        ('PENDING_PAYMENT','CONFIRMED','PREPARING','READY','COMPLETED','EXPIRED')),
 
     -- đơn tại quầy thu tiền ngay nên không bao giờ ở trạng thái chờ thanh toán
     CONSTRAINT CK_Orders_pendingOnlineOnly CHECK
@@ -382,15 +386,14 @@ CREATE TABLE dbo.Payment (
     order_id       INT               NOT NULL,
     method         VARCHAR(20)       NOT NULL,     -- ONLINE_GATEWAY | CASH
     amount         DECIMAL(12,2)     NOT NULL,
-    payment_status VARCHAR(20)       NOT NULL,     -- UNPAID | PENDING | PAID | FAILED | REFUNDED
+    payment_status VARCHAR(20)       NOT NULL,     -- UNPAID | PENDING | PAID | FAILED
     attempt_no     INT               NOT NULL CONSTRAINT DF_Payment_attempt   DEFAULT (1),
     created_at     DATETIME2(0)      NOT NULL CONSTRAINT DF_Payment_createdAt DEFAULT (SYSDATETIME()),
     paid_at        DATETIME2(0)      NULL,         -- mốc dùng để tính doanh thu
-    refunded_at    DATETIME2(0)      NULL,
     CONSTRAINT PK_Payment           PRIMARY KEY (payment_id),
     CONSTRAINT FK_Payment_Orders    FOREIGN KEY (order_id) REFERENCES dbo.Orders(order_id),
     CONSTRAINT CK_Payment_method    CHECK (method IN ('ONLINE_GATEWAY','CASH')),
-    CONSTRAINT CK_Payment_status    CHECK (payment_status IN ('UNPAID','PENDING','PAID','FAILED','REFUNDED')),
+    CONSTRAINT CK_Payment_status    CHECK (payment_status IN ('UNPAID','PENDING','PAID','FAILED')),
     CONSTRAINT CK_Payment_amount    CHECK (amount >= 0),
     CONSTRAINT CK_Payment_attemptNo CHECK (attempt_no >= 1),
     /* Lưu ý khi lập trình: tính attempt_no bằng MAX(attempt_no)+1 sẽ bị trùng nếu khách
@@ -437,11 +440,11 @@ CREATE TABLE dbo.Notification (
     CONSTRAINT PK_Notification         PRIMARY KEY (notification_id),
     CONSTRAINT FK_Notification_Users   FOREIGN KEY (user_id)  REFERENCES dbo.Users(user_id),
     CONSTRAINT FK_Notification_Orders  FOREIGN KEY (order_id) REFERENCES dbo.Orders(order_id),
-    /* Bốn sự kiện sau đều là chuyện khách cần biết ngay mà không phải tự mở trang ra xem.
-       Hai cái đầu là tin vui, hai cái sau là tin xấu — thiếu chúng thì đơn hết hiệu lực hay
-       tiền được hoàn lại đều diễn ra im lặng, khách chỉ phát hiện qua sao kê ngân hàng. */
+    /* Ba sự kiện sau đều là chuyện khách cần biết ngay mà không phải tự mở trang ra xem.
+       Hai cái đầu là tin vui, cái cuối là tin xấu — thiếu nó thì đơn hết hiệu lực diễn ra
+       im lặng, khách cứ đinh ninh mình vẫn còn suất và đến quầy mới biết. */
     CONSTRAINT CK_Notification_event   CHECK (event_type IN
-        ('ORDER_CONFIRMED','ORDER_READY','ORDER_CANCELLED','ORDER_EXPIRED')),
+        ('ORDER_CONFIRMED','ORDER_READY','ORDER_EXPIRED')),
     CONSTRAINT CK_Notification_status  CHECK (status  IN ('PENDING','SENT','FAILED')),
     CONSTRAINT CK_Notification_channel CHECK (channel IN ('EMAIL','MOCK'))
 );
@@ -570,51 +573,7 @@ CREATE TABLE dbo.KitchenNote (
 );
 GO
 
-/* ------------------------------------ NHÓM 6 — ĐƠN TREO TẠI QUẦY -------------------------- */
-
-/* Đơn treo: khách đang gọi món thì nói "chờ tôi gọi thêm", thu ngân treo phiếu lại để phục vụ
-   người tiếp theo rồi lấy ra sau.
-
-   Vì sao KHÔNG ghi thẳng giỏ POS xuống đây. Lý do ở bảng Cart vẫn nguyên giá trị: giỏ tạm nằm
-   trong session của thu ngân, vì mỗi lần bấm nhầm mà ghi xuống là một dòng rác. Treo đơn là
-   chuyện khác hẳn — đó là một thao tác CỐ Ý, thu ngân phải đặt tên cho phiếu. Bấm nhầm không
-   sinh ra dòng nào; chỉ khi có người chủ động treo mới có bản ghi.
-
-   Xoá hẳn được, cùng lý do với CartItem: đây là phiếu nháp chưa thành đơn hàng, chưa có đồng
-   tiền nào đi qua và không có bản ghi nào trỏ tới. */
-CREATE TABLE dbo.PosHold (
-    hold_id    INT IDENTITY(1,1) NOT NULL,
-    cashier_id INT               NOT NULL,
-    label      NVARCHAR(100)     NOT NULL,   -- "Bàn 3", "Anh áo xanh" — thu ngân tự đặt để nhận ra
-    note       NVARCHAR(500)     NULL,
-    created_at DATETIME2(0)      NOT NULL CONSTRAINT DF_PosHold_createdAt DEFAULT (SYSDATETIME()),
-    updated_at DATETIME2(0)      NULL,
-    CONSTRAINT PK_PosHold       PRIMARY KEY (hold_id),
-    CONSTRAINT FK_PosHold_Users FOREIGN KEY (cashier_id) REFERENCES dbo.Users(user_id),
-    CONSTRAINT CK_PosHold_label CHECK (LEN(LTRIM(RTRIM(label))) > 0),
-    /* Hai phiếu cùng tên trong tay một thu ngân thì chính họ không biết lấy cái nào ra — mà
-       đó là lúc khách đang đứng đợi. Chặn ở đây chứ không đọc trước rồi kiểm: hai tab cùng mở
-       màn bán hàng sẽ cùng đọc thấy "chưa có phiếu nào tên này". */
-    CONSTRAINT UQ_PosHold_cashier_label UNIQUE (cashier_id, label)
-);
-GO
-
-/* Bảng thứ hai được phép CASCADE DELETE, cùng lý do với CartItem. */
-CREATE TABLE dbo.PosHoldItem (
-    hold_item_id INT IDENTITY(1,1) NOT NULL,
-    hold_id      INT               NOT NULL,
-    product_id   INT               NOT NULL,
-    quantity     INT               NOT NULL,
-    CONSTRAINT PK_PosHoldItem         PRIMARY KEY (hold_item_id),
-    CONSTRAINT FK_PosHoldItem_Hold    FOREIGN KEY (hold_id)    REFERENCES dbo.PosHold(hold_id) ON DELETE CASCADE,
-    CONSTRAINT FK_PosHoldItem_Product FOREIGN KEY (product_id) REFERENCES dbo.Product(product_id),
-    CONSTRAINT CK_PosHoldItem_qty     CHECK (quantity > 0),
-    -- treo cùng một món hai lần thì cộng dồn, không tạo dòng thứ hai — như UQ_CartItem
-    CONSTRAINT UQ_PosHoldItem         UNIQUE (hold_id, product_id)
-);
-GO
-
-/* ------------------------------------ NHÓM 7 — QUẢN TRỊ ----------------------------------- */
+/* ------------------------------------ NHÓM 6 — QUẢN TRỊ ----------------------------------- */
 
 /* Chỉ tiêu doanh thu theo kỳ, để bảng điều khiển có con số để so chứ không chỉ báo cáo suông.
 
@@ -648,7 +607,7 @@ CREATE TABLE dbo.RevenueTarget (
 );
 GO
 
-/* ------------------------------------ NHÓM 8 — CỦA RIÊNG KHÁCH ---------------------------- */
+/* ------------------------------------ NHÓM 7 — CỦA RIÊNG KHÁCH ---------------------------- */
 
 /* Món quen của khách. Ghi chú riêng là phần làm nên giá trị của bảng này: đánh dấu yêu thích
    thì chỉ có thêm và bỏ, còn "ít cay", "không hành", "nhiều đá" mới là thứ khách muốn lưu và
@@ -867,12 +826,9 @@ GO
 -- kiểm tra đã thanh toán chưa trước khi giao món
 CREATE INDEX IX_Payment_order ON dbo.Payment(order_id, payment_status);
 
-/* Báo cáo doanh thu quét theo khoảng ngày, và quét bằng HAI mốc chứ không một:
-   tiền thu vào tính theo paid_at, tiền hoàn ra tính theo refunded_at. Một khoản thu
-   tháng này mà hoàn tháng sau phải rơi vào đúng hai kỳ khác nhau, nên mỗi mốc cần
-   một index riêng. */
+/* Báo cáo doanh thu quét theo khoảng ngày, lấy paid_at làm mốc. Tiền chỉ đi một chiều —
+   không có đường hoàn ra — nên một index trên một mốc là đủ. */
 CREATE INDEX IX_Payment_paidAt     ON dbo.Payment(paid_at)     INCLUDE (amount, method, payment_status);
-CREATE INDEX IX_Payment_refundedAt ON dbo.Payment(refunded_at) INCLUDE (amount, method) WHERE refunded_at IS NOT NULL;
 
 CREATE INDEX IX_Transaction_payment ON dbo.PaymentTransaction(payment_id);
 GO
@@ -905,9 +861,6 @@ CREATE INDEX IX_ItemNote_item ON dbo.OrderItemNote(order_item_id, created_at DES
 CREATE INDEX IX_KitNote_date ON dbo.KitchenNote(shift_date DESC, created_at DESC);
 GO
 
-/* Đơn treo của chính thu ngân đang đăng nhập, đọc mỗi lần mở màn bán hàng. Không ai xem đơn
-   treo của người khác nên mã thu ngân luôn là điều kiện lọc đầu tiên. */
-CREATE INDEX IX_PosHold_cashier ON dbo.PosHold(cashier_id, created_at DESC);
 
 /* Mỗi kỳ đúng một chỉ tiêu. Không có ràng buộc này thì hai chỉ tiêu cho tháng 8 cùng tồn tại,
    và bảng điều khiển lấy phải cái nào là chuyện ngẫu nhiên. */
@@ -1014,7 +967,7 @@ END
 GO
 
 /* Không xoá vĩnh viễn dữ liệu giao dịch — cần giữ để đối soát và truy vết.
-   Muốn "xoá" thì đổi trạng thái: đơn thành CANCELLED/EXPIRED, thanh toán thành REFUNDED,
+   Muốn "xoá" thì đổi trạng thái: đơn thành EXPIRED, thanh toán thành FAILED,
    sản phẩm và tài khoản thành INACTIVE/LOCKED.
 
    OrderItem cũng được chặn: khoá ngoại chỉ ngăn xoá đơn khi còn món, chứ không ngăn xoá
@@ -1026,7 +979,7 @@ CREATE TRIGGER dbo.TR_Orders_NoHardDelete ON dbo.Orders INSTEAD OF DELETE AS
 BEGIN
     SET NOCOUNT ON;
     IF @@TRANCOUNT > 0 ROLLBACK TRANSACTION;
-    THROW 50020, 'Khong duoc xoa Orders. Dung order_status = CANCELLED / EXPIRED.', 1;
+    THROW 50020, 'Khong duoc xoa Orders. Dung order_status = EXPIRED.', 1;
 END
 GO
 
@@ -1042,7 +995,7 @@ CREATE TRIGGER dbo.TR_Payment_NoHardDelete ON dbo.Payment INSTEAD OF DELETE AS
 BEGIN
     SET NOCOUNT ON;
     IF @@TRANCOUNT > 0 ROLLBACK TRANSACTION;
-    THROW 50022, 'Khong duoc xoa Payment. Dung payment_status = REFUNDED.', 1;
+    THROW 50022, 'Khong duoc xoa Payment. Dung payment_status = FAILED.', 1;
 END
 GO
 
@@ -1178,7 +1131,7 @@ JOIN dbo.Product p ON p.name    = v.product_name;
 GO
 
 /* ------------------------------------- Đơn hàng mẫu ---------------------------------------
-   11 đơn phủ đủ bảy trạng thái và các tình huống ngoại lệ quan trọng.
+   11 đơn phủ đủ sáu trạng thái và các tình huống ngoại lệ quan trọng.
    Mọi mốc thời gian tính tương đối so với lúc chạy file, nên dữ liệu luôn hợp lý:
    đơn hẹn giờ luôn nằm ở tương lai, đơn quá hạn luôn nằm ở quá khứ.
 
@@ -1189,7 +1142,7 @@ GO
    D5  Online  READY            sẵn sàng, đúng hẹn — dùng để demo xác minh mã nhận hàng
    D6  Online  READY            quá giờ hẹn 40 phút mà khách chưa tới
    D7  Online  COMPLETED        đã giao đúng hẹn
-   D8  Online  CANCELLED        huỷ trước khi vào bếp, đã hoàn tiền đầy đủ
+   D8  POS     EXPIRED          khách lập đơn quét mã QR rồi bỏ đi, không ai trả tiền
    D9  POS     COMPLETED        khách tại quầy trả tiền mặt
    D10 POS     PREPARING        khách tại quầy quét mã trả tiền, đang có sự cố bếp
    D11 Online  COMPLETED        món xong TRỄ so với giờ hẹn — để tỷ lệ đúng hẹn ra 75%
@@ -1348,24 +1301,27 @@ INSERT INTO dbo.AuditLog (actor_id, entity_type, entity_id, action, new_value, c
  (@cash1, 'ORDER', CAST(@o AS VARCHAR(50)), 'PICKUP_VERIFY_OK', @day+'E5G2', DATEADD(MINUTE,-119,@now)),
  (@cash1, 'ORDER', CAST(@o AS VARCHAR(50)), 'HANDOFF',          'COMPLETED', DATEADD(MINUTE,-118,@now));
 
-/* -- D8 · Online · huỷ trước khi vào bếp, đã hoàn tiền · 85.000 ---------------------------
-   Huỷ hợp lệ vì thời điểm huỷ còn trước kế hoạch vào bếp, nên bếp chưa từng nhận việc này. */
-INSERT INTO dbo.Orders (customer_id, order_source, total_amount, order_status, idempotency_key,
-                        pickup_time, kitchen_release_at, pickup_code, created_at, cancelled_at)
-VALUES (@cus2, 'ONLINE_PREORDER', 85000, 'CANCELLED', 'demo-0008',
-        DATEADD(MINUTE,-90,@now), DATEADD(MINUTE,-110,@now), @day+'F6H3', DATEADD(MINUTE,-180,@now), DATEADD(MINUTE,-150,@now));
+/* -- D8 · Quầy · khách bỏ đi giữa chừng, không ai trả tiền · 85.000 -----------------------
+   Đơn tại quầy phải lập TRƯỚC khi có tiền thì mới sinh được mã QR để khách quét, nên nó nằm
+   ở trạng thái CONFIRMED chứ không phải PENDING_PAYMENT (CK_Orders_pendingOnlineOnly không
+   cho đơn quầy chờ thanh toán). Khách quét xong rồi bỏ đi, quá 15 phút thì bộ hẹn giờ đóng
+   đơn lại — xem ScheduleService.expireAbandonedCounterOrders. Không dọn thì đơn này treo
+   mãi trong màn hình bán tại quầy mà bếp không bao giờ thấy. */
+INSERT INTO dbo.Orders (created_by_user_id, order_source, total_amount, order_status,
+                        created_at, expired_at)
+VALUES (@cash1, 'POS', 85000, 'EXPIRED',
+        DATEADD(MINUTE,-180,@now), DATEADD(MINUTE,-165,@now));
 SET @o = SCOPE_IDENTITY();
 INSERT INTO dbo.OrderItem (order_id, product_id, product_name_snapshot, unit_price, quantity, item_status)
 VALUES (@o, @pSolo, N'Combo Burger Solo', 85000, 1, 'WAITING');
-INSERT INTO dbo.Payment (order_id, method, amount, payment_status, created_at, paid_at, refunded_at)
-VALUES (@o, 'ONLINE_GATEWAY', 85000, 'REFUNDED', DATEADD(MINUTE,-180,@now), DATEADD(MINUTE,-179,@now), DATEADD(MINUTE,-149,@now));
+/* Không có dòng PaymentTransaction: cổng thanh toán chỉ gọi lại khi khách bấm trả tiền,
+   mà ở đây khách bỏ đi trước lúc đó. Khoản thu nằm mãi ở PENDING cho tới khi bộ hẹn giờ
+   đánh dấu FAILED. */
+INSERT INTO dbo.Payment (order_id, method, amount, payment_status, created_at)
+VALUES (@o, 'ONLINE_GATEWAY', 85000, 'FAILED', DATEADD(MINUTE,-180,@now));
 SET @pay = SCOPE_IDENTITY();
-INSERT INTO dbo.PaymentTransaction (payment_id, gateway, external_transaction_id, status, created_at) VALUES
- (@pay, 'MOCK', 'MOCK-TXN-0008',        'SUCCESS',  DATEADD(MINUTE,-179,@now)),
- (@pay, 'MOCK', 'MOCK-TXN-0008-REFUND', 'REFUNDED', DATEADD(MINUTE,-149,@now));
 INSERT INTO dbo.AuditLog (actor_id, entity_type, entity_id, action, old_value, new_value, created_at) VALUES
- (@cus2, 'ORDER',   CAST(@o   AS VARCHAR(50)), 'ORDER_CANCELLED',  'CONFIRMED', 'CANCELLED', DATEADD(MINUTE,-150,@now)),
- (NULL,  'PAYMENT', CAST(@pay AS VARCHAR(50)), 'PAYMENT_REFUNDED', 'PAID',      'REFUNDED',  DATEADD(MINUTE,-149,@now));
+ (NULL, 'PAYMENT', CAST(@pay AS VARCHAR(50)), 'PAYMENT_FAILED', 'PENDING', 'FAILED', DATEADD(MINUTE,-165,@now));
 
 /* -- D9 · Quầy · đã giao xong, trả tiền mặt · 85.000 --------------------------------------- */
 INSERT INTO dbo.Orders (customer_id, created_by_user_id, order_source, total_amount, order_status,
@@ -1494,7 +1450,7 @@ OR (SELECT COUNT(*) FROM dbo.KitchenNote)    <> 2
 GO
 
 
-/* -- Ghi chú điều phối và đơn treo của thu ngân ---------------------------------------------
+/* -- Ghi chú điều phối của thu ngân ---------------------------------------------------------
    Các màn hình của thu ngân mở ra sẽ trống trơn nếu không có khối này.
    ------------------------------------------------------------------------------------------ */
 DECLARE @cash1s INT = (SELECT user_id FROM dbo.Users WHERE email = 'cashier1@fastfood.vn');
@@ -1508,22 +1464,6 @@ FROM   dbo.Orders o WHERE o.order_status = 'READY' ORDER BY o.order_id;
 INSERT INTO dbo.OrderNote (order_id, author_id, content)
 SELECT TOP 1 o.order_id, @cash1s, N'Đã gọi khách hai lần chưa được, thử lại sau 10 phút.'
 FROM   dbo.Orders o WHERE o.order_status = 'READY' ORDER BY o.order_id DESC;
-
-/* Hai phiếu treo dựng ra đúng tình huống sinh ra bảng này: đang tính tiền thì khách bảo chờ. */
-INSERT INTO dbo.PosHold (cashier_id, label, note) VALUES
- (@cash1s, N'Bàn 3 — anh áo xanh',  N'Chờ bạn đi cùng tới gọi thêm đồ uống'),
- (@cash1s, N'Khách gọi điện đặt',   NULL);
-
-INSERT INTO dbo.PosHoldItem (hold_id, product_id, quantity)
-SELECT h.hold_id, p.product_id, v.qty
-FROM  (VALUES
-         (N'Bàn 3 — anh áo xanh', N'Burger Bò Phô Mai',   2),
-         (N'Bàn 3 — anh áo xanh', N'Pepsi (M)',           2),
-         (N'Khách gọi điện đặt',  N'Combo Gia Đình',      1),
-         (N'Khách gọi điện đặt',  N'Khoai Tây Chiên (L)', 1)
-      ) AS v(label, ten_mon, qty)
-JOIN  dbo.PosHold h ON h.label = v.label AND h.cashier_id = @cash1s
-JOIN  dbo.Product p ON p.name  = v.ten_mon;
 
 /* -- Chỉ tiêu doanh thu ---------------------------------------------------------------------
    Một chỉ tiêu tháng và một chỉ tiêu ngày, để bảng điều khiển hiện được cả hai mức cùng lúc.
@@ -1595,8 +1535,6 @@ FROM   xep x WHERE x.stt <= 3;
    thấy: đánh giá có sinh ra được từ đơn đã hoàn tất không — chỗ mà một thay đổi ở dữ liệu
    đơn hàng sẽ âm thầm làm rỗng. */
 IF (SELECT COUNT(*) FROM dbo.OrderNote)         <> 2
-OR (SELECT COUNT(*) FROM dbo.PosHold)           <> 2
-OR (SELECT COUNT(*) FROM dbo.PosHoldItem)       <> 4
 OR (SELECT COUNT(*) FROM dbo.RevenueTarget)     <> 2
 OR (SELECT COUNT(*) FROM dbo.Favourite)         <> 3
 OR (SELECT COUNT(*) FROM dbo.OrderTemplate)     <> 2
@@ -1612,7 +1550,7 @@ GO
    tin xấu (đơn bị huỷ, đơn hết hiệu lực) không có lấy một dòng nào, dù đó chính là hai loại
    tin mà thiếu chúng khách sẽ mất tiền hoặc mất đơn trong im lặng.
 
-   Bốn điều kiện dưới đây khớp đúng với NotificationService: chỉ đơn ONLINE_PREORDER và chỉ
+   Ba điều kiện dưới đây khớp đúng với NotificationService: chỉ đơn ONLINE_PREORDER và chỉ
    khi đơn có chủ. Khách mua tại quầy đứng ngay đó nên không có tin nào, và đó là lý do
    Notification.user_id để NULL được dù bảng vẫn bắt buộc có order_id.
 
@@ -1622,7 +1560,7 @@ GO
    trong vòng đời đơn đều đã báo cho khách, và báo bằng đúng câu chữ mà mã nguồn sinh ra.
    ------------------------------------------------------------------------------------------ */
 ;WITH don AS (
-    SELECT  o.order_id, o.customer_id, o.pickup_time, o.ready_at, o.cancelled_at, o.expired_at,
+    SELECT  o.order_id, o.customer_id, o.pickup_time, o.ready_at, o.expired_at,
             ma_nhan = ISNULL(o.pickup_code, '---'),
             /* 259000.00 -> "259.000 đ", giống MoneyUtil.format.
                Không dùng FORMAT vì Azure SQL Edge không bật CLR — xem ghi chú ở phần đơn hàng.
@@ -1633,10 +1571,7 @@ GO
             -- "dd/MM/yyyy HH:mm", giống DateTimeUtil.format
             gio_hen = CONVERT(VARCHAR(10), o.pickup_time, 103) + ' ' + CONVERT(VARCHAR(5), o.pickup_time, 108),
             da_tra  = (SELECT MIN(p.paid_at) FROM dbo.Payment p
-                       WHERE p.order_id = o.order_id AND p.paid_at IS NOT NULL),
-            da_hoan = CASE WHEN EXISTS (SELECT 1 FROM dbo.Payment p
-                                        WHERE p.order_id = o.order_id AND p.refunded_at IS NOT NULL)
-                           THEN 1 ELSE 0 END
+                       WHERE p.order_id = o.order_id AND p.paid_at IS NOT NULL)
     FROM    dbo.Orders o
     WHERE   o.order_source = 'ONLINE_PREORDER' AND o.customer_id IS NOT NULL
 ), tin AS (
@@ -1651,14 +1586,6 @@ GO
            N'Món của bạn đã sẵn sàng. Vui lòng đến quầy trước ' + d.gio_hen
          + N' và đưa mã ' + d.ma_nhan + N' để nhận hàng.'
     FROM   don d WHERE d.ready_at IS NOT NULL
-    UNION ALL
-    /* Huỷ — nói thẳng tiền có được hoàn hay không, đây là câu khách hỏi đầu tiên */
-    SELECT d.customer_id, d.order_id, 'ORDER_CANCELLED', d.cancelled_at,
-           N'Đơn #' + CAST(d.order_id AS NVARCHAR(20)) + N' đã bị huỷ.'
-         + CASE WHEN d.da_hoan = 1
-                THEN N' Toàn bộ ' + d.tien + N' đã được hoàn lại về phương thức thanh toán ban đầu.'
-                ELSE N'' END
-    FROM   don d WHERE d.cancelled_at IS NOT NULL
     UNION ALL
     /* Hết hiệu lực vì quá hạn thanh toán — chưa từng thu tiền nên không có chuyện hoàn */
     SELECT d.customer_id, d.order_id, 'ORDER_EXPIRED', d.expired_at,
@@ -1681,7 +1608,7 @@ UPDATE  n
 SET     n.read_at = DATEADD(MINUTE, 4, n.sent_at)
 FROM    dbo.Notification n
 JOIN    dbo.Orders o ON o.order_id = n.order_id
-WHERE   o.order_status IN ('COMPLETED','CANCELLED','EXPIRED');
+WHERE   o.order_status IN ('COMPLETED','EXPIRED');
 GO
 
 
@@ -1703,10 +1630,6 @@ DECLARE @cash1 INT = (SELECT user_id FROM dbo.Users WHERE email = 'cashier1@fast
     SELECT NULL AS actor, 'PAYMENT' AS et, p.payment_id AS eid, 'PAYMENT_PAID' AS act,
            NULL AS ov, 'PAID' AS nv, p.paid_at AS t
     FROM dbo.Payment p WHERE p.paid_at IS NOT NULL
-    UNION ALL
-    /* Hoàn tiền */
-    SELECT @cash1, 'PAYMENT', p.payment_id, 'PAYMENT_REFUNDED', 'PAID', 'REFUNDED', p.refunded_at
-    FROM dbo.Payment p WHERE p.refunded_at IS NOT NULL
     UNION ALL
     /* Hệ thống tự xác nhận đơn đặt trước sau khi tiền vào (BR-07) — actor để trống */
     SELECT NULL, 'ORDER', o.order_id, 'AUTO_CONFIRM', 'PENDING_PAYMENT', 'CONFIRMED', o.created_at
@@ -1747,12 +1670,12 @@ DECLARE @cash1 INT = (SELECT user_id FROM dbo.Users WHERE email = 'cashier1@fast
     SELECT o.handoff_by_user_id, 'ORDER', o.order_id, 'HANDOFF', 'READY', 'COMPLETED', o.picked_up_at
     FROM dbo.Orders o WHERE o.picked_up_at IS NOT NULL
     UNION ALL
-    /* Kết thúc bất thường */
-    SELECT NULL, 'ORDER', o.order_id, 'ORDER_EXPIRED', 'PENDING_PAYMENT', 'EXPIRED', o.expired_at
+    /* Kết thúc bất thường. Đơn đặt trước hết hiệu lực từ PENDING_PAYMENT; đơn tại quầy bị
+       bỏ dở thì đi từ CONFIRMED, vì nó phải lập trước khi có tiền mới sinh được mã QR. */
+    SELECT NULL, 'ORDER', o.order_id, 'ORDER_EXPIRED',
+           CASE WHEN o.order_source = 'POS' THEN 'CONFIRMED' ELSE 'PENDING_PAYMENT' END,
+           'EXPIRED', o.expired_at
     FROM dbo.Orders o WHERE o.expired_at IS NOT NULL
-    UNION ALL
-    SELECT NULL, 'ORDER', o.order_id, 'ORDER_CANCELLED', NULL, 'CANCELLED', o.cancelled_at
-    FROM dbo.Orders o WHERE o.cancelled_at IS NOT NULL
     UNION ALL
     /* Sự cố bếp */
     SELECT ki.created_by, 'ORDER_ITEM', ki.order_item_id, 'ISSUE_OPENED', NULL, ki.issue_type, ki.created_at
@@ -1777,7 +1700,7 @@ GO
    Chạy xong file, đối chiếu các bảng kết quả bên dưới. Nếu khớp là database đã sẵn sàng.
    ============================================================================================= */
 
-/* 8.1 · Số lượng bản ghi từng bảng — kỳ vọng cả 25 bảng dưới đây đều khác 0.
+/* 8.1 · Số lượng bản ghi từng bảng — kỳ vọng cả 22 bảng dưới đây đều khác 0.
         Bảng nào bằng 0 nghĩa là có một màn hình chưa có dữ liệu để thử.
         Hai bảng mã (PasswordResetToken, EmailVerificationToken) không có mặt ở đây vì rỗng
         là đúng — xem ghi chú ở đầu file. */
@@ -1797,8 +1720,6 @@ UNION ALL SELECT 'KitchenIssue',       COUNT(*) FROM dbo.KitchenIssue
 UNION ALL SELECT 'PrepTask',           COUNT(*) FROM dbo.PrepTask
 UNION ALL SELECT 'OrderItemNote',      COUNT(*) FROM dbo.OrderItemNote
 UNION ALL SELECT 'KitchenNote',        COUNT(*) FROM dbo.KitchenNote
-UNION ALL SELECT 'PosHold',            COUNT(*) FROM dbo.PosHold
-UNION ALL SELECT 'PosHoldItem',        COUNT(*) FROM dbo.PosHoldItem
 UNION ALL SELECT 'RevenueTarget',      COUNT(*) FROM dbo.RevenueTarget
 UNION ALL SELECT 'Favourite',          COUNT(*) FROM dbo.Favourite
 UNION ALL SELECT 'OrderTemplate',      COUNT(*) FROM dbo.OrderTemplate
@@ -1868,9 +1789,9 @@ FROM    dbo.OrderItem oi
 WHERE   oi.received_at IS NOT NULL AND oi.handed_over_at IS NULL;
 
 /* 8.8 · Tin đã gửi cho khách, đếm theo loại sự kiện.
-        Kỳ vọng đủ CẢ BỐN loại. Thiếu ORDER_CANCELLED hoặc ORDER_EXPIRED là dấu hiệu dữ liệu
-        mẫu chỉ dựng đường đi thuận lợi — hai nhánh khách mất đơn hoặc mất tiền không có gì
-        để xem. Tin chỉ sinh cho đơn đặt trước; đơn tại quầy không có tin nào là đúng.
+        Kỳ vọng đủ CẢ BA loại. Thiếu ORDER_EXPIRED là dấu hiệu dữ liệu mẫu chỉ dựng đường đi
+        thuận lợi — nhánh khách mất đơn vì quá hạn thanh toán không có gì để xem. Tin chỉ sinh
+        cho đơn đặt trước; đơn tại quầy không có tin nào là đúng.
 
         Cột chua_doc phải có ít nhất một số khác 0, nếu không thì hộp thông báo của khách mở ra
         không còn tin nào mới và huy hiệu trên thanh điều hướng không bao giờ hiện. */

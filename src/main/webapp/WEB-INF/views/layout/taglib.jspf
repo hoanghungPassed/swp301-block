@@ -3,5 +3,6 @@
 <%@ taglib prefix="fmt" uri="http://java.sun.com/jsp/jstl/fmt" %>
 <%@ taglib prefix="fn"  uri="http://java.sun.com/jsp/jstl/functions" %>
 <%@ taglib prefix="ff"  uri="http://fastfood.com/functions" %>
+<%@ taglib prefix="ui"  tagdir="/WEB-INF/tags" %>
 <c:set var="ctx" value="${pageContext.request.contextPath}" />
 <c:set var="me"  value="${sessionScope.currentUser}" />

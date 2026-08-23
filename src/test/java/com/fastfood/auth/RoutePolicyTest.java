@@ -33,7 +33,7 @@ class RoutePolicyTest {
     private static final Set<String> TRANG_CONG_KHAI_CO_Y = Set.of("/menu", "/product/detail");
 
     private static final Set<String> CONG_THANH_TOAN_GOI_VE =
-            Set.of("/payment/vnpay/return", "/payment/vnpay/ipn", "/payment/sepay/webhook");
+            Set.of("/payment/payos/return", "/payment/payos/webhook", "/payment/sepay/webhook");
 
     private static Map<String, List<String>> diaChiTheoGoi() throws Exception {
         Map<String, List<String>> theoGoi = new LinkedHashMap<>();

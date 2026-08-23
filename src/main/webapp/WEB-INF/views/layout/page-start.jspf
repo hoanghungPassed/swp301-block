@@ -12,7 +12,8 @@
   <div class="alert alert-warn verify-banner" role="status">
     <span>Địa chỉ <strong><c:out value="${me.email}"/></strong> chưa được xác thực nên chưa đặt được
       đơn online. Vui lòng mở thư chúng tôi đã gửi và bấm liên kết trong đó.</span>
-    <form method="post" action="${ctx}/verify-email">
+    <form method="post" action="${ctx}/verify-email"
+          data-confirm="Gửi lại thư xác thực tới email của bạn?">
       <input type="hidden" name="_csrf" value="${csrfToken}">
       <input type="hidden" name="returnTo" value="${empty currentPath ? '/menu' : currentPath}">
       <button type="submit" class="btn btn-sm">Gửi lại thư xác thực</button>

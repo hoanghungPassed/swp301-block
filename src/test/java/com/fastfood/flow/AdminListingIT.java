@@ -168,6 +168,38 @@ class AdminListingIT extends IntegrationTestBase {
         }
 
         @Test
+        @DisplayName("Trang nhóm món biết tổng số nhóm thật, không phải số dòng vừa lấy")
+        void pageKnowsTheRealTotal() {
+            newCategory();
+            long thuc_te = count("SELECT COUNT(*) FROM dbo.Category");
+
+            Page<Category> page = adminService.listCategories(1);
+
+            assertEquals(thuc_te, page.getTotalItems());
+            assertTrue(page.getItems().size() <= Page.SIZE,
+                    "Lấy quá một trang thì phân trang không có tác dụng gì");
+            assertTrue(page.getItems().stream().anyMatch(c -> c.getProductCount() >= 0),
+                    "Cột số món phải còn nguyên sau khi cắt trang");
+        }
+
+        @Test
+        @DisplayName("Trang 2 của nhóm món không lặp lại nhóm nào của trang 1")
+        void secondPageDoesNotRepeatTheFirst() {
+            Page<Category> first = adminService.listCategories(1);
+            if (first.getTotalItems() <= Page.SIZE) {
+                return;
+            }
+            Page<Category> second = adminService.listCategories(2);
+
+            Set<Integer> ids = new HashSet<>();
+            first.getItems().forEach(c -> ids.add(c.getCategoryId()));
+            for (Category c : second.getItems()) {
+                assertTrue(ids.add(c.getCategoryId()),
+                        "Nhóm " + c.getCategoryId() + " hiện ở cả hai trang — thứ tự cắt trang không ổn định");
+            }
+        }
+
+        @Test
         @DisplayName("Sửa một món thuộc nhóm đã ẩn thì món vẫn ở nguyên nhóm cũ")
         void editingAProductInAHiddenCategoryKeepsItsCategory() {
             int catId = newCategory();

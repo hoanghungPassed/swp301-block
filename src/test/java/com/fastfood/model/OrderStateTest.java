@@ -5,7 +5,6 @@ import com.fastfood.common.constant.Constants.OrderStatus;
 import com.fastfood.common.constant.Constants.PaymentStatus;
 import com.fastfood.config.AppConfig;
 import com.fastfood.model.entity.OrderEntities.Order;
-import com.fastfood.model.entity.OrderEntities.OrderItem;
 import com.fastfood.model.entity.OrderEntities.Payment;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
@@ -14,7 +13,6 @@ import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -121,49 +119,6 @@ class OrderStateTest {
     }
 
     @Nested
-    @DisplayName("Khách còn huỷ được không (BR-12)")
-    class Cancellable {
-
-        @Test
-        @DisplayName("Đơn chờ thanh toán thì luôn huỷ được")
-        void pendingPaymentIsAlwaysCancellable() {
-            assertTrue(order(OrderStatus.PENDING_PAYMENT).isCancellable(),
-                    "Chưa thu đồng nào, bếp chưa thấy đơn — không cho huỷ thì khách bị kẹt");
-        }
-
-        @Test
-        @DisplayName("Đã xác nhận mà mọi món còn chờ thì huỷ được")
-        void confirmedWithAllItemsWaitingIsCancellable() {
-            Order o = order(OrderStatus.CONFIRMED);
-            o.setItems(List.of(item("WAITING"), item("WAITING")));
-            assertTrue(o.isCancellable());
-        }
-
-        @Test
-        @DisplayName("Chỉ cần một món đã vào bếp là không huỷ được nữa")
-        void oneItemInProgressBlocksCancel() {
-            Order o = order(OrderStatus.CONFIRMED);
-            o.setItems(List.of(item("WAITING"), item("PREPARING")));
-            assertFalse(o.isCancellable(), "Đã tốn nguyên liệu cho một món thì thôi");
-        }
-
-        @Test
-        @DisplayName("Đơn đã sẵn sàng thì khách không tự huỷ được")
-        void readyOrderIsNotCustomerCancellable() {
-            assertFalse(order(OrderStatus.READY).isCancellable());
-        }
-
-        @Test
-        @DisplayName("Thu ngân đóng được mọi đơn chưa kết thúc, rộng hơn quyền của khách")
-        void staffCanCloseAnyLiveOrder() {
-            assertTrue(order(OrderStatus.READY).isStaffCancellable());
-            assertTrue(order(OrderStatus.PREPARING).isStaffCancellable());
-            assertFalse(order(OrderStatus.COMPLETED).isStaffCancellable());
-            assertFalse(order(OrderStatus.CANCELLED).isStaffCancellable());
-        }
-    }
-
-    @Nested
     @DisplayName("Tình trạng thanh toán")
     class PaymentState {
 
@@ -176,33 +131,17 @@ class OrderStateTest {
         }
 
         @Test
-        @DisplayName("Đã hoàn tiền thì không còn tính là đã trả tiền")
-        void refundedIsNotPaid() {
+        @DisplayName("Lần thu thất bại thì không tính là đã trả tiền")
+        void failedPaymentIsNotPaid() {
             Order o = order(OrderStatus.READY);
-            o.setLatestPayment(payment(PaymentStatus.REFUNDED));
-            assertFalse(o.isPaid(), "Giao món cho đơn đã hoàn tiền là mất trắng phần ăn đó");
+            o.setLatestPayment(payment(PaymentStatus.FAILED));
+            assertFalse(o.isPaid(), "Giao món cho đơn chưa có tiền là mất trắng phần ăn đó");
         }
 
         @Test
         @DisplayName("Chưa có lần thanh toán nào thì chưa trả tiền")
         void noPaymentMeansNotPaid() {
             assertFalse(order(OrderStatus.PENDING_PAYMENT).isPaid());
-        }
-
-        @Test
-        @DisplayName("Đơn đã đóng mà tiền còn nằm lại thì phải hiện lối hoàn tiền sót")
-        void cancelledOrderWithPaidMoneyNeedsRefund() {
-            Order o = order(OrderStatus.CANCELLED);
-            o.setLatestPayment(payment(PaymentStatus.PAID));
-            assertTrue(o.isRefundPending());
-        }
-
-        @Test
-        @DisplayName("Đơn đã giao xong thì không phải hoàn gì")
-        void completedOrderNeedsNoRefund() {
-            Order o = order(OrderStatus.COMPLETED);
-            o.setLatestPayment(payment(PaymentStatus.PAID));
-            assertFalse(o.isRefundPending());
         }
     }
 
@@ -211,10 +150,9 @@ class OrderStateTest {
     class StatusMachine {
 
         @Test
-        @DisplayName("Ba trạng thái kết thúc thì không đi tiếp được")
+        @DisplayName("Hai trạng thái kết thúc thì không đi tiếp được")
         void terminalStatesAreFinal() {
             assertTrue(OrderStatus.COMPLETED.isFinal());
-            assertTrue(OrderStatus.CANCELLED.isFinal());
             assertTrue(OrderStatus.EXPIRED.isFinal());
             assertFalse(OrderStatus.READY.isFinal());
         }
@@ -234,14 +172,6 @@ class OrderStateTest {
         o.setPickupTime(pickupTime);
         o.setReadyAt(pickupTime.minusMinutes(5));
         return o;
-    }
-
-    private static OrderItem item(String status) {
-        OrderItem i = new OrderItem();
-        i.setItemStatus(status);
-        i.setQuantity(1);
-        i.setUnitPrice(new BigDecimal("50000"));
-        return i;
     }
 
     private static Payment payment(PaymentStatus status) {

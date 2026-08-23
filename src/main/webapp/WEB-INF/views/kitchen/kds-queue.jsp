@@ -1,5 +1,13 @@
 <c:set var="pageTitle" value="Bếp" /><c:set var="nav" value="queue" />
 <%@ include file="/WEB-INF/views/layout/page-start.jspf" %>
+  <%-- Nhận món / bàn giao xong quay lại đúng trang của từng khối. Khối kế hoạch chuẩn bị
+       dùng đường riêng vì máy chủ tự nối ngày vào cuối. --%>
+  <c:set var="kdsQuery"  value="${ff:pageQuery(pageContext.request, 'editPrep')}" />
+  <c:set var="kdsBack"   value="/kitchen/queue${empty kdsQuery ? '' : '?'.concat(kdsQuery)}" />
+  <c:set var="kdsReturn"><input type="hidden" name="returnTo" value="<c:out value="${kdsBack}"/>"></c:set>
+  <c:set var="prepQuery" value="${ff:pageQuery(pageContext.request, 'editPrep,prepDate')}" />
+  <c:set var="prepBack"  value="/kitchen/queue${empty prepQuery ? '' : '?'.concat(prepQuery)}" />
+  <c:set var="prepReturn"><input type="hidden" name="returnTo" value="<c:out value="${prepBack}"/>"></c:set>
   <div class="page-head">
     <h1>Bếp</h1>
     <p>
@@ -13,17 +21,18 @@
   <div class="grid grid-4 kds-kpis mb">
     <div class="kpi">
       <div class="label">Tôi đang làm</div>
-      <div class="value" id="kds-kpi-mytasks">${fn:length(myTasks)}</div>
+      <div class="value" id="kds-kpi-mytasks">${taskPage.totalItems}</div>
+      <div class="sub">đơn đang trong tay</div>
     </div>
-    <div class="kpi ${empty awaitingHandover ? '' : 'warn'}">
+    <div class="kpi ${handoverPage.totalItems gt 0 ? 'warn' : ''}">
       <div class="label">Chờ bàn giao</div>
-      <div class="value" id="kds-kpi-handover">${fn:length(awaitingHandover)}</div>
-      <div class="sub">món còn nằm trong bếp</div>
+      <div class="value" id="kds-kpi-handover">${handoverPage.totalItems}</div>
+      <div class="sub">đơn đã xong, còn trong bếp</div>
     </div>
     <div class="kpi">
       <div class="label">Hàng chờ</div>
-      <div class="value" id="kds-kpi-queue">${fn:length(queue)}</div>
-      <div class="sub">chưa có người nhận</div>
+      <div class="value" id="kds-kpi-queue">${queuePage.totalItems}</div>
+      <div class="sub">đơn chưa có người nhận</div>
     </div>
     <div class="kpi ${openIssueCount gt 0 ? 'bad' : ''}">
       <div class="label">Sự cố đang mở</div>
@@ -33,41 +42,70 @@
   </div>
 
   <div class="alert alert-info row-between" id="kds-stale" role="status" hidden>
-    <span>Việc của bạn vừa thay đổi ở nơi khác — hai khối bên dưới đang là bản cũ.</span>
+    <span>Danh sách vừa thay đổi ở nơi khác — các khối bên dưới đang là bản cũ.</span>
     <button type="button" class="btn btn-sm" id="kds-reload">Tải lại</button>
   </div>
 
-  <h2>Đang làm (<span id="kds-mytasks-count">${fn:length(myTasks)}</span>)</h2>
+  <h2 id="dang-lam">Đang làm (<span id="kds-mytasks-count">${taskPage.totalItems}</span> đơn)</h2>
   <c:choose>
-    <c:when test="${empty myTasks}">
-      <div class="card empty mb">Bạn chưa nhận món nào. Chọn một món ở hàng chờ bên dưới.</div>
+    <c:when test="${taskPage.emptyPage}">
+      <div class="card empty mb">Bạn chưa nhận đơn nào. Chọn một đơn ở hàng chờ bên dưới.</div>
     </c:when>
     <c:otherwise>
     <div class="kds-grid mb">
-      <c:forEach var="v" items="${myTasks}">
-        <div class="kds-card ${v.late ? 'late' : (v.urgent ? 'urgent' : (v.online ? 'online' : 'pos'))}">
+      <c:forEach var="o" items="${taskPage.items}">
+        <div class="kds-card ${o.late ? 'late' : (o.urgent ? 'urgent' : (o.online ? 'online' : 'pos'))}">
           <div class="row-between">
             <span class="tag tag-amber">Đang làm</span>
-            <span class="qty">×${v.item.quantity}</span>
+            <span class="qty">${o.totalQuantity} phần</span>
           </div>
-          <div class="title mt"><c:out value="${v.item.productNameSnapshot}"/></div>
+          <div class="title mt">Đơn #${o.orderId}</div>
           <div class="meta">
-            <span>Đơn #${v.item.orderId}</span>
-            <span class="${v.late ? 'tag tag-red' : (v.urgent ? 'tag tag-amber' : '')}">${v.pickupLabel}</span>
+            <span class="tag ${o.online ? 'tag-info' : 'tag-muted'}">
+              ${o.online ? 'Đặt trước' : 'Tại quầy'}
+            </span>
+            <span class="${o.late ? 'tag tag-red' : (o.urgent ? 'tag tag-amber' : '')}">${o.pickupLabel}</span>
           </div>
-          <c:if test="${v.openIssueCount gt 0}">
-            <div class="mt"><span class="tag tag-red">${v.openIssueCount} sự cố đang mở</span></div>
+          <ul class="kds-items">
+            <c:forEach var="v" items="${o.items}">
+              <li>
+                <span class="qty-inline">×${v.item.quantity}</span>
+                <a href="${ctx}/kitchen/item?id=${v.item.orderItemId}"><c:out value="${v.item.productNameSnapshot}"/></a>
+                <span class="${ff:itemStatusClass(v.item.itemStatus)}">${ff:itemStatus(v.item.itemStatus)}</span>
+              </li>
+            </c:forEach>
+          </ul>
+          <c:if test="${o.openIssueCount gt 0}">
+            <div class="mt"><span class="tag tag-red">${o.openIssueCount} sự cố đang mở</span></div>
           </c:if>
-          <div class="small muted mt">Bắt đầu lúc ${ff:time(v.item.startedAt)}</div>
+          <div class="small muted mt">
+            Bắt đầu lúc ${ff:time(o.startedAt)} · đã xong ${o.readyCount}/${o.itemCount} món
+          </div>
           <div class="actions">
-            <form method="post" action="${ctx}/kitchen/queue" class="grow">
-              <input type="hidden" name="_csrf" value="${csrfToken}">
-              <input type="hidden" name="action" value="ready">
-              <input type="hidden" name="orderItemId" value="${v.item.orderItemId}">
-              <button type="submit" class="btn btn-green btn-block touch">Đã làm xong</button>
-            </form>
-            <a class="btn touch" href="${ctx}/kitchen/issue?orderItemId=${v.item.orderItemId}">Báo sự cố</a>
-            <a class="btn touch" href="${ctx}/kitchen/item?id=${v.item.orderItemId}">Chi tiết</a>
+            <c:if test="${o.preparingCount gt 0}">
+              <form method="post" action="${ctx}/kitchen/queue" class="grow"
+                    data-confirm="Đánh dấu cả đơn này đã làm xong?">
+                <input type="hidden" name="_csrf" value="${csrfToken}">
+                <input type="hidden" name="action" value="readyOrder">
+                ${kdsReturn}
+                <input type="hidden" name="orderId" value="${o.orderId}">
+                <button type="submit" class="btn btn-green btn-block touch">Đã làm xong cả đơn</button>
+              </form>
+            </c:if>
+            <%-- Đơn nhận lẻ từ trước còn sót món chưa ai nhận: kéo nốt về cho đủ một đơn. --%>
+            <c:if test="${o.waitingCount gt 0}">
+              <form method="post" action="${ctx}/kitchen/queue" class="grow"
+                    data-confirm="Nhận nốt ${o.waitingCount} món còn lại của đơn này?">
+                <input type="hidden" name="_csrf" value="${csrfToken}">
+                <input type="hidden" name="action" value="claimOrder">
+                ${kdsReturn}
+                <input type="hidden" name="orderId" value="${o.orderId}">
+                <button type="submit" class="btn btn-primary btn-block touch">
+                  Nhận nốt ${o.waitingCount} món
+                </button>
+              </form>
+            </c:if>
+            <a class="btn touch" href="${ctx}/kitchen/issue">Báo sự cố</a>
           </div>
         </div>
       </c:forEach>
@@ -75,39 +113,57 @@
     </c:otherwise>
   </c:choose>
 
-  <h2>Chờ bàn giao ra quầy (<span id="kds-handover-count">${fn:length(awaitingHandover)}</span>)</h2>
+  <ui:pager page="${taskPage}" pageParam="taskPage" anchor="dang-lam" label="đơn" />
+
+  <h2 id="cho-ban-giao">Chờ bàn giao ra quầy (<span id="kds-handover-count">${handoverPage.totalItems}</span> đơn)</h2>
   <c:choose>
-    <c:when test="${empty awaitingHandover}">
-      <div class="card empty mb">Không còn món nào nằm lại trong bếp.</div>
+    <c:when test="${handoverPage.emptyPage}">
+      <div class="card empty mb">Không còn đơn nào nằm lại trong bếp.</div>
     </c:when>
     <c:otherwise>
     <div class="kds-grid mb">
-      <c:forEach var="v" items="${awaitingHandover}">
-        <div class="kds-card ${v.late ? 'late' : 'urgent'}">
+      <c:forEach var="o" items="${handoverPage.items}">
+        <div class="kds-card ${o.late ? 'late' : 'urgent'}">
           <div class="row-between">
             <span class="tag tag-green">Đã xong</span>
-            <span class="qty">×${v.item.quantity}</span>
+            <span class="qty">${o.totalQuantity} phần</span>
           </div>
-          <div class="title mt"><c:out value="${v.item.productNameSnapshot}"/></div>
+          <div class="title mt">Đơn #${o.orderId}</div>
           <div class="meta">
-            <span>Đơn #${v.item.orderId}</span>
-            <span>${v.pickupLabel}</span>
+            <span class="tag ${o.online ? 'tag-info' : 'tag-muted'}">
+              ${o.online ? 'Đặt trước' : 'Tại quầy'}
+            </span>
+            <span>${o.pickupLabel}</span>
           </div>
-          <c:if test="${v.item.orderClosed}">
-            <div class="mt"><span class="tag tag-red">${ff:orderStatus(v.item.orderStatus)} — mang bỏ, không giao khách</span></div>
+          <ul class="kds-items">
+            <c:forEach var="v" items="${o.items}">
+              <li>
+                <span class="qty-inline">×${v.item.quantity}</span>
+                <a href="${ctx}/kitchen/item?id=${v.item.orderItemId}"><c:out value="${v.item.productNameSnapshot}"/></a>
+                <c:if test="${not empty v.item.handedOverAt}">
+                  <span class="tag tag-muted">đã ra quầy</span>
+                </c:if>
+              </li>
+            </c:forEach>
+          </ul>
+          <c:if test="${o.orderClosed}">
+            <div class="mt"><span class="tag tag-red">${ff:orderStatus(o.orderStatus)} — mang bỏ, không giao khách</span></div>
           </c:if>
-          <c:if test="${v.openIssueCount gt 0}">
-            <div class="mt"><span class="tag tag-red">${v.openIssueCount} sự cố đang mở — xem lý do trước khi bàn giao lại</span></div>
+          <c:if test="${o.openIssueCount gt 0}">
+            <div class="mt"><span class="tag tag-red">${o.openIssueCount} sự cố đang mở — xem lý do trước khi bàn giao lại</span></div>
           </c:if>
-          <div class="small muted mt">Xong lúc ${ff:time(v.item.readyAt)}</div>
+          <div class="small muted mt">Xong lúc ${ff:time(o.readyAt)}</div>
           <div class="actions">
-            <form method="post" action="${ctx}/kitchen/queue" class="grow">
+            <form method="post" action="${ctx}/kitchen/queue" class="grow"
+                  data-confirm="Bàn giao cả đơn này ra quầy?">
               <input type="hidden" name="_csrf" value="${csrfToken}">
-              <input type="hidden" name="action" value="handover">
-              <input type="hidden" name="orderItemId" value="${v.item.orderItemId}">
-              <button type="submit" class="btn btn-primary btn-block touch">Bàn giao ra quầy</button>
+              <input type="hidden" name="action" value="handoverOrder">
+              ${kdsReturn}
+              <input type="hidden" name="orderId" value="${o.orderId}">
+              <button type="submit" class="btn btn-primary btn-block touch">
+                Bàn giao cả đơn ra quầy
+              </button>
             </form>
-            <a class="btn touch" href="${ctx}/kitchen/item?id=${v.item.orderItemId}">Chi tiết</a>
           </div>
         </div>
       </c:forEach>
@@ -115,7 +171,9 @@
     </c:otherwise>
   </c:choose>
 
-  <div class="card pad0 table-wrap mb">
+  <ui:pager page="${handoverPage}" pageParam="handoverPage" anchor="cho-ban-giao" label="đơn" />
+
+  <div class="card pad0 table-wrap mb" id="chuan-bi">
     <div class="card-head row-between">
       <h2>Chuẩn bị sẵn — ${ff:date(prepDate.atStartOfDay())}</h2>
       <form method="get" action="${ctx}/kitchen/queue" class="inline-form">
@@ -133,7 +191,7 @@
         </tr>
       </thead>
       <tbody>
-        <c:forEach var="t" items="${prepTasks}">
+        <c:forEach var="t" items="${prepPage.items}">
           <tr>
             <td><c:out value="${t.productName}"/></td>
             <td>${t.plannedQty}</td>
@@ -151,9 +209,11 @@
               <c:choose>
                 <c:when test="${t.planned}">
                   <a class="btn btn-sm" href="${ctx}/kitchen/queue?prepDate=${prepDate}&amp;editPrep=${t.prepTaskId}">Sửa</a>
-                  <form method="post" action="${ctx}/kitchen/queue" class="inline-form">
+                  <form method="post" action="${ctx}/kitchen/queue" class="inline-form"
+                        data-confirm="Chốt dòng kế hoạch chuẩn bị này?">
                     <input type="hidden" name="_csrf" value="${csrfToken}">
                     <input type="hidden" name="action" value="prepDone">
+                    ${prepReturn}
                     <input type="hidden" name="prepTaskId" value="${t.prepTaskId}">
                     <input type="hidden" name="prepDate" value="${prepDate}">
                     <button type="submit" class="btn btn-sm btn-green">Chốt</button>
@@ -163,6 +223,7 @@
                           data-confirm="Thu hồi dòng kế hoạch này? Bản ghi vẫn được giữ trong nhật ký.">
                       <input type="hidden" name="_csrf" value="${csrfToken}">
                       <input type="hidden" name="action" value="prepCancel">
+                      ${prepReturn}
                       <input type="hidden" name="prepTaskId" value="${t.prepTaskId}">
                       <input type="hidden" name="prepDate" value="${prepDate}">
                       <button type="submit" class="btn btn-sm btn-danger">Thu hồi</button>
@@ -174,19 +235,21 @@
             </td>
           </tr>
         </c:forEach>
-        <c:if test="${empty prepTasks}">
+        <c:if test="${prepPage.emptyPage}">
           <tr><td colspan="7" class="center muted cell-empty">Chưa có gì trong kế hoạch chuẩn bị.</td></tr>
         </c:if>
       </tbody>
     </table>
-
+    <ui:pager page="${prepPage}" pageParam="prepPage" anchor="chuan-bi" label="dòng kế hoạch" />
   </div>
 
   <div class="card mb">
     <h2>${empty editingPrep ? 'Thêm vào kế hoạch' : 'Sửa dòng kế hoạch'}</h2>
-    <form method="post" action="${ctx}/kitchen/queue">
+    <form method="post" action="${ctx}/kitchen/queue"
+          data-confirm="${empty editingPrep ? 'Thêm dòng này vào kế hoạch chuẩn bị?' : 'Lưu thay đổi cho dòng kế hoạch này?'}">
       <input type="hidden" name="_csrf" value="${csrfToken}">
       <input type="hidden" name="action" value="${empty editingPrep ? 'prepCreate' : 'prepUpdate'}">
+      ${prepReturn}
       <input type="hidden" name="prepDate" value="${prepDate}">
 
       <c:choose>
@@ -234,9 +297,9 @@
     </c:if>
   </div>
 
-  <h2>Hàng chờ</h2>
+  <h2 id="hang-cho">Hàng chờ</h2>
   <p class="small muted mb">
-    Chỉ hiện món của đơn đã tới lượt làm. Đơn đặt trước chưa tới giờ chưa xuất hiện ở đây.
+    Mỗi thẻ là một đơn, nhận là nhận trọn đơn. Đơn đặt trước chưa tới giờ chưa xuất hiện ở đây.
   </p>
 
   <div class="alert alert-warn" id="kds-offline" role="status" hidden>
@@ -246,78 +309,102 @@
   <noscript>
     <div class="alert alert-warn">
       Trình duyệt đang tắt JavaScript nên danh sách không tự cập nhật.
-      Bấm tải lại trang để xem món mới xuống bếp.
+      Bấm tải lại trang để xem đơn mới xuống bếp.
     </div>
   </noscript>
 
-  <div class="card empty" id="kds-empty" ${empty queue ? '' : 'hidden'}>
+  <div class="card empty" id="kds-empty" ${queuePage.emptyPage ? '' : 'hidden'}>
     <div class="icon" aria-hidden="true">👨‍🍳</div>
-    Không còn món nào chờ làm.
+    Không còn đơn nào chờ làm.
   </div>
 
-  <div class="kds-grid" id="kds-grid" ${empty queue ? 'hidden' : ''}>
-    <c:forEach var="v" items="${queue}">
-      <div class="kds-card ${v.late ? 'late' : (v.urgent ? 'urgent' : (v.online ? 'online' : 'pos'))}"
-           data-item-id="${v.item.orderItemId}"
-           data-sig="${v.item.quantity}|${v.online}|${v.urgent}|${v.late}|${fn:escapeXml(v.pickupLabel)}|${v.openIssueCount}">
+  <div class="kds-grid" id="kds-grid" ${queuePage.emptyPage ? 'hidden' : ''}>
+    <c:forEach var="o" items="${queuePage.items}">
+      <div class="kds-card ${o.late ? 'late' : (o.urgent ? 'urgent' : (o.online ? 'online' : 'pos'))}"
+           data-order-id="${o.orderId}"
+           data-sig="${o.totalQuantity}|${o.itemCount}|${o.online}|${o.urgent}|${o.late}|${fn:escapeXml(o.pickupLabel)}|${o.openIssueCount}">
         <div class="row-between">
-          <span class="tag ${v.online ? 'tag-info' : 'tag-muted'}">
-            ${v.online ? 'Đặt trước' : 'Tại quầy'}
+          <span class="tag ${o.online ? 'tag-info' : 'tag-muted'}">
+            ${o.online ? 'Đặt trước' : 'Tại quầy'}
           </span>
-          <span class="qty">×${v.item.quantity}</span>
+          <span class="qty">${o.totalQuantity} phần</span>
         </div>
-        <div class="title mt"><c:out value="${v.item.productNameSnapshot}"/></div>
+        <div class="title mt">Đơn #${o.orderId}</div>
         <div class="meta">
-          <span>Đơn #${v.item.orderId}</span>
-          <span class="${v.late ? 'tag tag-red' : (v.urgent ? 'tag tag-amber' : '')}">
-            ${v.pickupLabel}
+          <span>${o.itemCount} món</span>
+          <span class="${o.late ? 'tag tag-red' : (o.urgent ? 'tag tag-amber' : '')}">
+            ${o.pickupLabel}
           </span>
         </div>
-        <div class="mt" ${v.openIssueCount > 0 ? '' : 'hidden'}>
-          <span class="tag tag-red">${v.openIssueCount} sự cố đang mở</span>
+        <ul class="kds-items">
+          <c:forEach var="v" items="${o.items}">
+            <li>
+              <span class="qty-inline">×${v.item.quantity}</span>
+              <a href="${ctx}/kitchen/item?id=${v.item.orderItemId}"><c:out value="${v.item.productNameSnapshot}"/></a>
+            </li>
+          </c:forEach>
+        </ul>
+        <div class="mt" ${o.openIssueCount > 0 ? '' : 'hidden'}>
+          <span class="tag tag-red">${o.openIssueCount} sự cố đang mở</span>
         </div>
         <div class="actions">
-          <form method="post" action="${ctx}/kitchen/queue" class="grow">
+          <form method="post" action="${ctx}/kitchen/queue" class="grow"
+                data-confirm="Nhận làm cả đơn này?">
             <input type="hidden" name="_csrf" value="${csrfToken}">
-            <input type="hidden" name="action" value="claim">
-            <input type="hidden" name="orderItemId" value="${v.item.orderItemId}">
-            <button type="submit" class="btn btn-primary btn-block touch">Nhận món này</button>
+            <input type="hidden" name="action" value="claimOrder">
+            ${kdsReturn}
+            <input type="hidden" name="orderId" value="${o.orderId}">
+            <button type="submit" class="btn btn-primary btn-block touch">Nhận cả đơn</button>
           </form>
-          <a class="btn touch" href="${ctx}/kitchen/item?id=${v.item.orderItemId}">Chi tiết</a>
         </div>
       </div>
     </c:forEach>
   </div>
 
+  <ui:pager page="${queuePage}" pageParam="queuePage" anchor="hang-cho" label="đơn" />
+
+  <%-- Khuôn thẻ để JavaScript dựng lại hàng chờ mỗi lần hỏi máy chủ. --%>
   <template id="kds-card-template">
     <div class="kds-card">
       <div class="row-between">
         <span class="tag" data-field="source"></span>
         <span class="qty" data-field="qty"></span>
       </div>
-      <div class="title mt" data-field="productName"></div>
+      <div class="title mt" data-field="orderLabel"></div>
       <div class="meta">
-        <span data-field="orderLabel"></span>
+        <span data-field="itemCount"></span>
         <span data-field="pickupLabel"></span>
       </div>
+      <ul class="kds-items" data-slot="items"></ul>
       <div class="mt" data-slot="issue" hidden>
         <span class="tag tag-red" data-field="issue"></span>
       </div>
       <div class="actions">
-        <form method="post" action="${ctx}/kitchen/queue" class="grow">
+        <form method="post" action="${ctx}/kitchen/queue" class="grow"
+              data-confirm="Nhận làm cả đơn này?">
           <input type="hidden" name="_csrf" value="${csrfToken}">
-          <input type="hidden" name="action" value="claim">
-          <input type="hidden" name="orderItemId" data-field="itemId">
-          <button type="submit" class="btn btn-primary btn-block touch">Nhận món này</button>
+          <input type="hidden" name="action" value="claimOrder">
+          ${kdsReturn}
+          <input type="hidden" name="orderId" data-field="orderId">
+          <button type="submit" class="btn btn-primary btn-block touch">Nhận cả đơn</button>
         </form>
-        <a class="btn touch" data-field="detailHref">Chi tiết</a>
       </div>
     </div>
+  </template>
+
+  <template id="kds-item-template">
+    <li>
+      <span class="qty-inline" data-field="itemQty"></span>
+      <a data-field="itemName"></a>
+    </li>
   </template>
 
   <div id="kds-watch" hidden
        data-endpoint="${ctx}/api/kds/queue"
        data-detail-base="${ctx}/kitchen/item?id="
-       data-rendered-mytasks="${fn:length(myTasks)}"
-       data-rendered-handover="${fn:length(awaitingHandover)}"></div>
+       data-rendered-mytasks="${taskPage.totalItems}"
+       data-rendered-handover="${handoverPage.totalItems}"
+       data-rendered-queue="${queuePage.totalItems}"
+       data-queue-page="${queuePage.pageNo}"
+       data-queue-size="${queuePage.pageSize}"></div>
 <%@ include file="/WEB-INF/views/layout/page-end.jspf" %>

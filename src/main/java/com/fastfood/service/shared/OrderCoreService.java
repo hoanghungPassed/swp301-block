@@ -2,9 +2,7 @@ package com.fastfood.service.shared;
 
 import com.fastfood.common.constant.Constants.AuditAction;
 import com.fastfood.common.constant.Constants.OrderStatus;
-import com.fastfood.common.constant.Constants.PaymentStatus;
 import com.fastfood.common.exception.AppException.NotFoundException;
-import com.fastfood.common.util.DateTimeUtil;
 import com.fastfood.common.util.PickupCodeGenerator;
 import com.fastfood.config.AppConfig;
 import com.fastfood.dao.customer.CartDAO;
@@ -13,7 +11,6 @@ import com.fastfood.dao.shared.OrderDAO;
 import com.fastfood.dao.shared.OrderItemDAO;
 import com.fastfood.dao.shared.PaymentDAO;
 import com.fastfood.model.entity.OrderEntities.Order;
-import com.fastfood.model.entity.OrderEntities.Payment;
 import com.fastfood.service.Tx;
 
 import java.sql.Connection;
@@ -87,17 +84,6 @@ public class OrderCoreService {
         auditService.logSystem(con, "ORDER", order.getOrderId(),
                 AuditAction.AUTO_CONFIRM, OrderStatus.CONFIRMED.name());
         notificationService.notifyOrderConfirmed(con, order);
-        return true;
-    }
-
-    public boolean refundIfPaid(Connection con, int orderId, int actorId) throws SQLException {
-        Payment paid = paymentDAO.findPaidByOrder(con, orderId);
-        if (paid == null) {
-            return false;
-        }
-        paymentDAO.markRefunded(con, paid.getPaymentId(), DateTimeUtil.now());
-        auditService.log(con, actorId, "PAYMENT", paid.getPaymentId(),
-                AuditAction.PAYMENT_REFUNDED, PaymentStatus.PAID.name(), PaymentStatus.REFUNDED.name());
         return true;
     }
 

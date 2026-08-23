@@ -21,7 +21,7 @@
         <label for="status">Trạng thái</label>
         <select id="status" name="status">
           <option value="">Tất cả</option>
-          <c:forEach var="s" items="${['PENDING_PAYMENT','CONFIRMED','PREPARING','READY','COMPLETED','CANCELLED','EXPIRED']}">
+          <c:forEach var="s" items="${['PENDING_PAYMENT','CONFIRMED','PREPARING','READY','COMPLETED','EXPIRED']}">
             <option value="${s}" ${status eq s ? 'selected' : ''}>${ff:orderStatus(s)}</option>
           </c:forEach>
         </select>
@@ -61,7 +61,7 @@
         </c:if>
       </tbody>
     </table>
-    <%@ include file="/WEB-INF/views/layout/pager.jspf" %>
+    <ui:pager page="${pageData}" label="đơn" />
   </div>
 
   <div class="card pad0 table-wrap">

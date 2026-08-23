@@ -72,6 +72,6 @@
         </c:if>
       </tbody>
     </table>
-    <%@ include file="/WEB-INF/views/layout/pager.jspf" %>
+    <ui:pager page="${pageData}" label="bản ghi" />
   </div>
 <%@ include file="/WEB-INF/views/layout/page-end.jspf" %>

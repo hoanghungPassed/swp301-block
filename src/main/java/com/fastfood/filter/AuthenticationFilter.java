@@ -16,8 +16,8 @@ public class AuthenticationFilter implements Filter {
             "/", "/index.jsp", "/menu", "/product/detail", "/login", "/logout", "/register",
             "/forgot-password", "/reset-password",
             "/verify-email",
-            "/payment/vnpay/return",
-            "/payment/vnpay/ipn",
+            "/payment/payos/return",
+            "/payment/payos/webhook",
             "/payment/sepay/webhook"
     );
 

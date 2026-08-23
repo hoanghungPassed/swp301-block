@@ -17,23 +17,17 @@ public class ReportDAO {
             throws SQLException {
         DashboardKpi kpi = new DashboardKpi();
 
+        /* Tiền chỉ đi một chiều nên chỉ có một mốc để quét: paid_at. Không cần phân biệt
+           thu và thuần như bản trước — hai con số ấy luôn bằng nhau. */
         String revenueSql =
-                "SELECT ISNULL(SUM(CASE WHEN p.paid_at     BETWEEN ? AND ? THEN p.amount ELSE 0 END), 0) AS gross, " +
-                "       ISNULL(SUM(CASE WHEN p.refunded_at BETWEEN ? AND ? THEN p.amount ELSE 0 END), 0) AS refunded " +
-                "FROM dbo.Payment p " +
-                "WHERE (p.paid_at BETWEEN ? AND ?) OR (p.refunded_at BETWEEN ? AND ?)";
+                "SELECT ISNULL(SUM(p.amount), 0) AS net FROM dbo.Payment p " +
+                "WHERE p.paid_at BETWEEN ? AND ?";
         try (PreparedStatement ps = con.prepareStatement(revenueSql)) {
-            for (int i = 0; i < 4; i++) {
-                JdbcSupport.setDateTime(ps, i * 2 + 1, from);
-                JdbcSupport.setDateTime(ps, i * 2 + 2, to);
-            }
+            JdbcSupport.setDateTime(ps, 1, from);
+            JdbcSupport.setDateTime(ps, 2, to);
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
-                    BigDecimal gross = rs.getBigDecimal("gross");
-                    BigDecimal refunded = rs.getBigDecimal("refunded");
-                    kpi.setGrossRevenue(gross);
-                    kpi.setRefundedAmount(refunded);
-                    kpi.setNetRevenue(gross.subtract(refunded));
+                    kpi.setNetRevenue(rs.getBigDecimal("net"));
                 }
             }
         }
@@ -42,7 +36,6 @@ public class ReportDAO {
                 "SELECT ISNULL(SUM(CASE WHEN order_source = 'ONLINE_PREORDER' THEN 1 ELSE 0 END), 0) AS online_cnt, " +
                 "       ISNULL(SUM(CASE WHEN order_source = 'POS'             THEN 1 ELSE 0 END), 0) AS pos_cnt, " +
                 "       ISNULL(SUM(CASE WHEN order_status = 'COMPLETED' THEN 1 ELSE 0 END), 0) AS completed_cnt, " +
-                "       ISNULL(SUM(CASE WHEN order_status = 'CANCELLED' THEN 1 ELSE 0 END), 0) AS cancelled_cnt, " +
                 "       ISNULL(SUM(CASE WHEN order_status = 'EXPIRED'   THEN 1 ELSE 0 END), 0) AS expired_cnt " +
                 "FROM dbo.Orders WHERE created_at BETWEEN ? AND ?";
         try (PreparedStatement ps = con.prepareStatement(countSql)) {
@@ -53,7 +46,6 @@ public class ReportDAO {
                     kpi.setOnlineOrderCount(rs.getInt("online_cnt"));
                     kpi.setPosOrderCount(rs.getInt("pos_cnt"));
                     kpi.setCompletedOrderCount(rs.getInt("completed_cnt"));
-                    kpi.setCancelledOrderCount(rs.getInt("cancelled_cnt"));
                     kpi.setExpiredOrderCount(rs.getInt("expired_cnt"));
                 }
             }
@@ -148,19 +140,13 @@ public class ReportDAO {
 
     public List<ReportRow> revenueByDay(Connection con, LocalDateTime from, LocalDateTime to)
             throws SQLException {
-        String sql = "SELECT x.d, SUM(x.net) AS net FROM ( " +
-                     "    SELECT CAST(p.paid_at     AS DATE) AS d,  p.amount AS net " +
-                     "      FROM dbo.Payment p WHERE p.paid_at     BETWEEN ? AND ? " +
-                     "    UNION ALL " +
-                     "    SELECT CAST(p.refunded_at AS DATE) AS d, -p.amount AS net " +
-                     "      FROM dbo.Payment p WHERE p.refunded_at BETWEEN ? AND ? " +
-                     ") x GROUP BY x.d ORDER BY x.d";
+        String sql = "SELECT CAST(p.paid_at AS DATE) AS d, SUM(p.amount) AS net " +
+                     "  FROM dbo.Payment p WHERE p.paid_at BETWEEN ? AND ? " +
+                     " GROUP BY CAST(p.paid_at AS DATE) ORDER BY 1";
         List<ReportRow> list = new ArrayList<>();
         try (PreparedStatement ps = con.prepareStatement(sql)) {
             JdbcSupport.setDateTime(ps, 1, from);
             JdbcSupport.setDateTime(ps, 2, to);
-            JdbcSupport.setDateTime(ps, 3, from);
-            JdbcSupport.setDateTime(ps, 4, to);
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
                     list.add(new ReportRow(rs.getDate("d").toString(), 0, rs.getBigDecimal("net")));

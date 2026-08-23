@@ -28,7 +28,6 @@ public class OrderHistoryServlet extends BaseServlet {
         req.setAttribute("pageData", orderService.historyOfCustomer(user.getUserId(), status,
                 WebUtil.getDate(req, "from"), WebUtil.getDate(req, "to"),
                 WebUtil.getInt(req, "page", 1)));
-        req.setAttribute("filterQuery", WebUtil.queryStringWithout(req, "page"));
         req.setAttribute("filtering", (status != null && !status.isBlank())
                 || WebUtil.getDate(req, "from") != null || WebUtil.getDate(req, "to") != null);
         req.setAttribute("activeOrders", orderService.activeOrdersOfCustomer(user.getUserId()));
@@ -47,6 +46,8 @@ public class OrderHistoryServlet extends BaseServlet {
         int userId = user.getUserId();
         int templateId = WebUtil.getInt(req, "templateId", 0);
         String name = WebUtil.getString(req, "name");
+        /* Sửa mẫu đặt nhanh xong thì quay lại đúng trang lịch sử đang xem. */
+        String back = WebUtil.safeRedirect(WebUtil.getString(req, "returnTo"), "/order/history");
 
         switch (WebUtil.getString(req, "action") == null ? "" : WebUtil.getString(req, "action")) {
             case "templateApply":
@@ -54,23 +55,23 @@ public class OrderHistoryServlet extends BaseServlet {
                 return;
             case "templateRename":
                 handle(req, resp, () -> templateService.rename(templateId, userId, name),
-                        "Đã đổi tên mẫu.", "/order/history");
+                        "Đã đổi tên mẫu.", back);
                 return;
             case "templateSetQty":
                 handle(req, resp, () -> templateService.setQuantity(templateId, userId,
                                 WebUtil.getInt(req, "productId", 0),
                                 WebUtil.getInt(req, "quantity", 0)),
-                        null, "/order/history");
+                        null, back);
                 return;
             case "templateDelete":
                 handle(req, resp, () -> templateService.delete(templateId, userId),
-                        "Đã xoá mẫu.", "/order/history");
+                        "Đã xoá mẫu.", back);
                 return;
             case "templateSave":
             default:
                 handle(req, resp, () -> templateService.saveFromOrder(userId,
                                 WebUtil.getInt(req, "orderId", 0), name),
-                        "Đã lưu thành mẫu đặt nhanh.", "/order/history");
+                        "Đã lưu thành mẫu đặt nhanh.", back);
         }
     }
 

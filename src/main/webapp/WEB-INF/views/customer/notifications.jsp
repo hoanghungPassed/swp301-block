@@ -1,14 +1,20 @@
 <c:set var="pageTitle" value="Thông báo" /><c:set var="nav" value="notifications" />
 <c:set var="mainClass" value="container medium" />
 <%@ include file="/WEB-INF/views/layout/page-start.jspf" %>
+  <%-- Đánh dấu đã đọc xong thì ở nguyên trang đang xem. --%>
+  <c:set var="notiQuery" value="${ff:pageQuery(pageContext.request, '')}" />
+  <c:set var="notiBack"  value="/notifications${empty notiQuery ? '' : '?'.concat(notiQuery)}" />
+  <c:set var="notiReturn"><input type="hidden" name="returnTo" value="<c:out value="${notiBack}"/>"></c:set>
   <div class="page-head row-between">
     <div>
       <h1>Thông báo</h1>
-      <p>Những gì đã xảy ra với đơn của bạn — xác nhận, món sẵn sàng, huỷ đơn và hoàn tiền.</p>
+      <p>Những gì đã xảy ra với đơn của bạn — xác nhận, món sẵn sàng và đơn hết hiệu lực.</p>
     </div>
     <c:if test="${not empty unreadNotifications and unreadNotifications > 0}">
-      <form method="post" action="${ctx}/notifications">
+      <form method="post" action="${ctx}/notifications"
+            data-confirm="Đánh dấu tất cả thông báo là đã đọc?">
         <input type="hidden" name="_csrf" value="${csrfToken}">
+        ${notiReturn}
         <button type="submit" class="btn">Đánh dấu đã đọc hết (${unreadNotifications})</button>
       </form>
     </c:if>
@@ -59,7 +65,7 @@
         </ul>
       </c:otherwise>
     </c:choose>
-    <%@ include file="/WEB-INF/views/layout/pager.jspf" %>
+    <ui:pager page="${pageData}" label="thông báo" />
   </div>
 
   <p class="small muted">

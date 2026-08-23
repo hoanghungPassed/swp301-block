@@ -108,11 +108,97 @@ public class OrderItemDAO {
         }
     }
 
+    /*
+     * Ba câu dưới đây phục vụ màn bếp làm việc theo đơn. Chúng trả về MỌI món của những đơn
+     * đang thuộc từng khối — kể cả món đã xong hay đã ra quầy — để thẻ trên màn hình nói được
+     * đủ "đơn này có mấy món, còn mấy món chưa xong". Việc gom món thành đơn làm ở tầng dịch
+     * vụ, nên thứ tự ORDER BY phải giữ các món của cùng một đơn nằm liền nhau.
+     */
+
+    /** Đơn chưa ai đụng tới: còn món chờ và không có món nào đã có người bếp nhận. */
+    public List<OrderItem> findWaitingQueueOrders(Connection con) throws SQLException {
+        String sql = "SELECT " + COLS + NAME_COLS + ORDER_COLS + OPEN_ISSUE_COL +
+                     "FROM dbo.OrderItem oi JOIN dbo.Orders o ON o.order_id = oi.order_id " + NAME_JOINS +
+                     "WHERE o.released_to_kds_at IS NOT NULL " +
+                     "  AND o.order_status IN ('CONFIRMED','PREPARING') " +
+                     "  AND EXISTS (SELECT 1 FROM dbo.OrderItem w " +
+                     "              WHERE w.order_id = oi.order_id AND w.item_status = 'WAITING') " +
+                     "  AND NOT EXISTS (SELECT 1 FROM dbo.OrderItem a " +
+                     "                  WHERE a.order_id = oi.order_id " +
+                     "                    AND a.assigned_to_user_id IS NOT NULL) " +
+                     "ORDER BY CASE WHEN o.pickup_time IS NULL THEN o.released_to_kds_at ELSE o.pickup_time END, " +
+                     "         oi.order_id, oi.order_item_id";
+        try (PreparedStatement ps = con.prepareStatement(sql)) {
+            return collect(ps, true);
+        }
+    }
+
+    /**
+     * Đơn đang trong tay tôi: có món mang tên tôi và đơn vẫn còn món chưa xong.
+     *
+     * <p>Không đòi món của tôi phải đang dở, vì đơn nhận lẻ từ trước có thể còn sót món chưa ai
+     * nhận. Những đơn ấy vẫn phải hiện ở đây kèm nút nhận nốt phần còn lại — nếu chỉ tìm theo
+     * món đang làm thì chúng biến mất khỏi mọi khối: hàng chờ đã loại đơn có người đụng vào,
+     * còn khối bàn giao chỉ nhận đơn đã xong hết món.
+     */
+    public List<OrderItem> findMyOrderItems(Connection con, int userId) throws SQLException {
+        String sql = "SELECT " + COLS + NAME_COLS + ORDER_COLS + OPEN_ISSUE_COL +
+                     "FROM dbo.OrderItem oi JOIN dbo.Orders o ON o.order_id = oi.order_id " + NAME_JOINS +
+                     "WHERE o.order_status IN ('CONFIRMED','PREPARING') " +
+                     "  AND EXISTS (SELECT 1 FROM dbo.OrderItem m " +
+                     "              WHERE m.order_id = oi.order_id AND m.assigned_to_user_id = ?) " +
+                     "  AND EXISTS (SELECT 1 FROM dbo.OrderItem d " +
+                     "              WHERE d.order_id = oi.order_id " +
+                     "                AND d.item_status IN ('WAITING','PREPARING')) " +
+                     "ORDER BY CASE WHEN o.pickup_time IS NULL THEN o.released_to_kds_at ELSE o.pickup_time END, " +
+                     "         oi.order_id, oi.order_item_id";
+        try (PreparedStatement ps = con.prepareStatement(sql)) {
+            ps.setInt(1, userId);
+            return collect(ps, true);
+        }
+    }
+
+    /**
+     * Đơn của tôi đã xong hết món và còn phần chưa ra quầy. Đơn còn món dở nằm lại khối
+     * "đang làm", vì thu ngân chỉ nên nhận một lần cho trọn đơn.
+     */
+    public List<OrderItem> findHandoverOrderItems(Connection con, int userId) throws SQLException {
+        String sql = "SELECT " + COLS + NAME_COLS + ORDER_COLS + OPEN_ISSUE_COL +
+                     "FROM dbo.OrderItem oi JOIN dbo.Orders o ON o.order_id = oi.order_id " + NAME_JOINS +
+                     "WHERE EXISTS (SELECT 1 FROM dbo.OrderItem r " +
+                     "              WHERE r.order_id = oi.order_id AND r.assigned_to_user_id = ? " +
+                     "                AND r.item_status = 'READY' AND r.handed_over_at IS NULL) " +
+                     "  AND NOT EXISTS (SELECT 1 FROM dbo.OrderItem d " +
+                     "                  WHERE d.order_id = oi.order_id " +
+                     "                    AND d.item_status IN ('WAITING','PREPARING')) " +
+                     "ORDER BY oi.order_id, oi.order_item_id";
+        try (PreparedStatement ps = con.prepareStatement(sql)) {
+            ps.setInt(1, userId);
+            return collect(ps, true);
+        }
+    }
+
     public List<OrderItem> findAwaitingCounter(Connection con) throws SQLException {
         String sql = "SELECT " + COLS + NAME_COLS + ORDER_COLS + OPEN_ISSUE_COL +
                      "FROM dbo.OrderItem oi JOIN dbo.Orders o ON o.order_id = oi.order_id " + NAME_JOINS +
                      "WHERE oi.handed_over_at IS NOT NULL AND oi.received_at IS NULL " +
                      "ORDER BY oi.handed_over_at, oi.order_item_id";
+        try (PreparedStatement ps = con.prepareStatement(sql)) {
+            return collect(ps, true);
+        }
+    }
+
+    /**
+     * Món đang chờ trên quầy, sắp xếp sao cho các món cùng một đơn nằm liền nhau và đơn nào
+     * bếp đưa ra trước thì đứng trước — tầng dịch vụ gom lại thành từng đơn để thu ngân nhận
+     * một lần cho trọn đơn.
+     */
+    public List<OrderItem> findAwaitingCounterOrders(Connection con) throws SQLException {
+        String sql = "SELECT " + COLS + NAME_COLS + ORDER_COLS + OPEN_ISSUE_COL +
+                     "FROM dbo.OrderItem oi JOIN dbo.Orders o ON o.order_id = oi.order_id " + NAME_JOINS +
+                     "WHERE oi.handed_over_at IS NOT NULL AND oi.received_at IS NULL " +
+                     "ORDER BY MIN(oi.handed_over_at) OVER (PARTITION BY oi.order_id), " +
+                     "         oi.order_id, oi.order_item_id";
         try (PreparedStatement ps = con.prepareStatement(sql)) {
             return collect(ps, true);
         }

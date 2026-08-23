@@ -54,7 +54,7 @@
         </c:if>
       </tbody>
     </table>
-    <%@ include file="/WEB-INF/views/layout/pager.jspf" %>
+    <ui:pager page="${pageData}" label="món" />
   </div>
 
   <div class="card pad0 table-wrap">
@@ -100,7 +100,8 @@
 
   <div class="card">
     <h2>${empty editingNote ? 'Ghi vào sổ bàn giao' : 'Sửa dòng bàn giao'}</h2>
-    <form method="post" action="${ctx}/kitchen/history">
+    <form method="post" action="${ctx}/kitchen/history"
+          data-confirm="${empty editingNote ? 'Ghi dòng bàn giao này vào sổ?' : 'Lưu thay đổi cho dòng bàn giao này?'}">
       <input type="hidden" name="_csrf" value="${csrfToken}">
       <input type="hidden" name="action" value="${empty editingNote ? 'noteAdd' : 'noteUpdate'}">
       <c:if test="${mineOnly}"><input type="hidden" name="mine" value="1"></c:if>

@@ -15,6 +15,7 @@ public class PaymentExpiryScheduler implements Runnable {
     public void run() {
         try {
             scheduleService.expireStalePayments();
+            scheduleService.expireAbandonedCounterOrders();
         } catch (Exception e) {
             LOG.log(Level.SEVERE, "Loi khi huy hieu luc don qua han", e);
         }

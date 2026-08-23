@@ -11,74 +11,92 @@
 
     var KDS_INTERVAL_MS = 2000;
 
-    function kdsSignature(it) {
-        return [it.quantity, it.online, it.urgent, it.late, it.pickupLabel, it.openIssueCount].join('|');
+    /* Màn bếp làm việc theo đơn: mỗi thẻ là một đơn, chữ ký gộp mọi thứ hiện trên thẻ để
+       biết khi nào phải vẽ lại. Thứ tự phải khớp data-sig do JSP dựng ra, không thì thẻ nào
+       máy chủ dựng cũng bị coi là đã đổi và vẽ lại ngay lần hỏi đầu tiên. */
+    function kdsSignature(o) {
+        return [o.totalQuantity, o.itemCount, o.online, o.urgent, o.late,
+                o.pickupLabel, o.openIssueCount].join('|');
     }
 
-    function kdsUrgency(it) {
-        if (it.late) { return 'late'; }
-        if (it.urgent) { return 'urgent'; }
-        return it.online ? 'online' : 'pos';
+    function kdsUrgency(o) {
+        if (o.late) { return 'late'; }
+        if (o.urgent) { return 'urgent'; }
+        return o.online ? 'online' : 'pos';
     }
 
-    function kdsBuildCard(tpl, it, detailBase) {
+    function kdsBuildCard(tpl, o, detailBase) {
         var node = tpl.content.firstElementChild.cloneNode(true);
-        kdsFillCard(node, it, detailBase);
+        kdsFillCard(node, o, detailBase);
         return node;
     }
 
-    function kdsFillCard(node, it, detailBase) {
-        node.dataset.itemId = it.orderItemId;
-        node.dataset.sig = kdsSignature(it);
-        node.className = 'kds-card ' + kdsUrgency(it);
+    function kdsFillItems(list, items, detailBase) {
+        var tpl = document.getElementById('kds-item-template');
+        list.textContent = '';
+        (items || []).forEach(function (it) {
+            var li = tpl.content.firstElementChild.cloneNode(true);
+            li.querySelector('[data-field="itemQty"]').textContent = '×' + it.quantity;
+            var link = li.querySelector('[data-field="itemName"]');
+            link.textContent = it.name;
+            link.href = detailBase + it.orderItemId;
+            list.appendChild(li);
+        });
+    }
+
+    function kdsFillCard(node, o, detailBase) {
+        node.dataset.orderId = o.orderId;
+        node.dataset.sig = kdsSignature(o);
+        node.className = 'kds-card ' + kdsUrgency(o);
 
         var source = node.querySelector('[data-field="source"]');
-        source.textContent = it.online ? 'Đặt trước' : 'Tại quầy';
-        source.className = 'tag ' + (it.online ? 'tag-info' : 'tag-muted');
+        source.textContent = o.online ? 'Đặt trước' : 'Tại quầy';
+        source.className = 'tag ' + (o.online ? 'tag-info' : 'tag-muted');
 
-        node.querySelector('[data-field="qty"]').textContent = '×' + it.quantity;
-        node.querySelector('[data-field="productName"]').textContent = it.productName;
-        node.querySelector('[data-field="orderLabel"]').textContent = 'Đơn #' + it.orderId;
+        node.querySelector('[data-field="qty"]').textContent = o.totalQuantity + ' phần';
+        node.querySelector('[data-field="orderLabel"]').textContent = 'Đơn #' + o.orderId;
+        node.querySelector('[data-field="itemCount"]').textContent = o.itemCount + ' món';
 
         var pickup = node.querySelector('[data-field="pickupLabel"]');
-        pickup.textContent = it.pickupLabel;
-        pickup.className = it.late ? 'tag tag-red' : (it.urgent ? 'tag tag-amber' : '');
+        pickup.textContent = o.pickupLabel;
+        pickup.className = o.late ? 'tag tag-red' : (o.urgent ? 'tag tag-amber' : '');
+
+        kdsFillItems(node.querySelector('[data-slot="items"]'), o.items, detailBase);
 
         var issueSlot = node.querySelector('[data-slot="issue"]');
-        if (it.openIssueCount > 0) {
+        if (o.openIssueCount > 0) {
             issueSlot.hidden = false;
             issueSlot.querySelector('[data-field="issue"]').textContent =
-                it.openIssueCount + ' sự cố đang mở';
+                o.openIssueCount + ' sự cố đang mở';
         } else {
             issueSlot.hidden = true;
         }
 
-        node.querySelector('[data-field="itemId"]').value = it.orderItemId;
-        node.querySelector('[data-field="detailHref"]').href = detailBase + it.orderItemId;
+        node.querySelector('[data-field="orderId"]').value = o.orderId;
     }
 
-    function kdsRender(grid, tpl, items, detailBase) {
-        var wanted = items.map(function (it) { return String(it.orderItemId); });
+    function kdsRender(grid, tpl, orders, detailBase) {
+        var wanted = orders.map(function (o) { return String(o.orderId); });
 
         Array.prototype.slice.call(grid.children).forEach(function (card) {
-            if (wanted.indexOf(card.dataset.itemId) === -1) {
+            if (wanted.indexOf(card.dataset.orderId) === -1) {
                 grid.removeChild(card);
             }
         });
 
-        items.forEach(function (it) {
-            var card = grid.querySelector('[data-item-id="' + it.orderItemId + '"]');
+        orders.forEach(function (o) {
+            var card = grid.querySelector('[data-order-id="' + o.orderId + '"]');
             if (!card) {
-                grid.appendChild(kdsBuildCard(tpl, it, detailBase));
-            } else if (card.dataset.sig !== kdsSignature(it)) {
-                kdsFillCard(card, it, detailBase);
+                grid.appendChild(kdsBuildCard(tpl, o, detailBase));
+            } else if (card.dataset.sig !== kdsSignature(o)) {
+                kdsFillCard(card, o, detailBase);
             }
         });
 
-        var current = Array.prototype.map.call(grid.children, function (c) { return c.dataset.itemId; });
+        var current = Array.prototype.map.call(grid.children, function (c) { return c.dataset.orderId; });
         if (current.join(',') !== wanted.join(',')) {
             wanted.forEach(function (id) {
-                var card = grid.querySelector('[data-item-id="' + id + '"]');
+                var card = grid.querySelector('[data-order-id="' + id + '"]');
                 if (card) { grid.appendChild(card); }
             });
         }
@@ -95,6 +113,7 @@
         var offline = document.getElementById('kds-offline');
         var stale = document.getElementById('kds-stale');
         var reload = document.getElementById('kds-reload');
+        var queuePager = document.querySelector('#kds-grid ~ nav.pager');
         if (!grid || !tpl) {
             return;
         }
@@ -103,10 +122,19 @@
         var detailBase = watch.dataset.detailBase;
         var renderedMyTasks = Number(watch.dataset.renderedMytasks);
         var renderedHandover = Number(watch.dataset.renderedHandover);
+        /* Máy chủ chỉ dựng đúng một trang hàng chờ. API trả về cả danh sách nên trình duyệt
+           phải cắt lại theo đúng trang đang xem, không thì đổi trang xong lại thấy đủ món. */
+        var queuePage = Number(watch.dataset.queuePage) || 1;
+        var queueSize = Number(watch.dataset.queueSize) || 0;
+        var renderedQueue = Number(watch.dataset.renderedQueue) || 0;
         var misses = 0;
 
         if (reload) {
             reload.addEventListener('click', function () { window.location.reload(); });
+        }
+
+        function queuePages(total) {
+            return queueSize > 0 ? Math.max(1, Math.ceil(total / queueSize)) : 1;
         }
 
         function setCount(id, value) {
@@ -124,22 +152,37 @@
                     misses = 0;
                     if (offline) { offline.hidden = true; }
 
-                    kdsRender(grid, tpl, data.queue || [], detailBase);
+                    var all = data.queue || [];
+                    var from = queueSize > 0 ? (queuePage - 1) * queueSize : 0;
+                    var shown = queueSize > 0 ? all.slice(from, from + queueSize) : all;
+                    /* Món trôi hết khỏi trang đang xem thì thanh phân trang cũng đã cũ:
+                       báo người dùng tải lại chứ đừng nói dối là hết món. */
+                    var outOfRange = all.length > 0 && shown.length === 0;
+                    /* Thẻ món thì tự cập nhật được, còn thanh chuyển trang do máy chủ dựng nên
+                       không. Chỉ nhắc tải lại khi số trang đổi thật — hàng chờ nhích vài món
+                       trong cùng một trang mà cũng nhắc thì thành phiền, bếp sẽ bỏ qua. */
+                    var pagerStale = outOfRange || queuePages(all.length) !== queuePages(renderedQueue);
 
-                    var isEmpty = !data.queue || data.queue.length === 0;
-                    grid.hidden = isEmpty;
-                    if (emptyBox) { emptyBox.hidden = !isEmpty; }
+                    kdsRender(grid, tpl, shown, detailBase);
 
-                    setCount('kds-mytasks-count', data.myTaskCount);
+                    grid.hidden = shown.length === 0;
+                    if (emptyBox) { emptyBox.hidden = shown.length !== 0 || outOfRange; }
+                    /* Hết sạch hàng chờ thì giấu luôn thanh chuyển trang: để lại một dòng
+                       "đang xem 1–12 trong 12 đơn" ngay dưới khung báo hết món thì đọc vào
+                       không biết tin bên nào. */
+                    if (queuePager) { queuePager.hidden = all.length === 0; }
+
+                    setCount('kds-mytasks-count', data.myOrderCount);
                     setCount('kds-handover-count', data.handoverCount);
-                    setCount('kds-kpi-mytasks', data.myTaskCount);
+                    setCount('kds-kpi-mytasks', data.myOrderCount);
                     setCount('kds-kpi-handover', data.handoverCount);
                     setCount('kds-kpi-queue', data.queueCount);
                     setCount('kds-kpi-issues', data.openIssueCount);
 
                     if (stale) {
-                        stale.hidden = data.myTaskCount === renderedMyTasks
-                                    && data.handoverCount === renderedHandover;
+                        stale.hidden = data.myOrderCount === renderedMyTasks
+                                    && data.handoverCount === renderedHandover
+                                    && !pagerStale;
                     }
                 })
                 .catch(function () {
@@ -439,10 +482,12 @@
         }, true);
     }
 
-    function resubmit(form) {
+    function resubmit(form, submitter) {
         form.dataset.confirmed = 'yes';
         if (form.requestSubmit) {
-            form.requestSubmit();
+            /* Gửi lại kèm đúng nút đã bấm, không thì biểu mẫu nào phân biệt việc
+               theo name/value của nút sẽ mất mất thông tin đó sau khi xác nhận. */
+            form.requestSubmit(submitter && submitter.form === form ? submitter : undefined);
         } else {
             form.submit();
         }
@@ -451,6 +496,7 @@
     function bindConfirm() {
         var dlg = document.getElementById('confirm-dialog');
         var supported = dlg && typeof dlg.showModal === 'function';
+        var okBtn = dlg && dlg.querySelector('[data-field="ok"]');
 
         document.addEventListener('submit', function (e) {
             var form = e.target;
@@ -461,18 +507,27 @@
             e.preventDefault();
             e.stopPropagation();
 
+            var submitter = e.submitter;
             if (!supported) {
-                if (window.confirm(message)) { resubmit(form); }
+                if (window.confirm(message)) { resubmit(form, submitter); }
                 return;
             }
 
             dlg.querySelector('[data-field="message"]').textContent = message;
+            if (okBtn) {
+                okBtn.textContent = form.dataset.confirmOk || 'Đồng ý';
+                /* Nút trong trang màu đỏ thì nút đồng ý cũng đỏ: người dùng nhìn hộp thoại
+                   là biết ngay việc sắp làm là xoá hay huỷ, chứ không phải thao tác thường. */
+                var danger = form.dataset.confirmTone === 'danger'
+                    || (submitter && submitter.classList.contains('btn-danger'));
+                okBtn.className = 'btn touch ' + (danger ? 'btn-danger' : 'btn-primary');
+            }
             dlg.returnValue = '';
             dlg.showModal();
 
             dlg.addEventListener('close', function handler() {
                 dlg.removeEventListener('close', handler);
-                if (dlg.returnValue === 'ok') { resubmit(form); }
+                if (dlg.returnValue === 'ok') { resubmit(form, submitter); }
             });
         }, true);
     }
@@ -510,37 +565,6 @@
 
     function formatDong(amount) {
         return Math.round(amount).toLocaleString('vi-VN') + ' đ';
-    }
-
-    function bindChangeCalculator() {
-        Array.prototype.forEach.call(document.querySelectorAll('[data-change-form]'), function (form) {
-            var input = form.querySelector('[data-change-input]');
-            var output = form.querySelector('[data-change-output]');
-            var total = parseFloat(form.dataset.total);
-            if (!input || !output || isNaN(total)) {
-                return;
-            }
-
-            function refresh() {
-                var given = parseFloat(input.value);
-                if (isNaN(given) || input.value.trim() === '') {
-                    output.hidden = true;
-                    output.textContent = '';
-                    return;
-                }
-                output.hidden = false;
-                if (given < total) {
-                    output.className = 'total-line grand text-red';
-                    output.textContent = 'Còn thiếu ' + formatDong(total - given);
-                    return;
-                }
-                output.className = 'total-line grand';
-                output.textContent = 'Thối lại ' + formatDong(given - total);
-            }
-
-            input.addEventListener('input', refresh);
-            refresh();
-        });
     }
 
     function bindCartQuantity() {
@@ -595,6 +619,29 @@
                 .then(function (data) {
                     if (data && data.status && data.status !== 'PENDING_PAYMENT') {
                         location.href = target;
+                    }
+                })
+                .catch(function () { });
+        }, PAY_INTERVAL_MS);
+    }
+
+    /* Trang quầy: hỏi lại vài giây một lần xem cổng đã báo tiền về chưa. Thấy rồi thì tải lại
+       trang để thu ngân nhìn thấy đúng trạng thái do máy chủ dựng ra — cố tình KHÔNG tự bấm
+       Xong thay người: đưa đơn xuống bếp là quyết định của thu ngân đang đứng trước khách. */
+    function watchPosPayment() {
+        var watch = document.getElementById('pos-payment-watch');
+        if (!watch) {
+            return;
+        }
+        var endpoint = watch.dataset.endpoint;
+
+        var timer = setInterval(function () {
+            fetch(endpoint, { headers: { 'Accept': 'application/json' } })
+                .then(function (r) { return r.ok ? r.json() : null; })
+                .then(function (data) {
+                    if (data && data.paid) {
+                        clearInterval(timer);
+                        location.reload();
                     }
                 })
                 .catch(function () { });
@@ -800,6 +847,7 @@
         watchKdsQueue();
         watchOrderStatus();
         watchPaymentStatus();
+        watchPosPayment();
         guardDoubleSubmit();
         bindAutoSubmit();
         bindLiveSearch();
@@ -809,7 +857,6 @@
         bindFieldValidation();
         bindConfirm();
         bindUrlPreview();
-        bindChangeCalculator();
         bindCartQuantity();
         bindPrint();
     });

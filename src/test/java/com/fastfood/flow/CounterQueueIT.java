@@ -38,14 +38,14 @@ class CounterQueueIT extends IntegrationTestBase {
     }
 
     @Test
-    @DisplayName("Đơn bị huỷ sau khi nấu xong thì món VẪN nằm lại hàng chờ của quầy")
-    void cancelledOrderItemsStayOnTheCounterQueue() {
+    @DisplayName("Đơn đã đóng sau khi nấu xong thì món VẪN nằm lại hàng chờ của quầy")
+    void closedOrderItemsStayOnTheCounterQueue() {
         int itemId = readyItemInKitchen();
         kitchenService.handOverToCounter(itemId, userId(KITCHEN_1));
         int orderId = scalar(Integer.class,
                 "SELECT order_id FROM dbo.OrderItem WHERE order_item_id = ?", itemId);
 
-        exec("UPDATE dbo.Orders SET order_status = 'CANCELLED', cancelled_at = ? WHERE order_id = ?",
+        exec("UPDATE dbo.Orders SET order_status = 'EXPIRED', expired_at = ? WHERE order_id = ?",
              LocalDateTime.now(), orderId);
 
         OrderItem onQueue = staffOrders.awaitingCounter().stream()
@@ -58,7 +58,7 @@ class CounterQueueIT extends IntegrationTestBase {
                 + "đó tới cuối ca");
         assertTrue(onQueue.isOrderClosed(),
                 "Phải nói được đơn đã đóng để quầy mang món đi bỏ chứ không đưa cho khách");
-        assertEquals("CANCELLED", onQueue.getOrderStatus());
+        assertEquals("EXPIRED", onQueue.getOrderStatus());
     }
 
     @Test

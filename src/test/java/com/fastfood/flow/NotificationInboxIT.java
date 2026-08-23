@@ -104,7 +104,7 @@ class NotificationInboxIT extends IntegrationTestBase {
                     "SELECT COUNT(*) FROM dbo.Notification n " +
                     "JOIN dbo.Orders o ON o.order_id = n.order_id " +
                     "WHERE n.read_at IS NOT NULL " +
-                    "  AND o.order_status IN ('COMPLETED','CANCELLED','EXPIRED')") > 0,
+                    "  AND o.order_status IN ('COMPLETED','EXPIRED')") > 0,
                     "Tin của đơn đã khép lại phải được đánh dấu đã đọc sẵn — đọc tất cả thành "
                             + "chưa đọc thì huy hiệu đếm cả chuyện xảy ra từ đời nào");
         }
