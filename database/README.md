@@ -6,7 +6,18 @@ Toàn bộ database nằm trong **một file duy nhất**: [`FastFoodPreorder.sq
 sqlcmd -S localhost -U sa -P '<password>' -C -i FastFoodPreorder.sql
 ```
 
-Hoặc mở file trong SSMS rồi nhấn F5. Yêu cầu SQL Server 2016 trở lên.
+Yêu cầu SQL Server 2016 trở lên.
+
+> **Bảng mã:** file là UTF-8 không BOM. Nạp bằng công cụ đọc sai bảng mã thì chữ tiếng Việt
+> trong dữ liệu mẫu vào database ở dạng hỏng mà không có lỗi nào báo ra — trang web sau đó
+> hiện `Burger BÃ² PhÃ´ Mai`, và chỉ hỏng trên máy đã nạp sai nên rất dễ tưởng là lỗi mã nguồn.
+> Mục kiểm tra 8.11 ở cuối file sẽ báo lỗi rõ ràng nếu chuyện này xảy ra.
+>
+> - `sqlcmd` bản mới (cài bằng `brew`/`winget`, cross-platform): đọc UTF-8 sẵn, không cần thêm gì.
+> - `sqlcmd.exe` cũ đi kèm SQL Server trên Windows: **phải thêm `-f 65001`**, thiếu là hỏng.
+> - **SSMS**: đừng mở thẳng rồi F5 — SSMS đọc file không BOM theo bảng mã ANSI của máy.
+>   Dùng *File ▸ Open ▸ Open With… ▸ SQL Query Editor with Encoding…* rồi chọn
+>   *UTF-8 without signature*, hoặc chạy bằng `sqlcmd` cho chắc.
 
 > **File xoá và tạo lại toàn bộ bảng mỗi lần chạy.** Thiết kế như vậy để luôn cho ra
 > một database sạch, không phụ thuộc trạng thái trước đó. Đừng chạy trên dữ liệu thật.

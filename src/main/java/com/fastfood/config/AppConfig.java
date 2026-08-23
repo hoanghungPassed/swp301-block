@@ -4,6 +4,8 @@ import com.fastfood.common.constant.Constants.BusinessRule;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 import java.util.Properties;
 import java.util.logging.Logger;
 
@@ -18,7 +20,12 @@ public final class AppConfig {
     public static synchronized void init() {
         try (InputStream in = AppConfig.class.getClassLoader().getResourceAsStream("app.properties")) {
             if (in != null) {
-                props.load(in);
+                /* Đọc qua Reader UTF-8 chứ không đưa thẳng InputStream: Properties.load(InputStream)
+                   luôn hiểu tệp theo ISO-8859-1, bất kể máy đang chạy bảng mã nào. Hiện mọi GIÁ TRỊ
+                   trong app.properties đều là ASCII nên chưa lộ, nhưng có hai ô người dùng sẽ điền
+                   tiếng Việt vào — notification.mail.fromName và payment.sepay.accountName — và lúc
+                   đó tên cửa hàng sẽ đi vào thư và mã VietQR ở dạng hỏng. */
+                props.load(new InputStreamReader(in, StandardCharsets.UTF_8));
                 LOG.info("AppConfig: da nap app.properties");
             } else {
                 LOG.warning("AppConfig: khong thay app.properties, dung gia tri mac dinh");

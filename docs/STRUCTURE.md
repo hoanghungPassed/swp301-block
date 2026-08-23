@@ -768,6 +768,8 @@ mật khẩu mới. Đổi chính sách mà khoá luôn cửa với tài khoản
 
 ```bash
 # 1. Cơ sở dữ liệu
+#    sqlcmd.exe cũ trên Windows phải thêm -f 65001; đừng nạp bằng SSMS F5
+#    — xem database/README.md, mục bảng mã
 sqlcmd -S localhost -U sa -P '<mật khẩu>' -C -i database/FastFoodPreorder.sql
 
 # 2. Sửa src/main/resources/db.properties cho khớp máy chủ SQL Server

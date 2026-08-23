@@ -5,6 +5,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import java.io.File;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -69,6 +70,32 @@ class JspCompileTest {
         assertTrue(ngoai_web_inf.isEmpty(),
                 "Trang nam ngoai WEB-INF mo thang tu trinh duyet duoc, bo qua ca chuoi bo loc: "
                         + ngoai_web_inf);
+    }
+
+    @Test
+    @DisplayName("Mảnh .jspf nào cũng tự khai báo pageEncoding=\"UTF-8\"")
+    void jspfsDeclareUtf8() throws Exception {
+        List<String> thieu = new ArrayList<>();
+        for (Path jspf : findJspfs()) {
+            String noi_dung = Files.readString(jspf, StandardCharsets.UTF_8);
+            if (!noi_dung.contains("pageEncoding=\"UTF-8\"")) {
+                thieu.add(WEBAPP.toAbsolutePath().relativize(jspf).toString());
+            }
+        }
+
+        assertTrue(thieu.isEmpty(),
+                "Thieu <%@ page pageEncoding=\"UTF-8\" %> o dong dau. Nhom thuoc tinh trong web.xml "
+                        + "chi ap dung cho trang duoc yeu cau truc tiep, khong ap cho tep ghep vao luc "
+                        + "dich, nen Jasper doc mang theo ISO-8859-1 va chu tieng Viet trong do ra man "
+                        + "hinh thanh ky tu loi: " + thieu);
+    }
+
+    private List<Path> findJspfs() throws Exception {
+        try (Stream<Path> walk = Files.walk(WEBAPP.toAbsolutePath())) {
+            List<Path> list = new ArrayList<>();
+            walk.filter(p -> p.toString().endsWith(".jspf")).forEach(list::add);
+            return list;
+        }
     }
 
     private List<Path> findJsps() throws Exception {

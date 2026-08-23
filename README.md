@@ -26,6 +26,8 @@ Không dùng framework: toàn bộ tầng điều khiển, truy cập dữ liệ
 
 ```bash
 # 1. Dựng cơ sở dữ liệu (tạo bảng + dữ liệu mẫu, chạy lại được nhiều lần)
+#    sqlcmd.exe cũ trên Windows phải thêm -f 65001, không thì chữ tiếng Việt vào database
+#    ở dạng hỏng — xem database/README.md
 sqlcmd -S localhost -U sa -P '<mật khẩu>' -C -i database/FastFoodPreorder.sql
 
 # 2. Sửa src/main/resources/db.properties cho khớp máy chủ SQL Server của bạn

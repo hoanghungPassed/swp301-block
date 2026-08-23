@@ -1903,3 +1903,40 @@ ORDER BY u.email;
          Lệch giờ sẽ khiến đơn được đưa xuống bếp sai thời điểm. */
 SELECT SYSDATETIME() AS gio_sql_server, DB_NAME() AS database_hien_tai;
 GO
+
+
+/* 8.11 · Bảng mã của chính file này — kỳ vọng 0 dòng và KHÔNG có thông báo lỗi.
+
+   File này là UTF-8 không BOM. Công cụ nào đọc nó theo bảng mã khác thì mọi chuỗi N'...'
+   tiếng Việt vào cơ sở dữ liệu ở dạng hỏng, mà máy chủ không hề báo lỗi: cột NVARCHAR nhận
+   tuốt. Lỗi chỉ lộ ra sau đó trên trình duyệt, và chỉ trên máy đã nạp sai — cùng một mã
+   nguồn, máy này chữ đúng máy kia chữ hỏng, rất mất công truy.
+
+   Cách nạp đã biết là hỏng:
+     · SSMS mở file rồi F5 — SSMS đọc file không BOM theo bảng mã ANSI của máy.
+     · sqlcmd.exe cũ (bản đi kèm SQL Server) thiếu tham số -f 65001.
+   Cách nạp đúng: xem database/README.md.
+
+   Phép thử không so với một chuỗi viết sẵn trong file — đọc sai thì cả dữ liệu lẫn chuỗi
+   đem so đều sai giống hệt nhau nên vẫn khớp. Thay vào đó tìm dấu vết chỉ xuất hiện khi
+   đọc sai: Ã (195), Ä (196), Æ (198) là ba ký tự đầu của các cặp mà UTF-8 biến thành khi bị
+   đọc theo Latin-1/CP1252, và không ký tự nào trong ba cái đó có mặt trong tiếng Việt.
+   NCHAR() dựng chúng từ số nên bản thân phép thử miễn nhiễm với chuyện đọc sai. */
+WITH chu_tieng_viet AS (
+    SELECT 'Product.name'   AS cot, name      AS gia_tri FROM dbo.Product
+    UNION ALL SELECT 'Category.name',  name              FROM dbo.Category
+    UNION ALL SELECT 'Users.full_name', full_name        FROM dbo.Users
+    UNION ALL SELECT 'Role.description', description     FROM dbo.Role
+)
+SELECT cot, gia_tri
+FROM   chu_tieng_viet
+WHERE  gia_tri LIKE '%' + NCHAR(195) + '%'
+   OR  gia_tri LIKE '%' + NCHAR(196) + '%'
+   OR  gia_tri LIKE '%' + NCHAR(198) + '%';
+
+IF EXISTS (SELECT 1 FROM dbo.Product
+           WHERE name LIKE '%' + NCHAR(195) + '%'
+              OR name LIKE '%' + NCHAR(196) + '%'
+              OR name LIKE '%' + NCHAR(198) + '%')
+    RAISERROR (N'8.11 HONG BANG MA: file da duoc nap bang cong cu doc sai bang ma, chu tieng Viet trong du lieu mau da hong. Xoa database roi nap lai theo dung huong dan trong database/README.md.', 16, 1);
+GO

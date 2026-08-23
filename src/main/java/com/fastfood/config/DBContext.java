@@ -5,6 +5,8 @@ import com.zaxxer.hikari.HikariDataSource;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.Properties;
@@ -70,7 +72,9 @@ public final class DBContext {
             if (in == null) {
                 throw new IllegalStateException("Khong tim thay db.properties trong classpath");
             }
-            p.load(in);
+            /* UTF-8 tường minh, cùng lý do như AppConfig: mật khẩu cơ sở dữ liệu có
+               dấu hoặc ký tự ngoài ASCII sẽ sai âm thầm nếu để mặc định ISO-8859-1. */
+            p.load(new InputStreamReader(in, StandardCharsets.UTF_8));
         } catch (IOException e) {
             throw new IllegalStateException("Khong doc duoc db.properties", e);
         }
