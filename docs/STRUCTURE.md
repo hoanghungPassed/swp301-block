@@ -44,13 +44,14 @@ DAO và Service viết thẳng thành lớp cụ thể. Mỗi lớp chỉ có m�
 giao diện chỉ làm tăng số tệp phải mở khi lần theo một luồng nghiệp vụ.
 
 Chỗ **có** dùng giao diện là nơi thật sự cần thay thế được: `PaymentGateway` và
-`NotificationSender`. Cả hai nay đều có đủ bản giả lập lẫn bản thật, và cả hai đều chọn bằng
-đúng một dòng trong `app.properties`:
+`NotificationSender`. Mỗi cái có hai bản cài đặt thật sự khác nhau về cách hoạt động, chọn
+bằng đúng một dòng trong `app.properties`:
 
-- `payment.gateway.provider` — `MockPaymentGateway` (trang giả lập trong ứng dụng) hoặc
-  `SePayGateway` (chuyển khoản thật qua mã VietQR), chọn ở `PaymentGateways` — xem §3.6.
+- `payment.gateway.provider` — `VnPayGateway` (cổng chuyển hướng, mặc định trỏ vào sandbox
+  của VNPAY — xem §3.6) hoặc `SePayGateway` (chuyển khoản thật qua mã VietQR — xem §3.7),
+  chọn ở `PaymentGateways`.
 - `notification.channel` — `MockNotificationSender` ghi ra log hoặc `SmtpNotificationSender`
-  gửi thư thật, chọn ở `NotificationSenders` — xem §3.8.
+  gửi thư thật, chọn ở `NotificationSenders` — xem §3.9.
 
 ---
 
@@ -71,11 +72,11 @@ swp301-block/
     │   ├── model/dto/          1  Dtos — 9 lớp dữ liệu đã gộp sẵn cho tầng hiển thị
     │   ├── dao/               25  24 lớp truy vấn chia theo vai trò + JdbcSupport, xem §2.2
     │   ├── service/           28  27 lớp nghiệp vụ chia theo vai trò + Tx, xem §2.1
-    │   ├── integration/       10  Cổng thanh toán, kênh gửi tin (giả lập và SMTP)
+    │   ├── integration/       10  Cổng thanh toán (VNPAY, SePay), kênh gửi tin (log và SMTP)
     │   ├── filter/             5  Bốn bộ lọc chạy theo thứ tự + RequestPath dùng chung
     │   ├── listener/           2  Vòng đời ứng dụng
     │   ├── scheduler/          2  Hai công việc chạy nền
-    │   └── controller/        35  34 servlet chia theo vai trò + BaseServlet
+    │   └── controller/        36  34 servlet chia theo vai trò + BaseServlet + VnPayCallbacks
     ├── resources/                  db.properties · app.properties
     └── webapp/
         ├── assets/css/main.css
@@ -297,7 +298,7 @@ Khách chọn giờ → CartServlet (action=placeOrder)                      [cu
      → CustomerOrderService.createOnlineOrder   đọc lại giá và tình trạng từng món
                                                 tạo đơn ở trạng thái chờ thanh toán
      → PaymentService.startOnlinePayment        tạo bản ghi thanh toán, chuyển sang cổng
-     ← PaymentCallbackServlet                   cổng gửi kết quả về
+     ← VnPayReturnServlet / VnPayIpnServlet     VNPAY gửi kết quả về (§3.6)
      → PaymentService.handleCallback            kiểm chữ ký → ghi mã giao dịch (chống trùng)
                                                 → đối chiếu số tiền (§3.5)
                                                 → ghi nhận tiền → xác nhận đơn
@@ -398,9 +399,72 @@ sang đơn khác — cả ba đều cần người xử lý. Khoản tiền vẫ
 dưới trạng thái `MISMATCH` để đối soát, và đơn hết hiệu lực theo bộ hẹn giờ như mọi đơn không
 ai trả tiền.
 
-### 3.6 SePay — thu tiền bằng chuyển khoản có mã VietQR
+### 3.6 VNPAY — cổng chuyển hướng, và hai đường báo kết quả về
 
-Bật bằng `payment.gateway.provider=SEPAY` trong `app.properties`. Mặc định vẫn là `MOCK`.
+Cổng mặc định. Khác SePay ở chỗ khách **rời ứng dụng**: mình dựng một địa chỉ có chữ ký, đẩy
+khách sang trang của VNPAY, khách chọn ngân hàng và trả tiền ở bên đó.
+
+```
+Khách bấm thanh toán → PaymentStartServlet
+     → PaymentService.startOnlinePayment        tạo bản ghi thanh toán như thường
+     → VnPayGateway.initiate                    dựng địa chỉ vpcpay.html kèm vnp_SecureHash
+                                                → chuyển hướng khách ra ngoài
+
+     ... khách chọn ngân hàng, nhập thẻ, xác thực OTP trên trang của VNPAY ...
+
+     ← VnPayReturnServlet    /payment/vnpay/return   khách quay lại bằng trình duyệt
+     ← VnPayIpnServlet       /payment/vnpay/ipn      VNPAY gọi thẳng vào máy chủ
+     → VnPayCallbacks.from                      nhặt tham số vnp_*, đọc paymentId từ vnp_TxnRef
+     → VnPayGateway.verifySignature             ký lại gói tham số, so với vnp_SecureHash
+     → PaymentService.handleCallback            từ đây trở đi giống hệt mọi cổng khác
+```
+
+**Hai đường báo về, cùng một chỗ xử lý.** Đường khách quay lại luôn chạy được, kể cả trên máy
+cá nhân không có địa chỉ công khai — nhưng khách đóng tab giữa chừng thì nó không bao giờ chạy.
+Đường IPN thì ngược lại: chắc chắn tới, nhưng đòi máy chủ ra được Internet và phải khai báo
+trong cổng quản trị VNPAY. Bật cả hai không thu tiền hai lần: lần thứ hai đụng ràng buộc duy
+nhất trên `external_transaction_id` và trả về `DUPLICATE` (§3.3).
+
+Hai đường đọc tham số bằng **cùng một** `VnPayCallbacks.from`. Tách ra hai chỗ đọc là mở đường
+cho chúng lệch nhau, mà triệu chứng của lệch chỉ là "Dữ liệu thanh toán không hợp lệ" — không
+nói được trường nào sai.
+
+**Nối lệnh gọi về với đơn nào**: qua `vnp_TxnRef`, dựng theo khuôn `<payment_id>-<yyyyMMddHHmmss>`.
+Phần đuôi thời gian không mang thông tin gì cho mình, nó ở đó vì VNPAY đòi mã tham chiếu không
+được trùng — nạp lại cơ sở dữ liệu thì `payment_id` quay về từ đầu, và nếu mã tham chiếu chỉ
+có mỗi số đó thì lần chạy thử thứ hai trong ngày bị VNPAY từ chối.
+
+**Thành công phải đúng cả hai mã**: `vnp_ResponseCode` nói kết quả của lần đặt lệnh, còn
+`vnp_TransactionStatus` nói tiền đã thực sự về hay chưa. Tin mỗi mã đầu thì có lúc ghi nhận đã
+trả cho một giao dịch còn đang treo.
+
+**Ba chỗ dễ sai khi ký**, cả ba đều làm chữ ký lệch mà không báo lỗi rõ ràng:
+
+| | Phải làm | Sai thì |
+|---|---|---|
+| Thứ tự tham số | Xếp theo bảng chữ cái | Chữ ký lệch, VNPAY trả mã 70 |
+| Mã hoá giá trị | Mã hoá URL **trước** khi nối chuỗi đem ký, bằng US-ASCII | Chuỗi ký và chuỗi gửi đi khác nhau |
+| Số tiền | Đồng **nhân 100**, không phần thập phân | Khách bị thu ít hơn đúng 100 lần |
+
+`VnPayGateway` dùng chung đúng một hàm để dựng chuỗi đem ký và chuỗi truy vấn gửi đi, nên hai
+chuỗi không thể lệch nhau; `VnPayGatewayTest` canh lại điều đó bằng cách tách chữ ký ra khỏi
+địa chỉ vừa dựng rồi ký lại chính phần còn lại.
+
+**Không đòi đăng nhập ở đường quay lại.** Khách vừa đi vòng qua trang của VNPAY, và ở vài trình
+duyệt hoặc ứng dụng ngân hàng thì lần quay lại này không mang theo cookie phiên. Chỗ dựa để tin
+kết quả không phải phiên đăng nhập mà là chữ ký — thiếu chữ ký hợp lệ thì `handleCallback` ném
+lỗi trước khi ghi bất cứ thứ gì, nên mở công khai không mở thêm đường nào cho ai tự khai là đã
+trả tiền.
+
+**Không còn cổng giả lập.** Bản trước có một trang trong ứng dụng với nút "Thanh toán thành
+công" bấm là đơn thành đã trả. Nó tiện lúc trình bày nhưng đổi lại hai thứ: bất kỳ ai đăng nhập
+được cũng tự cho đơn của mình là đã trả tiền, và luồng thật chưa từng được chạy lần nào nên
+không có gì bảo đảm nó đúng. Sandbox VNPAY thay được cả hai — vẫn không có tiền thật chuyển
+đi, mà đường đi thì đúng đường sẽ chạy lúc lên thật.
+
+### 3.7 SePay — thu tiền bằng chuyển khoản có mã VietQR
+
+Bật bằng `payment.gateway.provider=SEPAY` trong `app.properties`. Mặc định là `VNPAY` (§3.6).
 
 **SePay không phải cổng thanh toán kiểu chuyển hướng**, và điều đó đổi hình dạng cả luồng.
 Nó không giữ tiền và không có trang thanh toán riêng: tiền đi thẳng từ tài khoản khách vào tài
@@ -442,11 +506,11 @@ chuyển khoản (kiểu `SEVN63DC8E5C`), mà mã đó là chữ số mười s�
 hai chữ `FF` ở giữa. Khớp lỏng thì `SEVNFF12ABCD` bị đọc thành mã thanh toán 12 và tiền được
 ghi cho đơn của người khác — `SePayGatewayTest` canh đúng chuyện này.
 
-### 3.7 Hộp thông báo — nơi khách đọc được bốn tin của một đơn
+### 3.8 Hộp thông báo — nơi khách đọc được bốn tin của một đơn
 
 `NotificationService` sinh tin cho bốn sự kiện: đơn được xác nhận, món sẵn sàng, đơn bị huỷ,
 đơn hết hiệu lực. Tin đi qua `NotificationSender`, mà kênh mặc định vẫn là lớp giả lập —
-**không có bức thư nào thật sự tới hộp thư của khách cho tới khi bật SMTP** (§3.8). Vì vậy
+**không có bức thư nào thật sự tới hộp thư của khách cho tới khi bật SMTP** (§3.9). Vì vậy
 `/notifications` là nơi duy nhất họ đọc được những tin đó, và nó không phải một tiện ích thêm
 vào cho đẹp: tình huống ở §3.4 kết thúc bằng một khoản tiền được hoàn lại, mà nếu khách đã đóng
 trang thanh toán thì cả câu chuyện chỉ còn nằm ở đây. Kể cả khi đã bật thư thật, hộp trong ứng
@@ -466,7 +530,7 @@ hình thì mở trang không có nghĩa là đã đọc hết, và tin quan tr�
 hay nằm dưới cùng. Ở đó có nút bấm tay, còn việc tự đánh dấu chỉ xảy ra tại trang theo dõi đơn,
 nơi tin thật sự hiện ra trước mắt.
 
-### 3.8 Xác thực email — chứng minh địa chỉ có thật trước khi nhận đơn
+### 3.9 Xác thực email — chứng minh địa chỉ có thật trước khi nhận đơn
 
 Trước đây ô email lúc đăng ký chỉ được kiểm đúng một điều: chuỗi gõ vào **có hình dáng** của
 một địa chỉ. Không có gì buộc địa chỉ ấy tồn tại, và cũng không có gì buộc nó thuộc về người
@@ -537,7 +601,7 @@ nào, để không phải mở từng file ra dò.
 
 Cột "DAO đi qua" chỉ liệt kê chỗ vai trò đó **đọc** dữ liệu. `AuditLogDAO` và `NotificationDAO`
 thì mọi luồng đều **ghi** vào — liệt kê lặp ở cả sáu dòng chỉ làm bảng nhiễu. Bảng `Notification`
-vừa là dấu vết của việc gửi tin, vừa là **hộp thông báo** khách đọc ở `/notifications` — xem §3.7.
+vừa là dấu vết của việc gửi tin, vừa là **hộp thông báo** khách đọc ở `/notifications` — xem §3.8.
 
 Đọc theo chiều dọc một dòng là thấy trọn phần của một vai trò. Đọc theo chiều ngang cột "DAO đi
 qua" là thấy vì sao `dao/shared` lại đông đến vậy: `OrderDAO` xuất hiện ở bốn dòng, `ProductDAO`
@@ -558,23 +622,22 @@ về cách kiểm tra quyền lẫn cách viết ca kiểm thử.
 | `/product/detail` | ProductDetailServlet | customer/product-detail.jsp — kèm **đánh giá món** và nút **món quen** |
 | `/login` `/register` | LoginServlet · RegisterServlet | auth/ |
 | `/forgot-password` `/reset-password` | ForgotPasswordServlet · ResetPasswordServlet | auth/ — luồng quên mật khẩu, xem §5 |
-| `/verify-email` | VerifyEmailServlet | Không có trang. GET là bấm liên kết trong thư, POST là xin gửi lại. Công khai vì người ta hay bấm từ điện thoại, nơi không có phiên đăng nhập — xem §3.8 |
+| `/verify-email` | VerifyEmailServlet | Không có trang. GET là bấm liên kết trong thư, POST là xin gửi lại. Công khai vì người ta hay bấm từ điện thoại, nơi không có phiên đăng nhập — xem §3.9 |
 | `/logout` | LogoutServlet | Không có trang. **Chỉ nhận POST**; gõ thẳng vào trình duyệt thì chỉ đưa về trang chủ |
 
 ### Khách hàng — 7 trang
 | Địa chỉ | Servlet | Trang |
 |---|---|---|
 | `/cart` | CartServlet | customer/cart.jsp — giỏ hàng **và** chọn giờ đến lấy |
-| `/payment/gateway` | PaymentGatewayServlet | customer/payment-gateway.jsp — **giả lập, chỉ dùng để chạy thử**. Trả 404 khi đang chạy cổng thật |
-| `/payment/sepay` | SePayCheckoutServlet | customer/payment-sepay.jsp — **mã VietQR chuyển khoản**, thay chỗ trang trên khi `payment.gateway.provider=SEPAY`. Xem §3.6 |
+| `/payment/sepay` | SePayCheckoutServlet | customer/payment-sepay.jsp — **mã VietQR chuyển khoản**, chỉ sống khi `payment.gateway.provider=SEPAY`; cổng mặc định VNPAY đưa khách ra ngoài nên không có trang nào trong ứng dụng. Xem §3.7 |
 | `/order/track` | OrderTrackingServlet | customer/order-tracking.jsp |
 | `/order/history` | OrderHistoryServlet | customer/order-history.jsp — kèm **mẫu đặt nhanh**, lọc theo trạng thái và khoảng ngày |
-| `/notifications` | NotificationServlet | customer/notifications.jsp — **hộp thông báo**, xem §3.7 |
+| `/notifications` | NotificationServlet | customer/notifications.jsp — **hộp thông báo**, xem §3.8 |
 | `/profile` | ProfileServlet | customer/profile.jsp |
 
 Cộng hai trang công khai `/menu` và `/product/detail` là **8 màn hình** khách hàng đi qua.
-Hai trang thanh toán chỉ tính là một: mỗi lần chạy chỉ có đúng một trang sống, tuỳ
-`payment.gateway.provider`, còn trang kia trả 404.
+Trang thanh toán chỉ có mặt khi chạy SePay: cổng mặc định VNPAY đẩy khách sang trang của bên
+thứ ba, còn `/payment/sepay` trả 404.
 
 ### Thu ngân — 5 trang, `/staff/*`
 | Địa chỉ | Servlet | Trang |
@@ -611,9 +674,10 @@ chứ hiếm khi chỉ có một lần.
 ### Không phải trang — endpoint hành động và tích hợp
 | Địa chỉ | Servlet | Bản chất |
 |---|---|---|
-| `/payment/start` | PaymentStartServlet | Lập một lần thanh toán rồi chuyển hướng sang cổng. Không hiển thị gì. Chỉ chủ đơn gọi được |
-| `/payment/callback` | PaymentCallbackServlet | Cổng thanh toán gọi vào, không có phiên đăng nhập. Kiểm chữ ký, đối chiếu số tiền, chống gọi trùng bằng ràng buộc duy nhất trên mã giao dịch |
-| `/payment/sepay/webhook` | SePayWebhookServlet | SePay báo có tiền về, không có phiên đăng nhập. Kiểm khoá API ở header `Authorization`, đọc mã thanh toán từ nội dung chuyển khoản, rồi đi vào đúng `PaymentService.handleCallback` như trên. Xem §3.6 |
+| `/payment/start` | PaymentStartServlet | Lập một lần thanh toán rồi chuyển hướng sang cổng. Không hiển thị gì. Chỉ chủ đơn gọi được. Chuyển hướng đi đúng địa chỉ cổng trả về, không gắn thêm tham số nào — thêm một tham số là chữ ký VNPAY lệch |
+| `/payment/vnpay/return` | VnPayReturnServlet | VNPAY đưa khách quay lại sau khi trả tiền, có thể không kèm phiên đăng nhập. Kiểm chữ ký trên gói `vnp_*`, đối chiếu số tiền, chống gọi trùng bằng ràng buộc duy nhất trên mã giao dịch. Xem §3.6 |
+| `/payment/vnpay/ipn` | VnPayIpnServlet | VNPAY gọi thẳng vào máy chủ, không qua trình duyệt. Cùng cách kiểm và cùng `PaymentService.handleCallback` như trên, chỉ khác ở chỗ trả về JSON `RspCode`/`Message` đúng khuôn VNPAY đòi. Xem §3.6 |
+| `/payment/sepay/webhook` | SePayWebhookServlet | SePay báo có tiền về, không có phiên đăng nhập. Kiểm khoá API ở header `Authorization`, đọc mã thanh toán từ nội dung chuyển khoản, rồi đi vào đúng `PaymentService.handleCallback` như trên. Xem §3.7 |
 | `/api/kds/queue` | KdsApiServlet | JSON cho màn hình bếp, hỏi lại mỗi 5 giây — chỉ vai trò Bếp và Quản trị. Chỉ trả dữ liệu bếp cần, không kèm thông tin khách hay thanh toán |
 | `/api/order/status` | OrderStatusApiServlet | JSON cho trang theo dõi đơn, hỏi lại mỗi 10 giây |
 
@@ -727,7 +791,7 @@ giữ lại một bản ghi rỗng.
 | Mật khẩu đặt hộ | Quản trị viên đặt lại thì máy chủ **sinh mật khẩu tạm ngẫu nhiên**, và tài khoản bị giữ ở trang tài khoản tới khi tự đổi | Tài khoản chạy tiếp bằng mật khẩu mà ít nhất hai người biết. Trước đây mọi lần đặt lại đều về cùng một chuỗi nằm sẵn trong mã trang |
 | Quên mật khẩu | Mã 32 byte ngẫu nhiên, **chỉ lưu bản băm**, dùng một lần, hạn 15 phút, tối đa 3 lần xin mỗi 15 phút | Đọc được bảng cũng không dựng lại được liên kết. Xin mã cho email người khác cũng không dội thư được vào hộp thư họ |
 | Dò email | Trang quên mật khẩu trả về **cùng một câu** cho mọi email, kể cả khi định dạng sai hay hệ thống lỗi | Dùng trang này để kiểm tra một địa chỉ có phải khách của cửa hàng không |
-| Xác thực email | Mã 32 byte ngẫu nhiên, **chỉ lưu bản băm**, dùng một lần, hạn 24 giờ, tối đa 5 lần xin mỗi 15 phút. Chưa xác thực thì không đặt được đơn online — xem §3.8 | Đăng ký bằng email của người khác rồi chiếm vĩnh viễn địa chỉ đó (cột `email` là UNIQUE), và đơn hàng gắn với một hộp thư không ai mở |
+| Xác thực email | Mã 32 byte ngẫu nhiên, **chỉ lưu bản băm**, dùng một lần, hạn 24 giờ, tối đa 5 lần xin mỗi 15 phút. Chưa xác thực thì không đặt được đơn online — xem §3.9 | Đăng ký bằng email của người khác rồi chiếm vĩnh viễn địa chỉ đó (cột `email` là UNIQUE), và đơn hàng gắn với một hộp thư không ai mở |
 | Chữ ký cổng thanh toán | Kiểm tra trước khi ghi nhận tiền | Gọi thẳng địa chỉ nhận kết quả để tự xác nhận đơn |
 | Tự hạ quyền | Chặn quản trị viên tự khoá và tự đổi vai trò của chính mình | Mất đường vào khu vực quản trị mà không tự sửa lại được |
 | Gán vai trò | `AdminService` đọc lại vai trò trong cùng giao dịch: mã lạ bị từ chối, và màn hình tạo nhân viên không nhận vai trò Khách hàng | Ô chọn trên biểu mẫu đã ẩn mục Khách hàng, nhưng ẩn một mục trong thẻ `select` không ngăn được ai gửi thẳng mã vai trò khác lên — rào chắn phải nằm sau giao diện |
@@ -789,21 +853,22 @@ phụ thuộc sang `jakarta.*` và đổi toàn bộ lệnh `import javax.servle
 ## 7. Bộ kiểm thử
 
 ```bash
-mvn test          # 558 bài
+mvn test          # 560 bài
 ```
 
 Chia hai nhóm bằng đuôi tên lớp:
 
 | Nhóm | Đuôi | Chạy ở đâu | Số bài |
 |---|---|---|---|
-| Không chạm cơ sở dữ liệu | `*Test` | Mọi máy, không cần gì thêm | 189 |
-| Chạy thật xuống cơ sở dữ liệu | `*IT` | Cần SQL Server ở `localhost:1433` | 369 |
+| Không chạm cơ sở dữ liệu | `*Test` | Mọi máy, không cần gì thêm | 203 |
+| Chạy thật xuống cơ sở dữ liệu | `*IT` | Cần SQL Server ở `localhost:1433` | 357 |
 
-Nhóm đầu gồm 183 bài logic thuần (`BusinessMathTest`, `PickupCodeGeneratorTest`,
+Nhóm đầu gồm 196 bài logic thuần (`BusinessMathTest`, `PickupCodeGeneratorTest`,
 `OrderStateTest`, `PasswordPolicyTest`, `SafeRedirectTest`, `LoginThrottleTest`,
-`CsrfTokenTest`, hai bài về cổng thanh toán SePay: `SePayGatewayTest` và
-`SePayWebhookServletTest` — xem §3.6, và bốn bài về bộ lọc: `RoleAuthorizationFilterTest`,
-`CsrfFilterTest`, `RequestPathTest`, `RoutePolicyTest`) và 6 bài dựng
+`CsrfTokenTest`, ba bài về cổng thanh toán: `VnPayGatewayTest` — xem §3.6 — cùng
+`SePayGatewayTest` và `SePayWebhookServletTest` — xem §3.7, và bốn bài về bộ lọc:
+`RoleAuthorizationFilterTest`, `CsrfFilterTest`, `RequestPathTest`, `RoutePolicyTest`)
+và 7 bài dựng
 tầng hiển thị (`BeanNamingTest`, `CsrfTokenPresenceTest`, `JspCompileTest` — chạy Jasper biên
 dịch toàn bộ JSP để một lỗi cú pháp trong trang không phải đợi tới lúc mở trình duyệt mới
 lộ ra).

@@ -127,7 +127,7 @@ sót một màn hình là rào chắn mất tác dụng. Hai đường duy nhấ
 `email_verified` thì ngược lại: enforce ở **tầng Service**, tại `CustomerOrderService.createOnlineOrder`.
 Nó không chặn cả một vùng màn hình như cờ trên mà chỉ chặn đúng một thao tác — đặt đơn online,
 nơi email thật sự cần thiết vì tin "món đã sẵn sàng" và mã nhận hàng đi qua đó. Chưa xác thực
-vẫn đăng nhập và xem thực đơn được. Xem `docs/STRUCTURE.md` §3.6.
+vẫn đăng nhập và xem thực đơn được. Xem `docs/STRUCTURE.md` §3.9.
 
 Hai bảng mã dùng một lần — `PasswordResetToken` và `EmailVerificationToken` — có cùng hình dáng
 (băm SHA-256, `expires_at`, `used_at`, `requested_ip`, `created_at`) và cố ý tách đôi thay vì

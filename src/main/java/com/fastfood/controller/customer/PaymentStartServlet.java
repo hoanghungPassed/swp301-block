@@ -21,9 +21,10 @@ public class PaymentStartServlet extends BaseServlet {
         User user = requireUser(req);
         int orderId = WebUtil.getInt(req, "orderId", 0);
         try {
-            String redirectUrl = paymentService.startOnlinePayment(
-                    orderId, user.getUserId(), WebUtil.baseUrl(req));
-            resp.sendRedirect(redirectUrl + "&orderId=" + orderId);
+            /* Đi thẳng tới địa chỉ cổng trả về, không gắn thêm tham số nào. VNPAY ký trên
+               đúng chuỗi truy vấn này; thêm một tham số của mình vào là chữ ký lệch. */
+            resp.sendRedirect(paymentService.startOnlinePayment(
+                    orderId, user.getUserId(), WebUtil.baseUrl(req)));
         } catch (AppException e) {
             WebUtil.flashError(req, e.getMessage());
             redirect(req, resp, "/order/track?orderId=" + orderId);

@@ -80,7 +80,23 @@ public final class AppConfig {
     }
 
     public static String gatewayProvider() {
-        return get("payment.gateway.provider", "MOCK");
+        return get("payment.gateway.provider", "VNPAY");
+    }
+
+    public static String vnpayTmnCode() {
+        return get("payment.vnpay.tmnCode", "");
+    }
+
+    public static String vnpayHashSecret() {
+        return get("payment.vnpay.hashSecret", "");
+    }
+
+    public static String vnpayPayUrl() {
+        return get("payment.vnpay.payUrl", "");
+    }
+
+    public static String vnpayReturnUrl() {
+        return get("payment.vnpay.returnUrl", "");
     }
 
     public static String sepayAccountNumber() {

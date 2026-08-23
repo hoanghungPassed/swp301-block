@@ -10,7 +10,6 @@ import com.fastfood.dao.shared.OrderDAO;
 import com.fastfood.dao.shared.PaymentDAO;
 import com.fastfood.dao.shared.TransactionDAO;
 import com.fastfood.integration.payment.GatewayCallback;
-import com.fastfood.integration.payment.MockPaymentGateway;
 import com.fastfood.integration.payment.PaymentGateway;
 import com.fastfood.integration.payment.PaymentGateways;
 import com.fastfood.integration.payment.PaymentInitResult;
@@ -223,12 +222,6 @@ public class PaymentService {
             }
             return payment;
         });
-    }
-
-    public String signFailure(int paymentId, String externalId, String amountText) {
-        return gateway instanceof MockPaymentGateway mock
-                ? mock.signFailure(paymentId, externalId, amountText)
-                : "";
     }
 
     public PaymentGateway getGateway() {

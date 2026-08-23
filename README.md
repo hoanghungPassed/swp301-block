@@ -53,9 +53,21 @@ Mật khẩu tất cả: **`123456`**
 ## Đường đi thử nhanh
 
 1. Đăng nhập `customer1`, thêm món vào giỏ, đặt trước với giờ hẹn **sau 35 phút**.
-2. Ở trang thanh toán giả lập, bấm **Thanh toán thành công** → đơn được xác nhận và
-   sinh mã nhận hàng. Bấm nút đó **lần nữa** để thấy hệ thống nhận ra giao dịch trùng
-   và không ghi nhận tiền thêm lần thứ hai.
+2. Hệ thống đẩy sang **cổng VNPAY (sandbox)**. Chọn *Thanh toán qua thẻ nội địa*, ngân
+   hàng **NCB**, rồi điền thẻ thử nghiệm bên dưới. Trả xong, VNPAY đưa ngược về ứng dụng
+   → đơn được xác nhận và sinh mã nhận hàng. Bấm **Quay lại** rồi mở lại đúng địa chỉ đó
+   để thấy hệ thống nhận ra giao dịch trùng và không ghi nhận tiền thêm lần thứ hai.
+
+   | Trường | Giá trị thẻ thử nghiệm |
+   |---|---|
+   | Ngân hàng | NCB |
+   | Số thẻ | `9704198526191432198` |
+   | Tên chủ thẻ | `NGUYEN VAN A` |
+   | Ngày phát hành | `07/15` |
+   | Mật khẩu OTP | `123456` |
+
+   Đây là máy chủ thử nghiệm của VNPAY, **không có đồng tiền thật nào chuyển đi**. Muốn
+   xem nhánh thất bại thì bấm huỷ ở trang VNPAY — đơn nằm nguyên chỗ cũ và trả lại được.
 3. Đăng nhập `kitchen1` → **hàng chờ trống**, vì đơn chưa tới giờ vào bếp.
    Đây chính là cơ chế giữ cho món không bị làm sớm.
 4. Muốn thấy ngay không phải chờ: đặt một đơn với giờ hẹn sau đúng 35 phút, rồi đợi
@@ -87,10 +99,35 @@ Chép liên kết đó dán vào trình duyệt là xác thực xong, và đặt
 thật sự đi ra ngoài thì điền `notification.mail.username` / `password` (Gmail phải là
 **App Password**) rồi đổi `notification.channel=SMTP` trong `src/main/resources/app.properties`.
 
-### Thu tiền thật bằng chuyển khoản (SePay)
+### Chuyển VNPAY sang tài khoản thật
 
-Cổng mặc định là bản giả lập ở trên. Muốn nhận tiền thật thì điền khối `payment.sepay.*`
-trong `src/main/resources/app.properties` rồi đổi `payment.gateway.provider=SEPAY`:
+Cấu hình sẵn trỏ vào sandbox. Lên thật thì thay ba dòng trong
+`src/main/resources/app.properties` bằng thông tin trong cổng quản trị merchant:
+
+```properties
+payment.vnpay.tmnCode=<mã website của bạn>
+payment.vnpay.hashSecret=<chuỗi bí mật tạo checksum>
+payment.vnpay.payUrl=https://vnpayment.vn/paymentv2/vpcpay.html
+```
+
+VNPAY báo kết quả về theo hai đường, cả hai đều đã nối sẵn:
+
+| Đường | Địa chỉ | Khi nào cần |
+|---|---|---|
+| Khách quay lại | `/payment/vnpay/return` | Luôn chạy, kể cả trên `localhost`. Nhưng khách đóng tab giữa chừng thì không bao giờ chạy |
+| IPN (máy gọi máy) | `/payment/vnpay/ipn` | Đường chắc chắn tới. Phải khai báo trong cổng quản trị VNPAY, và máy chủ phải ra được Internet |
+
+Chạy thử trên máy cá nhân thì chỉ đường thứ nhất hoạt động — đủ để đi hết luồng. Lên thật
+nên bật cả hai; lần thứ hai báo về bị nhận ra là trùng và bỏ qua nên không thu hai lần.
+
+`payment.vnpay.returnUrl` để trống thì địa chỉ quay về tự dựng từ nơi khách đang truy cập.
+Chỉ điền khi máy chủ nằm sau proxy và tự nó không biết tên miền thật bên ngoài.
+
+### Thu tiền bằng chuyển khoản VietQR (SePay)
+
+Muốn nhận tiền thẳng vào tài khoản ngân hàng thay vì đi qua cổng thì điền khối
+`payment.sepay.*` trong `src/main/resources/app.properties` rồi đổi
+`payment.gateway.provider=SEPAY`:
 
 ```properties
 payment.gateway.provider=SEPAY
@@ -100,7 +137,7 @@ payment.sepay.accountName=CUA HANG ABC
 payment.sepay.apiKey=<khoá tự đặt trong bảng điều khiển SePay>
 ```
 
-Khi đó trang thanh toán giả lập đóng lại (trả 404) và thay bằng trang mã VietQR: khách quét
+Khi đó khách không còn bị đẩy sang VNPAY nữa mà ở lại trang mã VietQR: khách quét
 bằng ứng dụng ngân hàng, tiền vào **thẳng tài khoản của cửa hàng**, SePay chỉ đọc biến động
 số dư rồi báo về. Trang tự cập nhật khi tiền tới nơi, khách không phải bấm gì.
 
@@ -110,7 +147,7 @@ mọi lần báo có tiền đều bị từ chối và ghi một dòng `SEVERE`
 Internet, nên lúc chạy trên máy cá nhân cần một đường hầm (ngrok, Cloudflare Tunnel) chứ
 `localhost` thì SePay không gọi tới được.
 
-Chi tiết luồng và các chốt chặn: xem `docs/STRUCTURE.md` §3.6.
+Chi tiết luồng và các chốt chặn: xem `docs/STRUCTURE.md` §3.7.
 
 ## Quy mô
 

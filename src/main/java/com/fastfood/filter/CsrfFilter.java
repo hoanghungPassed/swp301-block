@@ -21,7 +21,7 @@ public class CsrfFilter implements Filter {
     private static final Set<String> SAFE_METHODS = Set.of("GET", "HEAD", "OPTIONS", "TRACE");
 
     private static final Set<String> EXEMPT_PATHS = Set.of(
-            "/payment/callback", "/payment/sepay/webhook");
+            "/payment/vnpay/return", "/payment/vnpay/ipn", "/payment/sepay/webhook");
 
     private static final String STATIC_PREFIX = "/assets/";
 

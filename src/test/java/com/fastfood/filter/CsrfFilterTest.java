@@ -173,7 +173,7 @@ class CsrfFilterTest {
         void gatewayCallbackIsExempt() throws Exception {
             FakeHttp.Chain chain = FakeHttp.chain();
 
-            filter.doFilter(FakeHttp.request("/payment/callback").method("POST").build(),
+            filter.doFilter(FakeHttp.request("/payment/vnpay/ipn").method("POST").build(),
                     FakeHttp.response().build(), chain.build());
 
             assertTrue(chain.ran());
@@ -195,7 +195,7 @@ class CsrfFilterTest {
         void exemptionDoesNotLeakToNeighbouringPaths() throws Exception {
             FakeHttp.Chain chain = FakeHttp.chain();
 
-            filter.doFilter(FakeHttp.request("/payment/callback/admin").method("POST").build(),
+            filter.doFilter(FakeHttp.request("/payment/vnpay/return/admin").method("POST").build(),
                     FakeHttp.response().build(), chain.build());
 
             assertFalse(chain.ran(),

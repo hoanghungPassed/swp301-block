@@ -37,14 +37,23 @@ public final class PaymentGateways {
                 return sepay;
             }
             LOG.severe("Cong thanh toan dat la SEPAY nhung thieu payment.sepay.accountNumber/bank/apiKey"
-                    + " - tam dung ban gia lap");
-            return new MockPaymentGateway();
+                    + " - quay ve VNPAY");
+        } else if (!"VNPAY".equals(name) && !name.isEmpty()) {
+            LOG.warning("Khong biet cong thanh toan '" + provider + "', dung VNPAY");
         }
-        if (!"MOCK".equals(name) && !name.isEmpty()) {
-            LOG.warning("Khong biet cong thanh toan '" + provider + "', dung ban gia lap");
+
+        VnPayGateway vnpay = new VnPayGateway();
+        if (!vnpay.isConfigured()) {
+            /* Không tự chuyển sang một cổng khác cho "chạy được": thiếu mã website hoặc chuỗi bí
+               mật thì không có cách nào thu tiền, và một cổng giả lập âm thầm thế chỗ là đúng
+               thứ khiến người ta tưởng đã thu được. Để nó hỏng ngay ở bước mở cổng, kèm lý do. */
+            LOG.severe("Thieu payment.vnpay.tmnCode hoac payment.vnpay.hashSecret"
+                    + " - khach se khong mo duoc cong thanh toan");
+        } else {
+            LOG.info("Cong thanh toan: VNPAY, ma website " + vnpay.getTmnCode()
+                    + ", may chu " + vnpay.getPayUrl());
         }
-        LOG.info("Cong thanh toan: MOCK (trang thanh toan gia lap trong ung dung)");
-        return new MockPaymentGateway();
+        return vnpay;
     }
 
     static void reset() {

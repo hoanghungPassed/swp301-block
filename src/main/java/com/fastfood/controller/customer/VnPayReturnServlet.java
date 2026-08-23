@@ -4,16 +4,24 @@ import com.fastfood.common.exception.AppException;
 import com.fastfood.common.util.WebUtil;
 import com.fastfood.controller.BaseServlet;
 import com.fastfood.integration.payment.GatewayCallback;
+import com.fastfood.integration.payment.VnPayGateway;
 import com.fastfood.service.shared.PaymentService;
 
 import javax.servlet.annotation.WebServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
-import java.math.BigDecimal;
 
-@WebServlet("/payment/callback")
-public class PaymentCallbackServlet extends BaseServlet {
+/**
+ * VNPAY đưa khách quay lại đây sau khi trả tiền xong.
+ *
+ * <p>Không đòi đăng nhập: khách vừa đi vòng qua trang của VNPAY, và ở vài trình duyệt/ứng dụng
+ * ngân hàng thì lần quay lại này không mang theo cookie phiên. Chỗ dựa để tin kết quả không
+ * phải là phiên đăng nhập mà là chữ ký trên gói tham số — {@link PaymentService#handleCallback}
+ * kiểm lại chữ ký trước khi ghi bất cứ thứ gì.
+ */
+@WebServlet("/payment/vnpay/return")
+public class VnPayReturnServlet extends BaseServlet {
 
     private final PaymentService paymentService = new PaymentService();
 
@@ -28,27 +36,24 @@ public class PaymentCallbackServlet extends BaseServlet {
     }
 
     private void process(HttpServletRequest req, HttpServletResponse resp) throws IOException {
-        GatewayCallback callback = new GatewayCallback();
-        callback.setPaymentId(WebUtil.getInt(req, "paymentId", 0));
-        callback.setExternalTransactionId(WebUtil.getString(req, "txnId"));
-        callback.setSuccess(WebUtil.getBoolean(req, "success"));
-        callback.setAmount(parseAmount(WebUtil.getString(req, "amount")));
-        callback.setSignature(WebUtil.getString(req, "sig"));
-        callback.setRawPayload(req.getQueryString());
+        if (!(paymentService.getGateway() instanceof VnPayGateway vnpay)) {
+            resp.sendError(HttpServletResponse.SC_NOT_FOUND);
+            return;
+        }
 
-        int orderId = WebUtil.getInt(req, "orderId", 0);
+        GatewayCallback callback = VnPayCallbacks.from(req, vnpay);
+        int orderId = 0;
 
         try {
             PaymentService.CallbackResult result = paymentService.handleCallback(callback);
-            if (orderId <= 0) {
-                orderId = paymentService.orderIdOfPayment(callback.getPaymentId());
-            }
+            orderId = paymentService.orderIdOfPayment(callback.getPaymentId());
             switch (result) {
                 case PAID:
                     WebUtil.flashSuccess(req, "Thanh toán thành công. Đơn hàng đã được xác nhận.");
                     break;
                 case FAILED:
-                    WebUtil.flashError(req, "Thanh toán không thành công. Bạn có thể thử lại.");
+                    WebUtil.flashError(req, "Thanh toán không thành công ("
+                            + VnPayCallbacks.reason(req) + "). Bạn có thể thử lại.");
                     break;
                 case REFUNDED_ORDER_GONE:
                     WebUtil.flashError(req, "Đơn hàng đã hết hiệu lực trước khi thanh toán hoàn tất. "
@@ -61,22 +66,17 @@ public class PaymentCallbackServlet extends BaseServlet {
                     break;
                 case DUPLICATE:
                 default:
+                    /* IPN thường về trước lúc khách bấm quay lại, nên lần này bị nhận ra là trùng
+                       và bỏ qua. Không báo gì thêm — trang theo dõi đơn đã hiện đúng trạng thái. */
                     break;
             }
         } catch (AppException e) {
             WebUtil.flashError(req, e.getMessage());
         }
-        redirect(req, resp, "/order/track?orderId=" + orderId);
-    }
 
-    private static BigDecimal parseAmount(String raw) {
-        if (raw == null || raw.isBlank()) {
-            return null;
+        if (orderId <= 0) {
+            orderId = paymentService.orderIdOfPayment(callback.getPaymentId());
         }
-        try {
-            return new BigDecimal(raw.trim());
-        } catch (NumberFormatException e) {
-            return null;
-        }
+        redirect(req, resp, orderId > 0 ? "/order/track?orderId=" + orderId : "/order/history");
     }
 }

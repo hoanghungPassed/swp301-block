@@ -2,7 +2,8 @@ package com.fastfood.flow;
 
 import com.fastfood.common.exception.AppException.BusinessException;
 import com.fastfood.integration.payment.GatewayCallback;
-import com.fastfood.integration.payment.MockPaymentGateway;
+import com.fastfood.config.AppConfig;
+import com.fastfood.integration.payment.VnPayGateway;
 import com.fastfood.model.entity.OrderEntities.Order;
 import com.fastfood.model.entity.OrderEntities.OrderItem;
 import com.fastfood.service.customer.CartService;
@@ -20,6 +21,7 @@ import java.math.BigDecimal;
 import java.net.URI;
 import java.time.LocalDateTime;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -125,7 +127,7 @@ class OnlinePreorderFlowIT extends IntegrationTestBase {
                 "idem-lech-" + System.nanoTime());
 
         Callback dung = startPayment(order.getOrderId());
-        Callback thieu = dung.withAmount(order.getOrderId(), new BigDecimal("10000"));
+        Callback thieu = dung.withAmount(new BigDecimal("10000"));
 
         assertEquals(PaymentService.CallbackResult.AMOUNT_MISMATCH,
                 paymentService.handleCallback(thieu.toGateway()));
@@ -355,11 +357,15 @@ class OnlinePreorderFlowIT extends IntegrationTestBase {
              LocalDateTime.now().minusMinutes(1), orderId);
     }
 
+    /**
+     * Đi qua đúng bước mở cổng thật: gọi startOnlinePayment, đọc lại địa chỉ VNPAY mà nó dựng
+     * ra, rồi dựng gói tham số VNPAY sẽ gửi ngược về. Nhờ vậy bài kiểm tra vẫn sập nếu tham số
+     * gửi đi bị đổi tên hay thiếu.
+     */
     private Callback startPayment(int orderId) {
-        String redirect = paymentService.startOnlinePayment(orderId, customerId, "http://test");
-        Map<String, String> q = queryParams(redirect);
-        return new Callback(Integer.parseInt(q.get("paymentId")), q.get("txnId"),
-                new BigDecimal(q.get("amount")), q.get("sig"));
+        Map<String, String> q = queryParams(
+                paymentService.startOnlinePayment(orderId, customerId, "http://test"));
+        return Callback.of(q.get("vnp_TxnRef"), new BigDecimal(q.get("vnp_Amount")).movePointLeft(2));
     }
 
     private static Map<String, String> queryParams(String url) {
@@ -385,13 +391,53 @@ class OnlinePreorderFlowIT extends IntegrationTestBase {
                 "SELECT released_to_kds_at FROM dbo.Orders WHERE order_id = ?", orderId);
     }
 
-    private record Callback(int paymentId, String externalId, BigDecimal amount, String signature) {
+    /* Cùng chuỗi bí mật với cấu hình đang chạy, nên chữ ký dựng ở đây khớp với chữ ký
+       PaymentService kiểm lại — đúng như VNPAY thật ký gói gửi về. Dựng lúc gọi chứ không để
+       thành hằng số: app.properties chỉ được nạp trong @BeforeAll, còn hằng số static thì đã
+       chạy xong từ lúc nạp lớp, và sẽ chộp phải chuỗi bí mật rỗng. */
+    private static VnPayGateway vnpay() {
+        return new VnPayGateway(AppConfig.vnpayTmnCode(), AppConfig.vnpayHashSecret(), "", "", 15);
+    }
 
-        Callback withAmount(int orderId, BigDecimal other) {
-            String url = new MockPaymentGateway()
-                    .initiate(paymentId, orderId, other, "http://test").getRedirectUrl();
-            Map<String, String> q = queryParams(url);
-            return new Callback(paymentId, q.get("txnId"), other, q.get("sig"));
+    /** Một lần VNPAY báo kết quả về, đã ký sẵn. */
+    private record Callback(int paymentId, String externalId, BigDecimal amount,
+                            Map<String, String> params) {
+
+        /* Mã giao dịch phải khác nhau giữa các đơn: bảng giao dịch có ràng buộc duy nhất trên
+           cột này, nên dùng chung một hằng số thì đơn thứ hai trong cùng lần chạy bị coi là
+           gọi trùng. Mã tham chiếu đã đủ duy nhất rồi, lấy luôn phần số của nó. */
+        private static String transactionNo(String txnRef) {
+            return txnRef.replace("-", "");
+        }
+
+        static Callback of(String txnRef, BigDecimal amount) {
+            String transactionNo = transactionNo(txnRef);
+            Map<String, String> p = new LinkedHashMap<>();
+            p.put("vnp_TmnCode", AppConfig.vnpayTmnCode());
+            p.put("vnp_Amount", amount.movePointRight(2).toBigInteger().toString());
+            p.put("vnp_BankCode", "NCB");
+            p.put("vnp_CardType", "ATM");
+            p.put("vnp_OrderInfo", "Thanh toan don hang");
+            p.put("vnp_PayDate", "20250101120000");
+            p.put("vnp_ResponseCode", VnPayGateway.CODE_SUCCESS);
+            p.put("vnp_TransactionStatus", VnPayGateway.CODE_SUCCESS);
+            p.put("vnp_TransactionNo", transactionNo);
+            p.put("vnp_TxnRef", txnRef);
+            p.put("vnp_SecureHash", vnpay().sign(p));
+            return new Callback(vnpay().paymentIdFrom(txnRef), "VNPAY-" + transactionNo, amount, p);
+        }
+
+        /** Cùng một lần trả tiền nhưng số tiền về không đúng — ký lại cho hợp lệ về chữ ký. */
+        Callback withAmount(BigDecimal other) {
+            String transactionNo = transactionNo(params.get("vnp_TxnRef")) + "9";
+            Map<String, String> p = new LinkedHashMap<>(params);
+            p.remove("vnp_SecureHash");
+            p.put("vnp_Amount", other.movePointRight(2).toBigInteger().toString());
+            /* Mã giao dịch phải khác lần trả đúng, nếu không lần này bị coi là gọi trùng chứ
+               không phải lệch tiền, và bài kiểm tra đo nhầm thứ. */
+            p.put("vnp_TransactionNo", transactionNo);
+            p.put("vnp_SecureHash", vnpay().sign(p));
+            return new Callback(paymentId, "VNPAY-" + transactionNo, other, p);
         }
 
         GatewayCallback toGateway() {
@@ -400,8 +446,9 @@ class OnlinePreorderFlowIT extends IntegrationTestBase {
             cb.setExternalTransactionId(externalId);
             cb.setSuccess(true);
             cb.setAmount(amount);
-            cb.setSignature(signature);
-            cb.setRawPayload("{\"test\":true}");
+            cb.setSignature(params.get("vnp_SecureHash"));
+            cb.setParams(params);
+            cb.setRawPayload("vnp_TxnRef=" + params.get("vnp_TxnRef"));
             return cb;
         }
     }
