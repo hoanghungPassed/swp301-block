@@ -97,6 +97,37 @@ public class KitchenService {
         return KdsOrderView.group(Tx.read(con -> orderItemDAO.findHandoverOrderItems(con, userId)));
     }
 
+    /**
+     * Người bếp đang giữ đơn, hoặc {@code null} nếu chưa ai nhận. Mỗi đơn chỉ một người, nên
+     * món nào có tên người nhận cũng cho ra cùng một câu trả lời. Trả về nguyên món để nơi gọi
+     * lấy được cả mã lẫn tên người đó.
+     */
+    public OrderItem holderOfOrder(int orderId) {
+        return Tx.read(con -> holderOf(orderItemDAO.findByOrder(con, orderId)));
+    }
+
+    private static OrderItem holderOf(List<OrderItem> items) {
+        for (OrderItem item : items) {
+            if (item.getAssignedToUserId() != null) {
+                return item;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Chặn người thứ hai chen vào một đơn đã có người bếp nhận. Phải gọi sau khi khoá đơn, vì
+     * hai đầu bếp bấm cùng lúc thì chỉ khoá mới xếp được ai đọc trước ai đọc sau.
+     */
+    private static void requireNobodyElseHoldsOrder(List<OrderItem> items, int userId) {
+        OrderItem holder = holderOf(items);
+        if (holder != null && holder.getAssignedToUserId() != userId) {
+            throw new BusinessException("Đơn này đang do "
+                    + (holder.getAssignedToName() == null ? "người khác" : holder.getAssignedToName())
+                    + " làm. Mỗi đơn chỉ một người bếp nhận.");
+        }
+    }
+
     /** Nhận trọn một đơn. Đơn đã có người bếp khác đụng vào thì từ chối, không nhận nửa vời. */
     public void claimOrder(int orderId, int userId) {
         LocalDateTime now = DateTimeUtil.now();
@@ -112,14 +143,7 @@ public class KitchenService {
             }
 
             List<OrderItem> items = orderItemDAO.findByOrder(con, orderId);
-            for (OrderItem item : items) {
-                Integer owner = item.getAssignedToUserId();
-                if (owner != null && owner != userId) {
-                    throw new BusinessException("Đơn này đang do "
-                            + (item.getAssignedToName() == null ? "người khác" : item.getAssignedToName())
-                            + " làm. Mỗi đơn chỉ một người bếp nhận.");
-                }
-            }
+            requireNobodyElseHoldsOrder(items, userId);
 
             int claimed = 0;
             for (OrderItem item : items) {
@@ -133,7 +157,10 @@ public class KitchenService {
                 }
             }
             if (claimed == 0) {
-                throw new BusinessException("Đơn này vừa được người khác nhận.");
+                /* Người khác chen vào đã bị chặn ở trên, nên hết món để nhận chỉ còn hai lý do:
+                   chính tôi đã nhận rồi, hoặc đơn vừa rời khỏi bếp. */
+                throw new BusinessException("Đơn này không còn món nào chờ nhận — "
+                        + "có thể bạn đã nhận rồi hoặc đơn vừa bị huỷ.");
             }
             orderCore.recalculateStatus(con, orderId, now);
         });
@@ -209,6 +236,11 @@ public class KitchenService {
         });
     }
 
+    /**
+     * Nhận lẻ một món. Vẫn phải là đơn chưa ai đụng vào hoặc chính đơn tôi đang làm: nhận lẻ
+     * một món của đơn người khác là hai người cùng nấu một đơn, mỗi người xong một nửa và
+     * không ai bàn giao được trọn đơn ra quầy.
+     */
     public void claim(int orderItemId, int userId) {
         LocalDateTime now = DateTimeUtil.now();
         Tx.writeVoid(con -> {
@@ -217,6 +249,7 @@ public class KitchenService {
                 throw new NotFoundException("Không tìm thấy món cần chế biến.");
             }
             orderCore.lockOrder(con, item.getOrderId());
+            requireNobodyElseHoldsOrder(orderItemDAO.findByOrder(con, item.getOrderId()), userId);
 
             int changed = orderItemDAO.claim(con, orderItemId, userId, now);
             if (changed == 0) {
