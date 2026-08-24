@@ -1,5 +1,6 @@
 package com.fastfood.controller.kitchen;
 
+import com.fastfood.common.util.DateTimeUtil;
 import com.fastfood.common.util.WebUtil;
 import com.fastfood.controller.BaseServlet;
 import com.fastfood.model.entity.UserEntities.User;
@@ -28,12 +29,12 @@ public class KitchenHistoryServlet extends BaseServlet {
         req.setAttribute("mineOnly", mineOnly);
         req.setAttribute("pageData", kitchenService.recentReady(
                 WebUtil.getInt(req, "page", 1), mineOnly ? user.getUserId() : 0));
-        req.setAttribute("handovers", noteService.recentHandovers());
-        req.setAttribute("today", LocalDate.now());
+        req.setAttribute("kitchenNotes", noteService.recentNotes());
+        req.setAttribute("today", DateTimeUtil.now().toLocalDate());
 
         int editId = WebUtil.getInt(req, "editNote", 0);
         if (editId > 0) {
-            req.setAttribute("editingNote", noteService.findHandover(editId));
+            req.setAttribute("editingNote", noteService.findNote(editId));
         }
         forward(req, resp, "kitchen/history.jsp");
     }
@@ -48,30 +49,30 @@ public class KitchenHistoryServlet extends BaseServlet {
 
         switch (WebUtil.getString(req, "action") == null ? "" : WebUtil.getString(req, "action")) {
             case "noteUpdate":
-                handle(req, resp, () -> noteService.updateHandover(noteId, user.getUserId(), content),
-                        "Đã sửa dòng bàn giao.", back);
+                handle(req, resp, () -> noteService.updateNote(noteId, user.getUserId(), content),
+                        "Đã sửa ghi chú bếp.", back);
                 return;
             case "noteDelete":
-                handle(req, resp, () -> noteService.deleteHandover(noteId, user.getUserId()),
-                        "Đã xoá dòng bàn giao.", back);
+                handle(req, resp, () -> noteService.deleteNote(noteId, user.getUserId()),
+                        "Đã xoá ghi chú bếp.", back);
                 return;
             case "noteAdd":
             default:
-                handle(req, resp, () -> noteService.addHandover(
+                handle(req, resp, () -> noteService.addNote(
                                 parseDate(WebUtil.getString(req, "shiftDate")),
                                 user.getUserId(), content),
-                        "Đã ghi vào sổ bàn giao.", back);
+                        "Đã thêm ghi chú bếp.", back);
         }
     }
 
     private LocalDate parseDate(String value) {
         if (value == null || value.isBlank()) {
-            return LocalDate.now();
+            return DateTimeUtil.now().toLocalDate();
         }
         try {
             return LocalDate.parse(value.trim());
         } catch (DateTimeParseException e) {
-            return LocalDate.now();
+            return DateTimeUtil.now().toLocalDate();
         }
     }
 }

@@ -1,11 +1,11 @@
 <c:set var="pageTitle" value="Bếp" /><c:set var="nav" value="queue" />
 <%@ include file="/WEB-INF/views/layout/page-start.jspf" %>
   <%-- Nhận món / bàn giao xong quay lại đúng trang của từng khối. Khối kế hoạch chuẩn bị
-       dùng đường riêng vì máy chủ tự nối ngày vào cuối. --%>
-  <c:set var="kdsQuery"  value="${ff:pageQuery(pageContext.request, 'editPrep')}" />
+       dùng đường riêng vì máy chủ tự nối ngày vào cuối. Sửa kế hoạch mở tại chỗ bằng JS. --%>
+  <c:set var="kdsQuery"  value="${ff:pageQuery(pageContext.request, '')}" />
   <c:set var="kdsBack"   value="/kitchen/queue${empty kdsQuery ? '' : '?'.concat(kdsQuery)}" />
   <c:set var="kdsReturn"><input type="hidden" name="returnTo" value="<c:out value="${kdsBack}"/>"></c:set>
-  <c:set var="prepQuery" value="${ff:pageQuery(pageContext.request, 'editPrep,prepDate')}" />
+  <c:set var="prepQuery" value="${ff:pageQuery(pageContext.request, 'prepDate')}" />
   <c:set var="prepBack"  value="/kitchen/queue${empty prepQuery ? '' : '?'.concat(prepQuery)}" />
   <c:set var="prepReturn"><input type="hidden" name="returnTo" value="<c:out value="${prepBack}"/>"></c:set>
   <div class="page-head">
@@ -150,20 +150,30 @@
             <div class="mt"><span class="tag tag-red">${ff:orderStatus(o.orderStatus)} — mang bỏ, không giao khách</span></div>
           </c:if>
           <c:if test="${o.openIssueCount gt 0}">
-            <div class="mt"><span class="tag tag-red">${o.openIssueCount} sự cố đang mở — xem lý do trước khi bàn giao lại</span></div>
+            <div class="mt"><span class="tag tag-red">${o.openIssueCount} sự cố đang mở — phải xử lý hoặc thu hồi trước khi đưa ra quầy</span></div>
           </c:if>
           <div class="small muted mt">Xong lúc ${ff:time(o.readyAt)}</div>
           <div class="actions">
-            <form method="post" action="${ctx}/kitchen/queue" class="grow"
-                  data-confirm="Bàn giao cả đơn này ra quầy?">
-              <input type="hidden" name="_csrf" value="${csrfToken}">
-              <input type="hidden" name="action" value="handoverOrder">
-              ${kdsReturn}
-              <input type="hidden" name="orderId" value="${o.orderId}">
-              <button type="submit" class="btn btn-primary btn-block touch">
-                Bàn giao cả đơn ra quầy
-              </button>
-            </form>
+            <c:choose>
+              <c:when test="${o.openIssueCount gt 0}">
+                <button type="button" class="btn btn-block touch" disabled
+                        title="Hãy xử lý hoặc thu hồi tất cả sự cố đang mở trước">
+                  Chưa thể đưa ra quầy
+                </button>
+              </c:when>
+              <c:otherwise>
+                <form method="post" action="${ctx}/kitchen/queue" class="grow"
+                      data-confirm="Bàn giao cả đơn này ra quầy?">
+                  <input type="hidden" name="_csrf" value="${csrfToken}">
+                  <input type="hidden" name="action" value="handoverOrder">
+                  ${kdsReturn}
+                  <input type="hidden" name="orderId" value="${o.orderId}">
+                  <button type="submit" class="btn btn-primary btn-block touch">
+                    Bàn giao cả đơn ra quầy
+                  </button>
+                </form>
+              </c:otherwise>
+            </c:choose>
           </div>
         </div>
       </c:forEach>
@@ -208,7 +218,13 @@
             <td class="center">
               <c:choose>
                 <c:when test="${t.planned}">
-                  <a class="btn btn-sm" href="${ctx}/kitchen/queue?prepDate=${prepDate}&amp;editPrep=${t.prepTaskId}">Sửa</a>
+                  <button type="button" class="btn btn-sm" data-prep-edit
+                          data-prep-id="${t.prepTaskId}"
+                          data-prep-product="${fn:escapeXml(t.productName)}"
+                          data-prep-planned="${t.plannedQty}"
+                          data-prep-done="${t.doneQty}"
+                          data-prep-note="${fn:escapeXml(t.note)}"
+                          aria-controls="prep-edit-panel">Sửa</button>
                   <form method="post" action="${ctx}/kitchen/queue" class="inline-form"
                         data-confirm="Chốt dòng kế hoạch chuẩn bị này?">
                     <input type="hidden" name="_csrf" value="${csrfToken}">
@@ -243,58 +259,72 @@
     <ui:pager page="${prepPage}" pageParam="prepPage" anchor="chuan-bi" label="dòng kế hoạch" />
   </div>
 
-  <div class="card mb">
-    <h2>${empty editingPrep ? 'Thêm vào kế hoạch' : 'Sửa dòng kế hoạch'}</h2>
-    <form method="post" action="${ctx}/kitchen/queue"
-          data-confirm="${empty editingPrep ? 'Thêm dòng này vào kế hoạch chuẩn bị?' : 'Lưu thay đổi cho dòng kế hoạch này?'}">
+  <div class="card mb" id="prep-edit-panel" hidden>
+    <div class="row-between">
+      <h2>Sửa phần chuẩn bị sẵn</h2>
+      <button type="button" class="btn btn-sm" data-prep-edit-cancel>Đóng</button>
+    </div>
+    <p class="small muted" id="prep-edit-product"></p>
+    <form method="post" action="${ctx}/kitchen/queue" id="prep-edit-form"
+          data-confirm="Lưu thay đổi cho dòng kế hoạch này?">
       <input type="hidden" name="_csrf" value="${csrfToken}">
-      <input type="hidden" name="action" value="${empty editingPrep ? 'prepCreate' : 'prepUpdate'}">
+      <input type="hidden" name="action" value="prepUpdate">
+      ${prepReturn}
+      <input type="hidden" name="prepDate" value="${prepDate}">
+      <input type="hidden" name="prepTaskId" id="prep-edit-id">
+
+      <div class="field">
+        <label for="prep-edit-done">Đã làm được</label>
+        <input type="number" id="prep-edit-done" name="doneQty" min="0" max="999" required>
+      </div>
+      <div class="field">
+        <label for="prep-edit-planned">Số phần dự kiến</label>
+        <input type="number" id="prep-edit-planned" name="plannedQty" min="1" max="999" required>
+      </div>
+      <div class="field">
+        <label for="prep-edit-note">Ghi chú</label>
+        <input type="text" id="prep-edit-note" name="note" maxlength="300"
+               placeholder="ví dụ: nướng sẵn trước 11h">
+      </div>
+      <button type="submit" class="btn btn-primary btn-block">Lưu thay đổi</button>
+    </form>
+  </div>
+
+  <div class="card mb">
+    <h2>Thêm vào kế hoạch</h2>
+    <form method="post" action="${ctx}/kitchen/queue"
+          data-confirm="Thêm dòng này vào kế hoạch chuẩn bị?">
+      <input type="hidden" name="_csrf" value="${csrfToken}">
+      <input type="hidden" name="action" value="prepCreate">
       ${prepReturn}
       <input type="hidden" name="prepDate" value="${prepDate}">
 
-      <c:choose>
-        <c:when test="${empty editingPrep}">
-          <div class="field">
-            <label for="productId">Món cần chuẩn bị sẵn</label>
-            <select id="productId" name="productId" required>
-              <c:forEach var="p" items="${prepProducts}">
-                <option value="${p.productId}"><c:out value="${p.name}"/></option>
-              </c:forEach>
-            </select>
-            <p class="small muted mt">Chỉ liệt kê món còn bán. Mỗi món một dòng cho mỗi ngày.</p>
-          </div>
-        </c:when>
-        <c:otherwise>
-          <input type="hidden" name="prepTaskId" value="${editingPrep.prepTaskId}">
-          <p class="small muted"><c:out value="${editingPrep.productName}"/></p>
-          <div class="field">
-            <label for="doneQty">Đã làm được</label>
-            <input type="number" id="doneQty" name="doneQty" min="0" max="999"
-                   value="${editingPrep.doneQty}" required>
-          </div>
-        </c:otherwise>
-      </c:choose>
+      <div class="field">
+        <label for="productId">Món cần chuẩn bị sẵn</label>
+        <select id="productId" name="productId" required>
+          <c:forEach var="p" items="${prepProducts}">
+            <option value="${p.productId}"><c:out value="${p.name}"/></option>
+          </c:forEach>
+        </select>
+        <p class="small muted mt">Chỉ liệt kê món còn bán. Mỗi món một dòng cho mỗi ngày.</p>
+      </div>
 
       <div class="field">
         <label for="plannedQty">Số phần dự kiến</label>
         <input type="number" id="plannedQty" name="plannedQty" min="1" max="999"
-               value="${empty editingPrep ? 10 : editingPrep.plannedQty}" required>
+               value="10" required>
       </div>
 
       <div class="field">
         <label for="note">Ghi chú</label>
         <input type="text" id="note" name="note" maxlength="300"
-               value="${empty editingPrep ? '' : fn:escapeXml(editingPrep.note)}"
                placeholder="ví dụ: nướng sẵn trước 11h">
       </div>
 
       <button type="submit" class="btn btn-primary btn-block">
-        ${empty editingPrep ? 'Thêm vào kế hoạch' : 'Lưu thay đổi'}
+        Thêm vào kế hoạch
       </button>
     </form>
-    <c:if test="${not empty editingPrep}">
-      <a class="btn btn-block mt" href="${ctx}/kitchen/queue?prepDate=${prepDate}">Huỷ sửa</a>
-    </c:if>
   </div>
 
   <h2 id="hang-cho">Hàng chờ</h2>

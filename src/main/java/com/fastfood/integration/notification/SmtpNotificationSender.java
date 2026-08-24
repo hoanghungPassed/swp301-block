@@ -39,7 +39,7 @@ public class SmtpNotificationSender implements NotificationSender {
 
     @Override
     public String getChannel() {
-        return "SMTP";
+        return "EMAIL";
     }
 
     public boolean isConfigured() {

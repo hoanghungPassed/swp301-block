@@ -843,6 +843,46 @@
         }, true);
     }
 
+    /* Mở biểu mẫu sửa kế hoạch chuẩn bị ngay trong trang. Trước đây nút Sửa là một
+       liên kết GET có editPrep nên trình duyệt phải tải lại toàn bộ KDS chỉ để điền form. */
+    function bindPrepInlineEdit() {
+        var panel = document.getElementById('prep-edit-panel');
+        var form = document.getElementById('prep-edit-form');
+        if (!panel || !form) {
+            return;
+        }
+
+        var idInput = document.getElementById('prep-edit-id');
+        var product = document.getElementById('prep-edit-product');
+        var planned = document.getElementById('prep-edit-planned');
+        var done = document.getElementById('prep-edit-done');
+        var note = document.getElementById('prep-edit-note');
+
+        function closeEditor() {
+            panel.hidden = true;
+            form.reset();
+        }
+
+        document.addEventListener('click', function (e) {
+            var editButton = e.target.closest('[data-prep-edit]');
+            if (editButton) {
+                idInput.value = editButton.dataset.prepId || '';
+                product.textContent = editButton.dataset.prepProduct || '';
+                planned.value = editButton.dataset.prepPlanned || '';
+                done.value = editButton.dataset.prepDone || '0';
+                note.value = editButton.dataset.prepNote || '';
+                panel.hidden = false;
+                panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                window.setTimeout(function () { planned.focus(); }, 250);
+                return;
+            }
+
+            if (e.target.closest('[data-prep-edit-cancel]')) {
+                closeEditor();
+            }
+        });
+    }
+
     ready(function () {
         watchKdsQueue();
         watchOrderStatus();
@@ -859,5 +899,6 @@
         bindUrlPreview();
         bindCartQuantity();
         bindPrint();
+        bindPrepInlineEdit();
     });
 })();

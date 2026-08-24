@@ -45,10 +45,6 @@ public class KdsQueueServlet extends BaseServlet {
                 WebUtil.getInt(req, "prepPage", 1), Page.SMALL_SIZE));
         req.setAttribute("prepProducts", menuService.browse(null, null));
 
-        int editId = WebUtil.getInt(req, "editPrep", 0);
-        if (editId > 0) {
-            req.setAttribute("editingPrep", prepService.findById(editId));
-        }
         forward(req, resp, "kitchen/kds-queue.jsp");
     }
 

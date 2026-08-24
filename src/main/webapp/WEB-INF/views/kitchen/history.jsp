@@ -58,7 +58,7 @@
   </div>
 
   <div class="card pad0 table-wrap">
-    <div class="card-head"><h2>Sổ bàn giao ca (7 ngày gần nhất)</h2></div>
+    <div class="card-head"><h2>Ghi chú bếp (7 ngày gần nhất)</h2></div>
     <table>
       <thead>
         <tr>
@@ -67,7 +67,7 @@
         </tr>
       </thead>
       <tbody>
-        <c:forEach var="n" items="${handovers}">
+        <c:forEach var="n" items="${kitchenNotes}">
           <tr>
             <td class="small muted">
               ${n.shiftDate}
@@ -80,7 +80,7 @@
                 <a class="btn btn-sm" href="${ctx}/kitchen/history?editNote=${n.kitchenNoteId}<c:if
                    test="${mineOnly}">&amp;mine=1</c:if>">Sửa</a>
                 <form method="post" action="${ctx}/kitchen/history" class="inline-form"
-                      data-confirm="Xoá hẳn dòng bàn giao này?">
+                      data-confirm="Xoá hẳn ghi chú này?">
                   <input type="hidden" name="_csrf" value="${csrfToken}">
                   <input type="hidden" name="action" value="noteDelete">
                   <input type="hidden" name="noteId" value="${n.kitchenNoteId}">
@@ -91,39 +91,36 @@
             </td>
           </tr>
         </c:forEach>
-        <c:if test="${empty handovers}">
-          <tr><td colspan="4" class="center muted cell-empty">Chưa có dòng bàn giao nào trong 7 ngày qua.</td></tr>
+        <c:if test="${empty kitchenNotes}">
+          <tr><td colspan="4" class="center muted cell-empty">Chưa có ghi chú bếp nào trong 7 ngày qua.</td></tr>
         </c:if>
       </tbody>
     </table>
   </div>
 
   <div class="card">
-    <h2>${empty editingNote ? 'Ghi vào sổ bàn giao' : 'Sửa dòng bàn giao'}</h2>
+    <h2>${empty editingNote ? 'Thêm ghi chú bếp' : 'Sửa ghi chú bếp'}</h2>
     <form method="post" action="${ctx}/kitchen/history"
-          data-confirm="${empty editingNote ? 'Ghi dòng bàn giao này vào sổ?' : 'Lưu thay đổi cho dòng bàn giao này?'}">
+          data-confirm="${empty editingNote ? 'Thêm ghi chú bếp này?' : 'Lưu thay đổi cho ghi chú này?'}">
       <input type="hidden" name="_csrf" value="${csrfToken}">
       <input type="hidden" name="action" value="${empty editingNote ? 'noteAdd' : 'noteUpdate'}">
       <c:if test="${mineOnly}"><input type="hidden" name="mine" value="1"></c:if>
       <c:choose>
         <c:when test="${empty editingNote}">
-          <div class="field">
-            <label for="shiftDate">Ngày của ca</label>
-            <input type="date" id="shiftDate" name="shiftDate" value="${today}" max="${today}">
-            <p class="small muted mt">Bàn giao ghi lại chuyện đã xảy ra, nên không nhận ngày chưa tới.</p>
-          </div>
+          <input type="hidden" id="shiftDate" name="shiftDate" value="${today}">
+          <p class="small muted">Ngày ghi chú: ${today}. Hệ thống không cho tạo ghi chú lùi ngày.</p>
         </c:when>
         <c:otherwise>
           <input type="hidden" name="noteId" value="${editingNote.kitchenNoteId}">
-          <p class="small muted">Ca ngày ${editingNote.shiftDate}</p>
+          <p class="small muted">Ngày ghi chú: ${editingNote.shiftDate}</p>
         </c:otherwise>
       </c:choose>
       <div class="field">
-        <label for="content">Nội dung bàn giao</label>
+        <label for="content">Nội dung ghi chú</label>
         <textarea id="content" name="content" maxlength="1000" required><c:out value="${editingNote.content}"/></textarea>
       </div>
       <button type="submit" class="btn btn-primary btn-block">
-        ${empty editingNote ? 'Ghi vào sổ' : 'Lưu thay đổi'}
+        ${empty editingNote ? 'Thêm ghi chú' : 'Lưu thay đổi'}
       </button>
     </form>
     <c:if test="${not empty editingNote}">

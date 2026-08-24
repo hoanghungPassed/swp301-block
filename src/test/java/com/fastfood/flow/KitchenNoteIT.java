@@ -20,7 +20,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-@DisplayName("Ghi chú chế biến và sổ bàn giao ca bếp")
+@DisplayName("Ghi chú chế biến và ghi chú chung của bếp")
 class KitchenNoteIT extends IntegrationTestBase {
 
     private final KitchenNoteService noteService = new KitchenNoteService();
@@ -119,65 +119,66 @@ class KitchenNoteIT extends IntegrationTestBase {
     }
 
     @Nested
-    @DisplayName("Sổ bàn giao ca")
+    @DisplayName("Ghi chú chung của bếp")
     class Handover {
 
         @Test
         @DisplayName("Ghi cho hôm nay rồi đọc lại thấy trong danh sách gần đây")
         void writeThenRead() {
-            KitchenNote note = noteService.addHandover(null, userId(KITCHEN_1),
+            KitchenNote note = noteService.addNote(null, userId(KITCHEN_1),
                     "Lò số 2 nóng chậm");
 
             assertEquals(LocalDate.now(), note.getShiftDate(), "Không chọn ngày thì mặc định hôm nay");
-            assertTrue(noteService.recentHandovers().stream()
+            assertTrue(noteService.recentNotes().stream()
                     .anyMatch(n -> n.getKitchenNoteId() == note.getKitchenNoteId()));
         }
 
         @Test
-        @DisplayName("Không ghi bàn giao cho ngày chưa tới")
+        @DisplayName("Không tạo ghi chú cho ngày chưa tới")
         void futureDateIsRejected() {
             assertThrows(ValidationException.class,
-                    () -> noteService.addHandover(LocalDate.now().plusDays(1), userId(KITCHEN_1),
+                    () -> noteService.addNote(LocalDate.now().plusDays(1), userId(KITCHEN_1),
                             "chuyện chưa xảy ra"));
         }
 
         @Test
-        @DisplayName("Ngày cũ vẫn ghi được — ca đêm viết bàn giao sau nửa đêm")
-        void pastDateIsAllowed() {
-            KitchenNote note = noteService.addHandover(LocalDate.now().minusDays(1),
-                    userId(KITCHEN_2), "bàn giao ca tối hôm qua");
+        @DisplayName("Không tạo ghi chú lùi về ngày trong quá khứ")
+        void pastDateIsRejected() {
+            ValidationException error = assertThrows(ValidationException.class,
+                    () -> noteService.addNote(LocalDate.now().minusDays(1),
+                            userId(KITCHEN_2), "ghi chú lùi ngày"));
 
-            assertEquals(LocalDate.now().minusDays(1), note.getShiftDate());
+            assertTrue(error.getMessage().contains("quá khứ"), error.getMessage());
         }
 
         @Test
         @DisplayName("Sửa và xoá được, và chỉ người viết mới làm được")
         void updateDeleteAndOwnership() {
-            KitchenNote note = noteService.addHandover(null, userId(KITCHEN_1), "bản đầu");
+            KitchenNote note = noteService.addNote(null, userId(KITCHEN_1), "bản đầu");
             int id = note.getKitchenNoteId();
             int other = userId(KITCHEN_2);
 
-            assertThrows(BusinessException.class, () -> noteService.updateHandover(id, other, "trộm"));
-            assertThrows(BusinessException.class, () -> noteService.deleteHandover(id, other));
+            assertThrows(BusinessException.class, () -> noteService.updateNote(id, other, "trộm"));
+            assertThrows(BusinessException.class, () -> noteService.deleteNote(id, other));
 
-            noteService.updateHandover(id, userId(KITCHEN_1), "bản đã sửa");
-            assertEquals("bản đã sửa", noteService.findHandover(id).getContent());
+            noteService.updateNote(id, userId(KITCHEN_1), "bản đã sửa");
+            assertEquals("bản đã sửa", noteService.findNote(id).getContent());
 
-            noteService.deleteHandover(id, userId(KITCHEN_1));
+            noteService.deleteNote(id, userId(KITCHEN_1));
             assertEquals(0, count("SELECT COUNT(*) FROM dbo.KitchenNote WHERE kitchen_note_id = ?", id));
         }
 
         @Test
-        @DisplayName("Chỉ lấy bàn giao trong bảy ngày gần nhất")
+        @DisplayName("Chỉ lấy ghi chú trong bảy ngày gần nhất")
         void lookbackIsBounded() {
             exec("INSERT INTO dbo.KitchenNote (shift_date, author_id, content) VALUES (?, ?, ?)",
                     java.sql.Date.valueOf(LocalDate.now().minusDays(30)), userId(KITCHEN_1),
                     "bàn giao rất cũ");
 
-            List<KitchenNote> recent = noteService.recentHandovers();
+            List<KitchenNote> recent = noteService.recentNotes();
 
             assertTrue(recent.stream().noneMatch(n -> "bàn giao rất cũ".equals(n.getContent())),
-                    "Sổ bàn giao dài vô hạn thì không ai đọc nữa");
+                    "Danh sách ghi chú dài vô hạn thì không ai đọc nữa");
         }
     }
 }

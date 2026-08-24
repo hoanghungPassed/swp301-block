@@ -246,6 +246,33 @@ class KitchenFlowIT extends IntegrationTestBase {
     }
 
     @Test
+    @DisplayName("Sự cố đang mở chặn món ra quầy cho tới khi được xử lý")
+    void openIssueBlocksHandoverUntilResolved() {
+        Fixture f = readyItem();
+        int itemId = f.itemIds.get(0);
+        kitchenService.openIssue(itemId, userId(KITCHEN_1), "QUALITY", "món chưa đạt");
+
+        BusinessException itemError = assertThrows(BusinessException.class,
+                () -> kitchenService.handOverToCounter(itemId, userId(KITCHEN_1)));
+        assertTrue(itemError.getMessage().contains("sự cố đang mở"), itemError.getMessage());
+
+        BusinessException orderError = assertThrows(BusinessException.class,
+                () -> kitchenService.handOverOrder(f.orderId, userId(KITCHEN_1)));
+        assertTrue(orderError.getMessage().contains("sự cố đang mở"), orderError.getMessage());
+        assertTrue(scalar(LocalDateTime.class,
+                "SELECT handed_over_at FROM dbo.OrderItem WHERE order_item_id = ?", itemId) == null,
+                "Backend phải giữ món trong bếp kể cả khi người dùng tự gửi POST");
+
+        int issueId = scalar(Integer.class,
+                "SELECT MAX(issue_id) FROM dbo.KitchenIssue WHERE order_item_id = ?", itemId);
+        kitchenService.resolveIssue(issueId, userId(KITCHEN_1));
+        kitchenService.handOverOrder(f.orderId, userId(KITCHEN_1));
+
+        assertTrue(scalar(LocalDateTime.class,
+                "SELECT handed_over_at FROM dbo.OrderItem WHERE order_item_id = ?", itemId) != null);
+    }
+
+    @Test
     @DisplayName("Báo hết nguyên liệu thì tắt luôn món đó trên thực đơn")
     void outOfStockIssueTakesTheProductOffTheMenu() {
         Fixture f = orderWithItems(1);

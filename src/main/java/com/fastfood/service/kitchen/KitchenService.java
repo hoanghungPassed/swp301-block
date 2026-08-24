@@ -204,7 +204,10 @@ public class KitchenService {
         });
     }
 
-    /** Đẩy cả đơn ra quầy. Đơn còn món chưa xong thì chưa đi được — thu ngân nhận một lần cho gọn. */
+    /**
+     * Đẩy cả đơn ra quầy. Đơn còn món chưa xong hoặc còn sự cố đang mở thì chưa đi được —
+     * thu ngân chỉ nhận một lần khi toàn bộ đơn đã an toàn để giao.
+     */
     public void handOverOrder(int orderId, int userId) {
         LocalDateTime now = DateTimeUtil.now();
         Tx.writeVoid(con -> {
@@ -217,6 +220,7 @@ public class KitchenService {
                     throw new BusinessException("Đơn còn món chưa làm xong nên chưa bàn giao được. "
                             + "Làm xong cả đơn rồi đưa ra quầy một lần.");
                 }
+                requireNoOpenIssue(item);
             }
 
             int sent = 0;
@@ -224,11 +228,18 @@ public class KitchenService {
                 if (item.getHandedOverAt() != null) {
                     continue;
                 }
-                if (orderItemDAO.handOverToCounter(con, item.getOrderItemId(), userId, now) == 1) {
-                    auditService.log(con, userId, "ORDER_ITEM", item.getOrderItemId(),
-                            AuditAction.ITEM_HANDED_OVER, "READY", "AT_COUNTER");
-                    sent++;
+                int changed = orderItemDAO.handOverToCounter(
+                        con, item.getOrderItemId(), userId, now);
+                if (changed == 0) {
+                    OrderItem current = orderItemDAO.findById(con, item.getOrderItemId());
+                    if (current != null) {
+                        requireNoOpenIssue(current);
+                    }
+                    throw new BusinessException("Trạng thái đơn vừa thay đổi. Vui lòng kiểm tra lại trước khi bàn giao.");
                 }
+                auditService.log(con, userId, "ORDER_ITEM", item.getOrderItemId(),
+                        AuditAction.ITEM_HANDED_OVER, "READY", "AT_COUNTER");
+                sent++;
             }
             if (sent == 0) {
                 throw new BusinessException("Đơn này không còn món nào của bạn chờ bàn giao.");
@@ -304,12 +315,18 @@ public class KitchenService {
             if (item == null) {
                 throw new NotFoundException("Không tìm thấy món.");
             }
+            requireNoOpenIssue(item);
             int changed = orderItemDAO.handOverToCounter(con, orderItemId, userId, now);
             if (changed == 0) {
-                if (item.isHandedOver()) {
+                OrderItem current = orderItemDAO.findById(con, orderItemId);
+                if (current == null) {
+                    throw new NotFoundException("Không tìm thấy món.");
+                }
+                requireNoOpenIssue(current);
+                if (current.isHandedOver()) {
                     throw new BusinessException("Món này đã được bàn giao ra quầy rồi.");
                 }
-                if (!item.isReady()) {
+                if (!current.isReady()) {
                     throw new BusinessException("Món chưa làm xong nên chưa bàn giao được.");
                 }
                 throw new BusinessException("Chỉ người đã làm món này mới bàn giao được.");
@@ -317,6 +334,13 @@ public class KitchenService {
             auditService.log(con, userId, "ORDER_ITEM", orderItemId,
                     AuditAction.ITEM_HANDED_OVER, "READY", "AT_COUNTER");
         });
+    }
+
+    private static void requireNoOpenIssue(OrderItem item) {
+        if (item.getOpenIssueCount() > 0) {
+            throw new BusinessException("Món \"" + item.getProductNameSnapshot()
+                    + "\" còn sự cố đang mở. Hãy xử lý hoặc thu hồi sự cố trước khi đưa ra quầy.");
+        }
     }
 
     public void openIssue(int orderItemId, int userId, String issueType, String description) {

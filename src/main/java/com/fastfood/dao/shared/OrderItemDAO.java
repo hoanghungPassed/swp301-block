@@ -284,9 +284,13 @@ public class OrderItemDAO {
 
     public int handOverToCounter(Connection con, int orderItemId, int userId, LocalDateTime now)
             throws SQLException {
-        String sql = "UPDATE dbo.OrderItem SET handed_over_at = ?, handed_over_by = ? " +
-                     "WHERE order_item_id = ? AND item_status = 'READY' " +
-                     "  AND handed_over_at IS NULL AND assigned_to_user_id = ?";
+        String sql = "UPDATE oi SET handed_over_at = ?, handed_over_by = ? " +
+                     "FROM dbo.OrderItem oi " +
+                     "WHERE oi.order_item_id = ? AND oi.item_status = 'READY' " +
+                     "  AND oi.handed_over_at IS NULL AND oi.assigned_to_user_id = ? " +
+                     "  AND NOT EXISTS (SELECT 1 FROM dbo.KitchenIssue ki " +
+                     "                  WHERE ki.order_item_id = oi.order_item_id " +
+                     "                    AND ki.status = 'OPEN')";
         try (PreparedStatement ps = con.prepareStatement(sql)) {
             JdbcSupport.setDateTime(ps, 1, now);
             ps.setInt(2, userId);
