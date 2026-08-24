@@ -55,8 +55,9 @@ public class OrderCoreService {
 
     public boolean confirmOnlineAfterPaid(Connection con, Order order, LocalDateTime now) throws SQLException {
         LocalDateTime releaseAt = order.getPickupTime().minusMinutes(AppConfig.kitchenPrepLeadMinutes());
-
-        String pickupCode = null;
+        // Đặt thời gian release bếp chính là thời điểm hiện tại khi khách thanh toán thành công
+//        LocalDateTime releaseAt = now;
+        String pickupCode = null;   
         int changed = 0;
         for (int attempt = 1; attempt <= PICKUP_CODE_ATTEMPTS; attempt++) {
             pickupCode = PickupCodeGenerator.generate();
@@ -76,6 +77,11 @@ public class OrderCoreService {
         order.setOrderStatus(OrderStatus.CONFIRMED.name());
         order.setPickupCode(pickupCode);
         order.setKitchenReleaseAt(releaseAt);
+
+        // Đẩy đơn xuống Bếp ngay lập tức (Cập nhật released_to_kds_at = now)
+//        orderDAO.markReleasedToKds(con, order.getOrderId(), now);
+//        order.setReleasedToKdsAt(now);
+//        auditService.logSystem(con, "ORDER", order.getOrderId(), AuditAction.KDS_RELEASE, "RELEASED");
 
         if (order.getCustomerId() != null) {
             cartDAO.clear(con, cartDAO.getOrCreateCartId(con, order.getCustomerId(), now));
