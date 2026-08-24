@@ -61,7 +61,27 @@ public class KitchenNoteDAO {
         }
     }
 
+    public int updateItemNote(Connection con, int noteId, int authorId, String content,
+                              LocalDateTime now) throws SQLException {
+        String sql = "UPDATE dbo.OrderItemNote SET content = ?, updated_at = ? " +
+                     "WHERE note_id = ? AND author_id = ?";
+        try (PreparedStatement ps = con.prepareStatement(sql)) {
+            JdbcSupport.setString(ps, 1, content);
+            JdbcSupport.setDateTime(ps, 2, now);
+            ps.setInt(3, noteId);
+            ps.setInt(4, authorId);
+            return ps.executeUpdate();
+        }
+    }
 
+    public int deleteItemNote(Connection con, int noteId, int authorId) throws SQLException {
+        try (PreparedStatement ps = con.prepareStatement(
+                "DELETE FROM dbo.OrderItemNote WHERE note_id = ? AND author_id = ?")) {
+            ps.setInt(1, noteId);
+            ps.setInt(2, authorId);
+            return ps.executeUpdate();
+        }
+    }
 
     public int insertShiftNote(Connection con, KitchenNote note) throws SQLException {
         String sql = "INSERT INTO dbo.KitchenNote (shift_date, author_id, content, created_at) " +
