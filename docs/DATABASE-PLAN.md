@@ -373,6 +373,26 @@ UPDATE OrderItem
 -- @@ROWCOUNT = 0 → báo "món đã có người nhận", không ghi đè
 ```
 
+Câu lệnh này mới chỉ giữ cho **một món** không có hai chủ. Nó không cản được hai đầu bếp
+chia nhau hai món khác nhau của cùng một đơn — mỗi người ghi một dòng, cả hai `@@ROWCOUNT`
+đều bằng 1. Mà đơn hai chủ thì mỗi người xong một nửa, không ai bàn giao được trọn đơn ra
+quầy, và màn hình quầy nhận đơn nham nhở.
+
+**Đúng:** khoá dòng Order rồi đọc lại mọi món của đơn trước khi ghi; đơn đã mang tên người
+bếp khác thì từ chối. Phải khoá trước khi đọc, vì hai người bấm cùng lúc thì chỉ khoá mới
+xếp được ai đọc trước ai đọc sau.
+
+```sql
+BEGIN TRAN;
+  SELECT order_id FROM Orders WITH (UPDLOCK, ROWLOCK) WHERE order_id=@o;
+  -- có món nào mang assigned_to_user_id khác @uid → ROLLBACK, báo "đơn đã có người nhận"
+  UPDATE OrderItem SET ... ;
+COMMIT;
+```
+
+Nằm ở `KitchenService.requireNobodyElseHoldsOrder`, gọi từ **cả hai** lối vào: nhận trọn đơn
+và nhận lẻ từng món.
+
 ### C4. Sinh `attempt_no` — BR-14
 
 `SELECT MAX(attempt_no)+1` rồi INSERT sẽ race khi khách bấm thanh toán ở 2 tab → cả hai ra cùng số → vi phạm `UQ_Payment_attempt`.

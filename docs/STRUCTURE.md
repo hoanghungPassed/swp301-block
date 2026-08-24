@@ -365,6 +365,7 @@ giỏ — tổng tiền trên màn hình thiếu một món, và lỗi chỉ n�
 | Cổng thanh toán gửi kết quả về hai lần | Ghi mã giao dịch có ràng buộc duy nhất; lần hai bị từ chối | `TransactionDAO.insertIfNew` |
 | Khách bấm đặt hàng hai lần | Khoá chống trùng; hai lần bấm sát nhau thì lần sau bắt lỗi trùng khoá rồi trả về đơn đã tạo | `CustomerOrderService.createOnlineOrder` |
 | Hai đầu bếp nhận cùng một món | `UPDATE ... WHERE item_status = 'WAITING'` rồi kiểm số dòng | `OrderItemDAO.claim` |
+| Hai đầu bếp chia nhau hai món của cùng một đơn | Khoá dòng đơn, đọc lại mọi món rồi từ chối nếu đơn đã có người bếp khác — mỗi đơn chỉ một người, kể cả khi nhận lẻ từng món | `KitchenService.requireNobodyElseHoldsOrder` |
 | Bếp nhận món của đơn chưa tới lượt vào bếp | Cùng câu lệnh còn kiểm `released_to_kds_at IS NOT NULL` — trùng khít điều kiện của truy vấn hàng chờ | `OrderItemDAO.claim` |
 | Hai món cuối xong cùng lúc, đơn kẹt mãi | Khoá dòng đơn trước khi đếm món chưa xong | `OrderCoreService.recalculateStatus` |
 | Khách bấm thanh toán ở hai tab | `(order_id, attempt_no)` duy nhất; đọc lại số thứ tự rồi thử tiếp | `PaymentService.startOnlinePayment` |

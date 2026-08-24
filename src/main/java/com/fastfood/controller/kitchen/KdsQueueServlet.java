@@ -45,10 +45,6 @@ public class KdsQueueServlet extends BaseServlet {
                 WebUtil.getInt(req, "prepPage", 1), Page.SMALL_SIZE));
         req.setAttribute("prepProducts", menuService.browse(null, null));
 
-        int editId = WebUtil.getInt(req, "editPrep", 0);
-        if (editId > 0) {
-            req.setAttribute("editingPrep", prepService.findById(editId));
-        }
         forward(req, resp, "kitchen/kds-queue.jsp");
     }
 
@@ -110,9 +106,14 @@ public class KdsQueueServlet extends BaseServlet {
                         "Đã bàn giao món ra quầy.", back);
                 return;
             case "claim":
-            default:
                 handle(req, resp, () -> kitchenService.claim(itemId, user.getUserId()),
                         "Đã nhận món. Bắt đầu chế biến.", back);
+                return;
+            default:
+                /* Không để nhánh cuối rơi vào việc nhận món: một tham số gõ sai sẽ lặng lẽ
+                   ghi tên người bấm vào một món nào đó. */
+                WebUtil.flashError(req, "Thao tác không hợp lệ.");
+                redirect(req, resp, back);
         }
     }
 

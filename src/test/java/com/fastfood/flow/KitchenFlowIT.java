@@ -63,9 +63,61 @@ class KitchenFlowIT extends IntegrationTestBase {
         BusinessException e = assertThrows(BusinessException.class,
                 () -> kitchenService.claim(f.itemIds.get(0), userId(KITCHEN_2)));
 
-        assertTrue(e.getMessage().contains("vừa được người khác nhận"), e.getMessage());
+        assertTrue(e.getMessage().contains("Mỗi đơn chỉ một người bếp nhận"), e.getMessage());
         assertEquals(userId(KITCHEN_1), (int) scalar(Integer.class,
                 "SELECT assigned_to_user_id FROM dbo.OrderItem WHERE order_item_id = ?", f.itemIds.get(0)));
+    }
+
+    @Test
+    @DisplayName("Người thứ hai không nhận được món còn lại của đơn người khác đang làm")
+    void secondCookCannotPickUpAnotherItemOfSomeoneElsesOrder() {
+        Fixture f = orderWithItems(2);
+        kitchenService.claim(f.itemIds.get(0), userId(KITCHEN_1));
+
+        BusinessException e = assertThrows(BusinessException.class,
+                () -> kitchenService.claim(f.itemIds.get(1), userId(KITCHEN_2)));
+
+        assertTrue(e.getMessage().contains("Mỗi đơn chỉ một người bếp nhận"), e.getMessage());
+        assertEquals(0, count("SELECT COUNT(DISTINCT assigned_to_user_id) FROM dbo.OrderItem " +
+                "WHERE order_id = ? AND assigned_to_user_id <> ?", f.orderId, userId(KITCHEN_1)),
+                "Hai người cùng nấu một đơn thì mỗi người xong một nửa và không ai bàn giao "
+                + "được trọn đơn ra quầy");
+    }
+
+    @Test
+    @DisplayName("Nhận cả đơn cũng không chen được vào đơn người khác đang làm")
+    void secondCookCannotClaimAnOrderAlreadyHeld() {
+        Fixture f = orderWithItems(2);
+        kitchenService.claim(f.itemIds.get(0), userId(KITCHEN_1));
+
+        BusinessException e = assertThrows(BusinessException.class,
+                () -> kitchenService.claimOrder(f.orderId, userId(KITCHEN_2)));
+
+        assertTrue(e.getMessage().contains("Mỗi đơn chỉ một người bếp nhận"), e.getMessage());
+    }
+
+    @Test
+    @DisplayName("Không đơn nào trong cả cơ sở dữ liệu có quá một người bếp")
+    void noOrderAnywhereEndsUpWithTwoCooks() {
+        assertEquals(0, count("SELECT COUNT(*) FROM (" +
+                "  SELECT order_id FROM dbo.OrderItem WHERE assigned_to_user_id IS NOT NULL" +
+                "  GROUP BY order_id HAVING COUNT(DISTINCT assigned_to_user_id) > 1) x"),
+                "Soát cả dữ liệu mẫu lẫn mọi đơn các bài kiểm tra vừa tạo. Chặn ở tầng dịch vụ "
+                + "thôi chưa đủ: dữ liệu mẫu tự dựng sẵn đơn hai người bếp thì màn hình vẫn "
+                + "trình ra cái mà luật cấm");
+    }
+
+    @Test
+    @DisplayName("Người đang giữ đơn nhận nốt được món còn lại của chính đơn đó")
+    void theHolderCanStillPickUpTheRestOfTheirOwnOrder() {
+        Fixture f = orderWithItems(2);
+        kitchenService.claim(f.itemIds.get(0), userId(KITCHEN_1));
+
+        kitchenService.claimOrder(f.orderId, userId(KITCHEN_1));
+
+        assertEquals(2, count("SELECT COUNT(*) FROM dbo.OrderItem " +
+                "WHERE order_id = ? AND assigned_to_user_id = ?", f.orderId, userId(KITCHEN_1)),
+                "Chặn người lạ không được biến thành chặn luôn người đang làm dở đơn");
     }
 
     @Test
@@ -191,6 +243,33 @@ class KitchenFlowIT extends IntegrationTestBase {
                 + "vĩnh viễn vì bếp không bao giờ hoàn tất được, buộc thu ngân phải huỷ đơn");
         assertEquals(1, count("SELECT COUNT(*) FROM dbo.KitchenIssue " +
                 "WHERE order_item_id = ? AND status = 'OPEN'", f.itemIds.get(0)));
+    }
+
+    @Test
+    @DisplayName("Sự cố đang mở chặn món ra quầy cho tới khi được xử lý")
+    void openIssueBlocksHandoverUntilResolved() {
+        Fixture f = readyItem();
+        int itemId = f.itemIds.get(0);
+        kitchenService.openIssue(itemId, userId(KITCHEN_1), "QUALITY", "món chưa đạt");
+
+        BusinessException itemError = assertThrows(BusinessException.class,
+                () -> kitchenService.handOverToCounter(itemId, userId(KITCHEN_1)));
+        assertTrue(itemError.getMessage().contains("sự cố đang mở"), itemError.getMessage());
+
+        BusinessException orderError = assertThrows(BusinessException.class,
+                () -> kitchenService.handOverOrder(f.orderId, userId(KITCHEN_1)));
+        assertTrue(orderError.getMessage().contains("sự cố đang mở"), orderError.getMessage());
+        assertTrue(scalar(LocalDateTime.class,
+                "SELECT handed_over_at FROM dbo.OrderItem WHERE order_item_id = ?", itemId) == null,
+                "Backend phải giữ món trong bếp kể cả khi người dùng tự gửi POST");
+
+        int issueId = scalar(Integer.class,
+                "SELECT MAX(issue_id) FROM dbo.KitchenIssue WHERE order_item_id = ?", itemId);
+        kitchenService.resolveIssue(issueId, userId(KITCHEN_1));
+        kitchenService.handOverOrder(f.orderId, userId(KITCHEN_1));
+
+        assertTrue(scalar(LocalDateTime.class,
+                "SELECT handed_over_at FROM dbo.OrderItem WHERE order_item_id = ?", itemId) != null);
     }
 
     @Test

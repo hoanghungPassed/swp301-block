@@ -17,10 +17,10 @@ import java.util.List;
 
 public class KitchenNoteService {
 
-    private static final int HANDOVER_LOOKBACK_DAYS = 7;
+    private static final int NOTE_LOOKBACK_DAYS = 7;
 
     private static final int MAX_ITEM_NOTE = 500;
-    private static final int MAX_SHIFT_NOTE = 1000;
+    private static final int MAX_KITCHEN_NOTE = 1000;
 
     private final KitchenNoteDAO noteDAO = new KitchenNoteDAO();
     private final OrderItemDAO orderItemDAO = new OrderItemDAO();
@@ -62,24 +62,27 @@ public class KitchenNoteService {
         });
     }
 
-    public List<KitchenNote> recentHandovers() {
-        return Tx.read(con -> noteDAO.findRecentShiftNotes(con, HANDOVER_LOOKBACK_DAYS));
+    public List<KitchenNote> recentNotes() {
+        return Tx.read(con -> noteDAO.findRecentShiftNotes(con, NOTE_LOOKBACK_DAYS));
     }
 
-    public KitchenNote findHandover(int kitchenNoteId) {
+    public KitchenNote findNote(int kitchenNoteId) {
         KitchenNote note = Tx.read(con -> noteDAO.findShiftNote(con, kitchenNoteId));
         if (note == null) {
-            throw new NotFoundException("Không tìm thấy dòng bàn giao.");
+            throw new NotFoundException("Không tìm thấy ghi chú bếp.");
         }
         return note;
     }
 
-    public KitchenNote addHandover(LocalDate shiftDate, int authorId, String content) {
-        String text = requireText(content, MAX_SHIFT_NOTE);
+    public KitchenNote addNote(LocalDate noteDate, int authorId, String content) {
+        String text = requireText(content, MAX_KITCHEN_NOTE);
         LocalDateTime now = DateTimeUtil.now();
-        LocalDate day = shiftDate == null ? now.toLocalDate() : shiftDate;
+        LocalDate day = noteDate == null ? now.toLocalDate() : noteDate;
+        if (day.isBefore(now.toLocalDate())) {
+            throw new ValidationException("Không thể tạo ghi chú cho ngày trong quá khứ.");
+        }
         if (day.isAfter(now.toLocalDate())) {
-            throw new ValidationException("Không ghi bàn giao cho ngày chưa tới.");
+            throw new ValidationException("Không thể tạo ghi chú cho ngày trong tương lai.");
         }
         return Tx.write(con -> {
             KitchenNote note = new KitchenNote();
@@ -92,18 +95,18 @@ public class KitchenNoteService {
         });
     }
 
-    public void updateHandover(int kitchenNoteId, int authorId, String content) {
-        String text = requireText(content, MAX_SHIFT_NOTE);
+    public void updateNote(int kitchenNoteId, int authorId, String content) {
+        String text = requireText(content, MAX_KITCHEN_NOTE);
         LocalDateTime now = DateTimeUtil.now();
         Tx.writeVoid(con -> {
-            requireOwnHandover(con, kitchenNoteId, authorId);
+            requireOwnNote(con, kitchenNoteId, authorId);
             noteDAO.updateShiftNote(con, kitchenNoteId, authorId, text, now);
         });
     }
 
-    public void deleteHandover(int kitchenNoteId, int authorId) {
+    public void deleteNote(int kitchenNoteId, int authorId) {
         Tx.writeVoid(con -> {
-            requireOwnHandover(con, kitchenNoteId, authorId);
+            requireOwnNote(con, kitchenNoteId, authorId);
             noteDAO.deleteShiftNote(con, kitchenNoteId, authorId);
         });
     }
@@ -119,11 +122,11 @@ public class KitchenNoteService {
         }
     }
 
-    private void requireOwnHandover(java.sql.Connection con, int kitchenNoteId, int authorId)
+    private void requireOwnNote(java.sql.Connection con, int kitchenNoteId, int authorId)
             throws java.sql.SQLException {
         KitchenNote note = noteDAO.findShiftNote(con, kitchenNoteId);
         if (note == null) {
-            throw new NotFoundException("Không tìm thấy dòng bàn giao.");
+            throw new NotFoundException("Không tìm thấy ghi chú bếp.");
         }
         if (note.getAuthorId() != authorId) {
             throw new BusinessException("Chỉ người đã viết mới sửa hoặc xoá được dòng này.");
