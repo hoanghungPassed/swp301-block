@@ -63,9 +63,61 @@ class KitchenFlowIT extends IntegrationTestBase {
         BusinessException e = assertThrows(BusinessException.class,
                 () -> kitchenService.claim(f.itemIds.get(0), userId(KITCHEN_2)));
 
-        assertTrue(e.getMessage().contains("vừa được người khác nhận"), e.getMessage());
+        assertTrue(e.getMessage().contains("Mỗi đơn chỉ một người bếp nhận"), e.getMessage());
         assertEquals(userId(KITCHEN_1), (int) scalar(Integer.class,
                 "SELECT assigned_to_user_id FROM dbo.OrderItem WHERE order_item_id = ?", f.itemIds.get(0)));
+    }
+
+    @Test
+    @DisplayName("Người thứ hai không nhận được món còn lại của đơn người khác đang làm")
+    void secondCookCannotPickUpAnotherItemOfSomeoneElsesOrder() {
+        Fixture f = orderWithItems(2);
+        kitchenService.claim(f.itemIds.get(0), userId(KITCHEN_1));
+
+        BusinessException e = assertThrows(BusinessException.class,
+                () -> kitchenService.claim(f.itemIds.get(1), userId(KITCHEN_2)));
+
+        assertTrue(e.getMessage().contains("Mỗi đơn chỉ một người bếp nhận"), e.getMessage());
+        assertEquals(0, count("SELECT COUNT(DISTINCT assigned_to_user_id) FROM dbo.OrderItem " +
+                "WHERE order_id = ? AND assigned_to_user_id <> ?", f.orderId, userId(KITCHEN_1)),
+                "Hai người cùng nấu một đơn thì mỗi người xong một nửa và không ai bàn giao "
+                + "được trọn đơn ra quầy");
+    }
+
+    @Test
+    @DisplayName("Nhận cả đơn cũng không chen được vào đơn người khác đang làm")
+    void secondCookCannotClaimAnOrderAlreadyHeld() {
+        Fixture f = orderWithItems(2);
+        kitchenService.claim(f.itemIds.get(0), userId(KITCHEN_1));
+
+        BusinessException e = assertThrows(BusinessException.class,
+                () -> kitchenService.claimOrder(f.orderId, userId(KITCHEN_2)));
+
+        assertTrue(e.getMessage().contains("Mỗi đơn chỉ một người bếp nhận"), e.getMessage());
+    }
+
+    @Test
+    @DisplayName("Không đơn nào trong cả cơ sở dữ liệu có quá một người bếp")
+    void noOrderAnywhereEndsUpWithTwoCooks() {
+        assertEquals(0, count("SELECT COUNT(*) FROM (" +
+                "  SELECT order_id FROM dbo.OrderItem WHERE assigned_to_user_id IS NOT NULL" +
+                "  GROUP BY order_id HAVING COUNT(DISTINCT assigned_to_user_id) > 1) x"),
+                "Soát cả dữ liệu mẫu lẫn mọi đơn các bài kiểm tra vừa tạo. Chặn ở tầng dịch vụ "
+                + "thôi chưa đủ: dữ liệu mẫu tự dựng sẵn đơn hai người bếp thì màn hình vẫn "
+                + "trình ra cái mà luật cấm");
+    }
+
+    @Test
+    @DisplayName("Người đang giữ đơn nhận nốt được món còn lại của chính đơn đó")
+    void theHolderCanStillPickUpTheRestOfTheirOwnOrder() {
+        Fixture f = orderWithItems(2);
+        kitchenService.claim(f.itemIds.get(0), userId(KITCHEN_1));
+
+        kitchenService.claimOrder(f.orderId, userId(KITCHEN_1));
+
+        assertEquals(2, count("SELECT COUNT(*) FROM dbo.OrderItem " +
+                "WHERE order_id = ? AND assigned_to_user_id = ?", f.orderId, userId(KITCHEN_1)),
+                "Chặn người lạ không được biến thành chặn luôn người đang làm dở đơn");
     }
 
     @Test

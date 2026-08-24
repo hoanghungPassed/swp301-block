@@ -1291,7 +1291,7 @@ SET @o = SCOPE_IDENTITY();
 INSERT INTO dbo.OrderItem (order_id, product_id, product_name_snapshot, unit_price, quantity, item_status, assigned_to_user_id, started_at, ready_at) VALUES
  (@o, @pBurgerBo, N'Burger Bò Phô Mai',   55000, 1, 'READY', @kit1, DATEADD(MINUTE,-138,@now), DATEADD(MINUTE,-127,@now)),
  (@o, @pKhoaiM,   N'Khoai Tây Chiên (M)', 25000, 1, 'READY', @kit1, DATEADD(MINUTE,-135,@now), DATEADD(MINUTE,-125,@now)),
- (@o, @pPepsi,    N'Pepsi (M)',           15000, 1, 'READY', @kit2, DATEADD(MINUTE,-134,@now), DATEADD(MINUTE,-130,@now));
+ (@o, @pPepsi,    N'Pepsi (M)',           15000, 1, 'READY', @kit1, DATEADD(MINUTE,-134,@now), DATEADD(MINUTE,-130,@now));
 INSERT INTO dbo.Payment (order_id, method, amount, payment_status, created_at, paid_at)
 VALUES (@o, 'ONLINE_GATEWAY', 95000, 'PAID', DATEADD(MINUTE,-155,@now), DATEADD(MINUTE,-154,@now));
 SET @pay = SCOPE_IDENTITY();
@@ -1365,7 +1365,7 @@ VALUES (@cus2, 'ONLINE_PREORDER', 124000, 'COMPLETED', 'demo-0011',
         DATEADD(MINUTE,-158,@now), DATEADD(MINUTE,-155,@now), @cash1, DATEADD(MINUTE,-200,@now), DATEADD(MINUTE,-155,@now));
 SET @o = SCOPE_IDENTITY();
 INSERT INTO dbo.OrderItem (order_id, product_id, product_name_snapshot, unit_price, quantity, item_status, assigned_to_user_id, started_at, ready_at) VALUES
- (@o, @pGa3,    N'Gà Rán 3 Miếng', 95000, 1, 'READY', @kit1, DATEADD(MINUTE,-183,@now), DATEADD(MINUTE,-158,@now)),
+ (@o, @pGa3,    N'Gà Rán 3 Miếng', 95000, 1, 'READY', @kit2, DATEADD(MINUTE,-183,@now), DATEADD(MINUTE,-158,@now)),
  (@o, @pTraDao, N'Trà Đào Cam Sả', 29000, 1, 'READY', @kit2, DATEADD(MINUTE,-182,@now), DATEADD(MINUTE,-176,@now));
 INSERT INTO dbo.Payment (order_id, method, amount, payment_status, created_at, paid_at)
 VALUES (@o, 'ONLINE_GATEWAY', 124000, 'PAID', DATEADD(MINUTE,-200,@now), DATEADD(MINUTE,-199,@now));

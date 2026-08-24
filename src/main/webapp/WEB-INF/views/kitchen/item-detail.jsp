@@ -17,8 +17,9 @@
     <div class="grid grid-2">
       <div>
         <div class="total-line"><span class="muted">Số lượng</span><span><strong>${item.quantity}</strong></span></div>
+        <%-- Người giữ cả đơn: một đơn chỉ một người bếp, nên đây cũng là người làm món này. --%>
         <div class="total-line"><span class="muted">Người làm</span>
-          <span><c:out value="${empty item.assignedToName ? 'Chưa có ai nhận' : item.assignedToName}"/></span></div>
+          <span><c:out value="${empty orderHolder ? 'Chưa có ai nhận' : orderHolder.assignedToName}"/></span></div>
       </div>
       <div>
         <c:if test="${not empty item.pickupTime}">
@@ -44,15 +45,25 @@
       </div>
     </div>
 
+    <%-- Nhận là nhận trọn đơn: nhận lẻ một món của đơn người khác thì hai người cùng nấu một
+         đơn, mỗi người xong một nửa và không ai bàn giao được trọn đơn ra quầy. --%>
+    <c:set var="heldByOther" value="${not empty orderHolder and orderHolder.assignedToUserId ne me.userId}" />
+    <c:if test="${heldByOther}">
+      <p class="alert alert-info mt">
+        Đơn #${item.orderId} đang do <c:out value="${orderHolder.assignedToName}"/> làm.
+        Mỗi đơn chỉ một người bếp nhận.
+      </p>
+    </c:if>
+
     <div class="actions mt">
-      <c:if test="${item.itemStatus eq 'WAITING'}">
+      <c:if test="${item.itemStatus eq 'WAITING' and not heldByOther}">
         <form method="post" action="${ctx}/kitchen/queue"
-              data-confirm="Nhận làm món này?">
+              data-confirm="Nhận làm cả đơn #${item.orderId}?">
           <input type="hidden" name="_csrf" value="${csrfToken}">
-          <input type="hidden" name="action" value="claim">
-          <input type="hidden" name="orderItemId" value="${item.orderItemId}">
+          <input type="hidden" name="action" value="claimOrder">
+          <input type="hidden" name="orderId" value="${item.orderId}">
           <input type="hidden" name="returnTo" value="/kitchen/item?id=${item.orderItemId}">
-          <button type="submit" class="btn btn-primary">Nhận món này</button>
+          <button type="submit" class="btn btn-primary">Nhận cả đơn #${item.orderId}</button>
         </form>
       </c:if>
       <c:if test="${item.itemStatus eq 'PREPARING'}">

@@ -110,9 +110,14 @@ public class KdsQueueServlet extends BaseServlet {
                         "Đã bàn giao món ra quầy.", back);
                 return;
             case "claim":
-            default:
                 handle(req, resp, () -> kitchenService.claim(itemId, user.getUserId()),
                         "Đã nhận món. Bắt đầu chế biến.", back);
+                return;
+            default:
+                /* Không để nhánh cuối rơi vào việc nhận món: một tham số gõ sai sẽ lặng lẽ
+                   ghi tên người bấm vào một món nào đó. */
+                WebUtil.flashError(req, "Thao tác không hợp lệ.");
+                redirect(req, resp, back);
         }
     }
 
