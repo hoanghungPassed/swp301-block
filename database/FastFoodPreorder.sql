@@ -1373,6 +1373,69 @@ SET @pay = SCOPE_IDENTITY();
 INSERT INTO dbo.PaymentTransaction (payment_id, gateway, external_transaction_id, status, created_at)
 VALUES (@pay, 'MOCK', 'MOCK-TXN-0011', 'SUCCESS', DATEADD(MINUTE,-199,@now));
 
+/* -- D12 · Online · đã giải phóng xuống bếp, nằm trong hàng chờ KDS (WAITING) · 99.000 --- */
+INSERT INTO dbo.Orders (customer_id, order_source, total_amount, order_status, idempotency_key,
+                        pickup_time, kitchen_release_at, released_to_kds_at, pickup_code, created_at)
+VALUES (@cus1, 'ONLINE_PREORDER', 99000, 'CONFIRMED', 'demo-0012',
+        DATEADD(MINUTE,15,@now), DATEADD(MINUTE,-5,@now), DATEADD(MINUTE,-5,@now), @day+'KDS1', DATEADD(MINUTE,-20,@now));
+SET @o = SCOPE_IDENTITY();
+INSERT INTO dbo.OrderItem (order_id, product_id, product_name_snapshot, unit_price, quantity, item_status) VALUES
+ (@o, @pBurgerBo, N'Burger Bò Phô Mai',   55000, 1, 'WAITING'),
+ (@o, @pKhoaiM,   N'Khoai Tây Chiên (M)', 25000, 1, 'WAITING'),
+ (@o, @pPepsi,    N'Pepsi (M)',           19000, 1, 'WAITING');
+INSERT INTO dbo.Payment (order_id, method, amount, payment_status, created_at, paid_at)
+VALUES (@o, 'ONLINE_GATEWAY', 99000, 'PAID', DATEADD(MINUTE,-20,@now), DATEADD(MINUTE,-19,@now));
+SET @pay = SCOPE_IDENTITY();
+INSERT INTO dbo.PaymentTransaction (payment_id, gateway, external_transaction_id, status, created_at)
+VALUES (@pay, 'MOCK', 'MOCK-TXN-0012', 'SUCCESS', DATEADD(MINUTE,-19,@now));
+
+/* -- D13 · Online · đơn thứ hai trong hàng chờ KDS (WAITING) · 124.000 ----------------------- */
+INSERT INTO dbo.Orders (customer_id, order_source, total_amount, order_status, idempotency_key,
+                        pickup_time, kitchen_release_at, released_to_kds_at, pickup_code, created_at)
+VALUES (@cus2, 'ONLINE_PREORDER', 124000, 'CONFIRMED', 'demo-0013',
+        DATEADD(MINUTE,25,@now), DATEADD(MINUTE,-2,@now), DATEADD(MINUTE,-2,@now), @day+'KDS2', DATEADD(MINUTE,-15,@now));
+SET @o = SCOPE_IDENTITY();
+INSERT INTO dbo.OrderItem (order_id, product_id, product_name_snapshot, unit_price, quantity, item_status) VALUES
+ (@o, @pGa1,    N'Gà Rán 1 Miếng', 35000, 2, 'WAITING'),
+ (@o, @pTraDao, N'Trà Đào Cam Sả', 29000, 1, 'WAITING'),
+ (@o, @pPepsi,  N'Pepsi (M)',      25000, 1, 'WAITING');
+INSERT INTO dbo.Payment (order_id, method, amount, payment_status, created_at, paid_at)
+VALUES (@o, 'ONLINE_GATEWAY', 124000, 'PAID', DATEADD(MINUTE,-15,@now), DATEADD(MINUTE,-14,@now));
+SET @pay = SCOPE_IDENTITY();
+INSERT INTO dbo.PaymentTransaction (payment_id, gateway, external_transaction_id, status, created_at)
+VALUES (@pay, 'MOCK', 'MOCK-TXN-0013', 'SUCCESS', DATEADD(MINUTE,-14,@now));
+
+/* -- D14 · Online · bếp đã làm xong toàn bộ món, đang chờ bàn giao ra quầy (kitchen1) · 109.000 --- */
+INSERT INTO dbo.Orders (customer_id, order_source, total_amount, order_status, idempotency_key,
+                        pickup_time, kitchen_release_at, released_to_kds_at, pickup_code, created_at)
+VALUES (@cus1, 'ONLINE_PREORDER', 109000, 'PREPARING', 'demo-0014',
+        DATEADD(MINUTE,20,@now), DATEADD(MINUTE,-10,@now), DATEADD(MINUTE,-10,@now), @day+'HND1', DATEADD(MINUTE,-25,@now));
+SET @o = SCOPE_IDENTITY();
+INSERT INTO dbo.OrderItem (order_id, product_id, product_name_snapshot, unit_price, quantity, item_status, assigned_to_user_id, started_at, ready_at) VALUES
+ (@o, @pBurgerBo, N'Burger Bò Phô Mai', 55000, 1, 'READY', @kit1, DATEADD(MINUTE,-9,@now), DATEADD(MINUTE,-2,@now)),
+ (@o, @pGa1,      N'Gà Rán 1 Miếng',    35000, 1, 'READY', @kit1, DATEADD(MINUTE,-9,@now), DATEADD(MINUTE,-3,@now)),
+ (@o, @pPepsi,    N'Pepsi (M)',          19000, 1, 'READY', @kit1, DATEADD(MINUTE,-9,@now), DATEADD(MINUTE,-5,@now));
+INSERT INTO dbo.Payment (order_id, method, amount, payment_status, created_at, paid_at)
+VALUES (@o, 'ONLINE_GATEWAY', 109000, 'PAID', DATEADD(MINUTE,-25,@now), DATEADD(MINUTE,-24,@now));
+SET @pay = SCOPE_IDENTITY();
+INSERT INTO dbo.PaymentTransaction (payment_id, gateway, external_transaction_id, status, created_at)
+VALUES (@pay, 'MOCK', 'MOCK-TXN-0014', 'SUCCESS', DATEADD(MINUTE,-24,@now));
+
+/* -- D15 · Online · bếp đã làm xong toàn bộ món, đang chờ bàn giao ra quầy (kitchen2) · 84.000 --- */
+INSERT INTO dbo.Orders (customer_id, order_source, total_amount, order_status, idempotency_key,
+                        pickup_time, kitchen_release_at, released_to_kds_at, pickup_code, created_at)
+VALUES (@cus2, 'ONLINE_PREORDER', 84000, 'PREPARING', 'demo-0015',
+        DATEADD(MINUTE,30,@now), DATEADD(MINUTE,-8,@now), DATEADD(MINUTE,-8,@now), @day+'HND2', DATEADD(MINUTE,-20,@now));
+SET @o = SCOPE_IDENTITY();
+INSERT INTO dbo.OrderItem (order_id, product_id, product_name_snapshot, unit_price, quantity, item_status, assigned_to_user_id, started_at, ready_at) VALUES
+ (@o, @pBurgerGa, N'Burger Gà Giòn', 49000, 1, 'READY', @kit2, DATEADD(MINUTE,-7,@now), DATEADD(MINUTE,-1,@now)),
+ (@o, @pKhoaiL,   N'Khoai Tây Chiên (L)', 35000, 1, 'READY', @kit2, DATEADD(MINUTE,-7,@now), DATEADD(MINUTE,-2,@now));
+INSERT INTO dbo.Payment (order_id, method, amount, payment_status, created_at, paid_at)
+VALUES (@o, 'ONLINE_GATEWAY', 84000, 'PAID', DATEADD(MINUTE,-20,@now), DATEADD(MINUTE,-19,@now));
+SET @pay = SCOPE_IDENTITY();
+INSERT INTO dbo.PaymentTransaction (payment_id, gateway, external_transaction_id, status, created_at)
+VALUES (@pay, 'MOCK', 'MOCK-TXN-0015', 'SUCCESS', DATEADD(MINUTE,-19,@now));
+
 /* -- Bàn giao món giữa bếp và quầy cho dữ liệu mẫu -----------------------------------------
    Đặt ở cuối, sau khi mọi đơn đã có đủ món, để viết theo trạng thái đơn thay vì phải nhớ
    từng mã đơn. Bốn mức khác nhau là cố ý — mỗi mức mở ra một thao tác để thử.
@@ -1415,13 +1478,34 @@ GO
 DECLARE @kit1p INT = (SELECT user_id FROM dbo.Users WHERE email = 'kitchen1@fastfood.vn');
 DECLARE @kit2p INT = (SELECT user_id FROM dbo.Users WHERE email = 'kitchen2@fastfood.vn');
 DECLARE @today DATE = CAST(SYSDATETIME() AS DATE);
+DECLARE @yesterday DATE = DATEADD(DAY, -1, @today);
+DECLARE @dayBeforeYesterday DATE = DATEADD(DAY, -2, @today);
 
+-- Dữ liệu kế hoạch chuẩn bị cho hôm nay
 INSERT INTO dbo.PrepTask (product_id, prep_date, planned_qty, done_qty, note, created_by, status)
 SELECT p.product_id, @today, v.planned, v.done, v.note, v.author, v.status
 FROM   (VALUES
           (N'Gà Rán 3 Miếng', 40, 22, N'Nướng sẵn trước 11h, giữ trong tủ ấm', @kit1p, 'PLANNED'),
           (N'Trà Đào Cam Sả', 30, 34, N'Pha dư một mẻ vì trưa nay đông',        @kit2p, 'PLANNED'),
           (N'Khoai Tây Chiên (M)', 25, 25, N'Xong từ đầu ca',                    @kit1p, 'DONE')
+       ) AS v(ten_mon, planned, done, note, author, status)
+JOIN   dbo.Product p ON p.name = v.ten_mon;
+
+-- Dữ liệu kế hoạch chuẩn bị cho ngày hôm qua
+INSERT INTO dbo.PrepTask (product_id, prep_date, planned_qty, done_qty, note, created_by, status)
+SELECT p.product_id, @yesterday, v.planned, v.done, v.note, v.author, v.status
+FROM   (VALUES
+          (N'Burger Bò Phô Mai', 50, 50, N'Chuẩn bị đủ số lượng ca hôm qua', @kit1p, 'DONE'),
+          (N'Gà Rán 1 Miếng',    60, 55, N'Bán gần hết trong ca tối',       @kit2p, 'DONE')
+       ) AS v(ten_mon, planned, done, note, author, status)
+JOIN   dbo.Product p ON p.name = v.ten_mon;
+
+-- Dữ liệu kế hoạch chuẩn bị cho 2 ngày trước (Hôm kia)
+INSERT INTO dbo.PrepTask (product_id, prep_date, planned_qty, done_qty, note, created_by, status)
+SELECT p.product_id, @dayBeforeYesterday, v.planned, v.done, v.note, v.author, v.status
+FROM   (VALUES
+          (N'Combo Gia Đình', 20, 20, N'Đã hoàn thành 100%',            @kit1p, 'DONE'),
+          (N'Trà Đào Cam Sả', 45, 45, N'Đã pha chuẩn định lượng ca sáng', @kit2p, 'DONE')
        ) AS v(ten_mon, planned, done, note, author, status)
 JOIN   dbo.Product p ON p.name = v.ten_mon;
 
