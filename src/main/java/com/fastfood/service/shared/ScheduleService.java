@@ -25,32 +25,40 @@ public class ScheduleService {
     private final AuditService auditService = new AuditService();
     private final NotificationService notificationService = new NotificationService();
 
+    /**
+     * Tự động quét và giải phóng các đơn hàng đã đến hạn xuống bộ phận Bếp (F11. Scheduled Kitchen Release).
+     * @return Số lượng đơn hàng được đẩy xuống bếp thành công.
+     */
     public int releaseDueOrders() {
         LocalDateTime now = DateTimeUtil.now();
+        // 1. Quét CSDL tìm danh sách đơn hàng đã đến mốc thời gian vào bếp (kitchen_release_at <= NOW)
         List<Order> due = Tx.read(con -> orderDAO.findDueForRelease(con, now));
         if (due.isEmpty()) {
             return 0;
         }
 
         int released = 0;
+        // 2. Lặp qua từng đơn hàng để xử lý trong Transaction riêng biệt (đảm bảo độc lập)
         for (Order order : due) {
             try {
                 boolean ok = Tx.write(con -> {
+                    // Cập nhật mốc thời gian released_to_kds_at = NOW (nguyên tử để chống trùng lặp)
                     int changed = orderDAO.markReleasedToKds(con, order.getOrderId(), now);
                     if (changed == 0) {
-                        return false;
+                        return false; // Đơn đã được giải phóng bởi luồng khác
                     }
+                    // Ghi log kiểm toán hệ thống
                     auditService.logSystem(con, "ORDER", order.getOrderId(),
                             AuditAction.KDS_RELEASE, "RELEASED");
                     return true;
                 });
                 if (ok) {
                     released++;
-                    LOG.info(() -> "Da dua don #" + order.getOrderId() + " xuong bep (gio hen "
+                    LOG.info(() -> "Đã đưa đơn #" + order.getOrderId() + " xuống bếp (giờ hẹn "
                             + DateTimeUtil.format(order.getPickupTime()) + ")");
                 }
             } catch (RuntimeException e) {
-                LOG.log(Level.WARNING, "Khong dua duoc don #" + order.getOrderId() + " xuong bep", e);
+                LOG.log(Level.WARNING, "Không đưa được đơn #" + order.getOrderId() + " xuống bếp", e);
             }
         }
         return released;
