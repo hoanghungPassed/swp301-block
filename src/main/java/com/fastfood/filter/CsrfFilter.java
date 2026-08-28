@@ -26,6 +26,7 @@ public class CsrfFilter implements Filter {
     private static final String STATIC_PREFIX = "/assets/";
 
     @Override
+    /** Tạo CSRF token cho view và từ chối request thay đổi dữ liệu thiếu/sai token. */
     public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain)
             throws IOException, ServletException {
         HttpServletRequest req = (HttpServletRequest) request;
@@ -50,6 +51,7 @@ public class CsrfFilter implements Filter {
         chain.doFilter(request, response);
     }
 
+    /** Trả 403 hoặc trang lỗi phù hợp khi CSRF validation thất bại. */
     private void reject(HttpServletRequest req, HttpServletResponse resp, String path)
             throws IOException, ServletException {
         LOG.log(Level.WARNING, () -> "Tu choi yeu cau thieu ma CSRF: " + req.getMethod() + " " + path);

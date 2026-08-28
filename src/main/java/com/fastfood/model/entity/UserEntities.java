@@ -22,6 +22,7 @@ public final class UserEntities {
         public String getDescription() { return description; }
         public void setDescription(String description) { this.description = description; }
 
+        /** Chuyển tên role trong DB sang enum dùng cho phân quyền. */
         public RoleName toEnum() { return RoleName.from(name); }
     }
 
@@ -70,6 +71,7 @@ public final class UserEntities {
         public String getRoleName() { return roleName; }
         public void setRoleName(String roleName) { this.roleName = roleName; }
 
+        /** Tài khoản chỉ được đăng nhập khi trạng thái ACTIVE. */
         public boolean isActive() { return "ACTIVE".equals(status); }
 
         public boolean isMustChangePassword() { return mustChangePassword; }
@@ -110,10 +112,13 @@ public final class UserEntities {
         public LocalDateTime getCreatedAt() { return createdAt; }
         public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
 
+        /** Token xác thực email đã dùng thì không thể kích hoạt lần hai. */
         public boolean isUsed() { return usedAt != null; }
 
+        /** Token hết hạn tại đúng expiresAt hoặc mọi thời điểm sau đó. */
         public boolean isExpired(LocalDateTime now) { return expiresAt != null && !now.isBefore(expiresAt); }
 
+        /** Chỉ nhận token xác thực chưa dùng và chưa hết hạn. */
         public boolean isUsable(LocalDateTime now) { return !isUsed() && !isExpired(now); }
     }
 
@@ -148,10 +153,13 @@ public final class UserEntities {
         public LocalDateTime getCreatedAt() { return createdAt; }
         public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
 
+        /** Token đặt lại mật khẩu đã dùng thì bị vô hiệu vĩnh viễn. */
         public boolean isUsed() { return usedAt != null; }
 
+        /** Kiểm tra thời hạn của link quên mật khẩu. */
         public boolean isExpired(LocalDateTime now) { return expiresAt != null && !now.isBefore(expiresAt); }
 
+        /** Link reset chỉ hợp lệ khi token chưa dùng và thời hạn vẫn còn. */
         public boolean isUsable(LocalDateTime now) { return !isUsed() && !isExpired(now); }
     }
 
@@ -194,8 +202,10 @@ public final class UserEntities {
         public LocalDateTime getReadAt() { return readAt; }
         public void setReadAt(LocalDateTime readAt) { this.readAt = readAt; }
 
+        /** Thông báo chưa có readAt sẽ được tính vào badge Customer. */
         public boolean isUnread() { return readAt == null; }
 
+        /** Nhận biết email/thông báo gửi thất bại để không hiển thị như đã gửi. */
         public boolean isFailed() { return "FAILED".equals(status); }
     }
 

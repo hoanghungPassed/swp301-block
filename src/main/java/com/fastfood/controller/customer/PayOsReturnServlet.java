@@ -53,18 +53,24 @@ public class PayOsReturnServlet extends BaseServlet {
 
     private final PaymentService paymentService = new PaymentService();
 
+    /** Nhận lần PayOS đưa trình duyệt khách quay lại bằng phương thức GET. */
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp)
             throws ServletException, IOException {
         process(req, resp);
     }
 
+    /** Hỗ trợ PayOS quay lại bằng POST và dùng chung toàn bộ logic với GET. */
     @Override
     protected void doPost(HttpServletRequest req, HttpServletResponse resp)
             throws ServletException, IOException {
         process(req, resp);
     }
 
+    /**
+     * Chỉ lấy orderCode từ URL, gọi ngược PayOS để tra trạng thái đáng tin cậy rồi ghi nhận kết
+     * quả và đưa khách tới trang đơn hoặc trang kết quả đơn tại quầy.
+     */
     private void process(HttpServletRequest req, HttpServletResponse resp)
             throws ServletException, IOException {
         if (!(paymentService.getGateway() instanceof PayOsGateway payos)) {
@@ -175,11 +181,13 @@ public class PayOsReturnServlet extends BaseServlet {
         }
     }
 
+    /** Đổi trạng thái kỹ thuật của PayOS thành lý do tiếng Việt hiển thị cho khách. */
     private static String lyDo(String status) {
         return LY_DO.getOrDefault(status == null ? "" : status,
                                   "cổng báo trạng thái " + status);
     }
 
+    /** Đọc và kiểm tra orderCode dạng số từ request, trả null khi dữ liệu không hợp lệ. */
     private static Long orderCode(HttpServletRequest req) {
         String raw = req.getParameter("orderCode");
         if (raw == null || raw.isBlank()) {

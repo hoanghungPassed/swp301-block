@@ -12,6 +12,7 @@ public class PaymentExpiryScheduler implements Runnable {
     private final ScheduleService scheduleService = new ScheduleService();
 
     @Override
+    /** Được timer gọi định kỳ để hết hạn đơn online/POS không nhận được thanh toán. */
     public void run() {
         try {
             scheduleService.expireStalePayments();

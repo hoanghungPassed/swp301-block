@@ -22,6 +22,7 @@ public final class Tx {
     private Tx() {
     }
 
+    /** Mở connection chỉ đọc, chạy DAO và tự đóng connection sau khi hoàn tất. */
     public static <T> T read(Work<T> work) {
         try (Connection con = DBContext.getConnection()) {
             return work.run(con);
@@ -30,6 +31,7 @@ public final class Tx {
         }
     }
 
+    /** Chạy nhiều thao tác ghi trong một transaction, commit khi thành công và rollback khi lỗi. */
     public static <T> T write(Work<T> work) {
         Connection con = null;
         try {
@@ -49,6 +51,7 @@ public final class Tx {
         }
     }
 
+    /** Biến thao tác ghi không có giá trị trả về thành một transaction dùng chung write(). */
     public static void writeVoid(VoidWork work) {
         write(con -> {
             work.run(con);
@@ -56,6 +59,7 @@ public final class Tx {
         });
     }
 
+    /** Cố gắng rollback connection khi transaction gặp lỗi. */
     private static void rollback(Connection con) {
         if (con != null) {
             try {
@@ -65,6 +69,7 @@ public final class Tx {
         }
     }
 
+    /** Khôi phục auto-commit và trả connection về pool. */
     private static void close(Connection con) {
         if (con != null) {
             try {

@@ -9,26 +9,32 @@ public final class ViewFunctions {
     private ViewFunctions() {
     }
 
+    /** Định dạng ngày giờ cho EL/JSP. */
     public static String dateTime(LocalDateTime value) {
         return DateTimeUtil.format(value);
     }
 
+    /** Định dạng riêng giờ phút cho màn theo dõi đơn. */
     public static String time(LocalDateTime value) {
         return DateTimeUtil.formatTime(value);
     }
 
+    /** Định dạng riêng ngày cho giao diện. */
     public static String date(LocalDateTime value) {
         return DateTimeUtil.formatDate(value);
     }
 
+    /** Định dạng tiền Việt Nam cho JSP. */
     public static String money(BigDecimal value) {
         return MoneyUtil.format(value);
     }
 
+    /** Chuyển thời điểm thành mô tả tương đối như “5 phút trước”. */
     public static String humanize(LocalDateTime value) {
         return DateTimeUtil.humanize(value);
     }
 
+    /** Dịch mã trạng thái đơn trong DB sang nhãn tiếng Việt. */
     public static String orderStatus(String status) {
         if (status == null) {
             return "";
@@ -44,6 +50,7 @@ public final class ViewFunctions {
         }
     }
 
+    /** Chọn lớp CSS tương ứng với trạng thái đơn. */
     public static String orderStatusClass(String status) {
         if (status == null) {
             return "tag";
@@ -59,6 +66,7 @@ public final class ViewFunctions {
         }
     }
 
+    /** Dịch trạng thái từng món sang nhãn hiển thị. */
     public static String itemStatus(String status) {
         if (status == null) {
             return "";
@@ -71,6 +79,7 @@ public final class ViewFunctions {
         }
     }
 
+    /** Chọn màu tag cho trạng thái món. */
     public static String itemStatusClass(String status) {
         if (status == null) {
             return "tag";
@@ -83,6 +92,7 @@ public final class ViewFunctions {
         }
     }
 
+    /** Dịch trạng thái thanh toán cho Customer. */
     public static String paymentStatus(String status) {
         if (status == null) {
             return "Chưa có";
@@ -96,6 +106,7 @@ public final class ViewFunctions {
         }
     }
 
+    /** Chọn màu tag theo kết quả thanh toán. */
     public static String paymentStatusClass(String status) {
         if (status == null) {
             return "tag tag-muted";
@@ -108,6 +119,7 @@ public final class ViewFunctions {
         }
     }
 
+    /** Dịch phương thức CASH/ONLINE thành nhãn dễ đọc. */
     public static String paymentMethod(String method) {
         if (method == null) {
             return "";
@@ -115,6 +127,7 @@ public final class ViewFunctions {
         return "CASH".equals(method) ? "Tiền mặt" : "Thanh toán online";
     }
 
+    /** Phân biệt đơn tại quầy và đơn đặt trước. */
     public static String orderSource(String source) {
         if (source == null) {
             return "";
@@ -122,6 +135,7 @@ public final class ViewFunctions {
         return "POS".equals(source) ? "Tại quầy" : "Đặt trước";
     }
 
+    /** Dịch trạng thái hẹn giờ đưa đơn vào bếp. */
     public static String releaseState(String state) {
         if (state == null) {
             return "";
@@ -168,6 +182,7 @@ public final class ViewFunctions {
         }
     }
 
+    /** Dịch loại thông báo đơn cho Customer. */
     public static String notificationEvent(String event) {
         if (event == null) {
             return "";
@@ -180,6 +195,7 @@ public final class ViewFunctions {
         }
     }
 
+    /** Chọn biểu tượng cho từng loại thông báo. */
     public static String notificationIcon(String event) {
         if (event == null) {
             return "•";
@@ -192,6 +208,7 @@ public final class ViewFunctions {
         }
     }
 
+    /** Chọn màu tag cho loại thông báo. */
     public static String notificationEventClass(String event) {
         if (event == null) {
             return "tag";
@@ -204,6 +221,7 @@ public final class ViewFunctions {
         }
     }
 
+    /** Dịch mã action trong audit log thành mô tả nghiệp vụ. */
     public static String auditAction(String action) {
         if (action == null) {
             return "";
@@ -255,6 +273,7 @@ public final class ViewFunctions {
         return WebUtil.queryStringWithout(req, names);
     }
 
+    /** Dịch mã role để header và hồ sơ hiển thị thân thiện. */
     public static String roleName(String role) {
         if (role == null) {
             return "";

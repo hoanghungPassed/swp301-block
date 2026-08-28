@@ -19,6 +19,10 @@ public class OrderHistoryServlet extends BaseServlet {
     private final CustomerOrderService orderService = new CustomerOrderService();
     private final OrderTemplateService templateService = new OrderTemplateService();
 
+    /**
+     * Hiển thị đơn của khách theo trạng thái/khoảng ngày, các đơn đang hoạt động và toàn bộ mẫu
+     * đặt nhanh thuộc tài khoản đang đăng nhập.
+     */
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp)
             throws ServletException, IOException {
@@ -40,6 +44,10 @@ public class OrderHistoryServlet extends BaseServlet {
         forward(req, resp, "customer/order-history.jsp");
     }
 
+    /**
+     * Nhận các nút quản lý mẫu đặt nhanh: lưu từ đơn cũ, nạp vào giỏ, đổi tên, đổi số lượng
+     * hoặc xóa mẫu; action trong form quyết định nhánh xử lý.
+     */
     @Override
     protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws IOException {
         User user = requireUser(req);
@@ -75,6 +83,10 @@ public class OrderHistoryServlet extends BaseServlet {
         }
     }
 
+    /**
+     * Nạp các món còn phục vụ trong mẫu vào giỏ, báo rõ những món bị bỏ qua và chuyển tới giỏ
+     * hàng để khách kiểm tra trước khi đặt.
+     */
     private void applyTemplate(HttpServletRequest req, HttpServletResponse resp,
                                int templateId, int userId) throws IOException {
         try {

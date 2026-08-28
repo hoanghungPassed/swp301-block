@@ -25,6 +25,10 @@ public class CartServlet extends BaseServlet {
     private final CartService cartService = new CartService();
     private final CustomerOrderService orderService = new CustomerOrderService();
 
+    /**
+     * Nạp giỏ hàng của người đang đăng nhập và chuẩn bị các mốc giờ hợp lệ để hiển thị form
+     * đặt trước; mỗi lần mở form tạo một idempotency key chống tạo trùng đơn.
+     */
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp)
             throws ServletException, IOException {
@@ -43,6 +47,10 @@ public class CartServlet extends BaseServlet {
         forward(req, resp, "customer/cart.jsp");
     }
 
+    /**
+     * Phân loại thao tác giỏ hàng theo action: thêm món, đổi số lượng, bỏ món, dọn món ngừng
+     * bán hoặc tạo đơn đặt trước rồi chuyển khách sang bước thanh toán.
+     */
     @Override
     protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws IOException {
         User user = requireUser(req);

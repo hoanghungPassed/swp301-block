@@ -13,6 +13,7 @@ public final class NotificationSenders {
     private NotificationSenders() {
     }
 
+    /** Trả singleton sender theo kênh thông báo đang cấu hình. */
     public static NotificationSender fromConfig() {
         NotificationSender local = instance;
         if (local == null) {
@@ -27,6 +28,7 @@ public final class NotificationSenders {
         return local;
     }
 
+    /** Khởi tạo SMTP hoặc MOCK sender và từ chối kênh không được hỗ trợ. */
     private static NotificationSender create(String channel) {
         String name = channel == null ? "" : channel.trim().toUpperCase();
         if ("SMTP".equals(name)) {
@@ -46,6 +48,7 @@ public final class NotificationSenders {
         return new MockNotificationSender();
     }
 
+    /** Xóa singleton sender để kiểm thử có thể nạp cấu hình khác. */
     static void reset() {
         instance = null;
     }

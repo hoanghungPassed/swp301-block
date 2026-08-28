@@ -40,6 +40,10 @@ public class PasswordResetService {
         this.sender = sender;
     }
 
+    /**
+     * Nếu email thuộc tài khoản hợp lệ thì giới hạn tần suất, sinh token đặt lại chỉ lưu dạng
+     * hash và gửi raw token qua email; email không tồn tại được bỏ qua để tránh lộ tài khoản.
+     */
     public void request(String email, String baseUrl, String clientIp) {
         String normalizedEmail;
         try {
@@ -86,6 +90,7 @@ public class PasswordResetService {
     private record Pending(User user, String rawToken) {
     }
 
+    /** Kiểm tra token còn sử dụng được và trả tài khoản để quyết định có hiển thị form reset. */
     public User findAccountFor(String rawToken) {
         if (rawToken == null || rawToken.isBlank()) {
             return null;
@@ -101,6 +106,10 @@ public class PasswordResetService {
         });
     }
 
+    /**
+     * Validate mật khẩu mới và token, đánh dấu token đã dùng, lưu BCrypt hash mới rồi vô hiệu hóa
+     * toàn bộ token reset còn lại của tài khoản.
+     */
     public void complete(String rawToken, String newPassword, String confirmPassword, String clientIp) {
         ValidationUtil.requirePasswordStrength(newPassword);
         if (!newPassword.equals(confirmPassword)) {
@@ -131,10 +140,12 @@ public class PasswordResetService {
         });
     }
 
+    /** Vô hiệu hóa tất cả token reset đang còn hiệu lực của user trong transaction hiện tại. */
     public void invalidateOutstanding(java.sql.Connection con, int userId) throws java.sql.SQLException {
         tokenDAO.invalidateAllFor(con, userId, DateTimeUtil.now());
     }
 
+    /** Ghép raw token vào link /reset-password và gửi thư đặt lại mật khẩu. */
     private void send(User user, String baseUrl, String rawToken) {
         String link = baseUrl + "/reset-password?token=" + rawToken;
         String content = "Bạn vừa yêu cầu đặt lại mật khẩu cho tài khoản " + user.getEmail() + ".\n"
@@ -144,14 +155,17 @@ public class PasswordResetService {
         sender.send(user.getEmail(), "Đặt lại mật khẩu", content);
     }
 
+    /** Trả thời hạn liên kết đặt lại mật khẩu theo cấu hình, mặc định 15 phút. */
     public int expiryMinutes() {
         return AppConfig.getInt("security.reset.expiryMinutes", DEFAULT_EXPIRY_MINUTES);
     }
 
+    /** Trả số yêu cầu reset tối đa trong một cửa sổ giới hạn. */
     private int maxRequests() {
         return AppConfig.getInt("security.reset.maxRequests", DEFAULT_MAX_REQUESTS);
     }
 
+    /** Trả độ dài cửa sổ dùng để đếm số yêu cầu reset gần đây. */
     private int requestWindowMinutes() {
         return AppConfig.getInt("security.reset.windowMinutes", DEFAULT_REQUEST_WINDOW_MINUTES);
     }

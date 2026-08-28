@@ -22,6 +22,10 @@ public class MenuServlet extends BaseServlet {
     private final CartService cartService = new CartService();
     private final FavouriteService favouriteService = new FavouriteService();
 
+    /**
+     * Hiển thị thực đơn theo từ khóa, danh mục, cách sắp xếp và trang hiện tại; nếu khách đã
+     * đăng nhập thì nạp thêm số lượng giỏ hàng và danh sách món quen của chính khách đó.
+     */
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp)
             throws ServletException, IOException {
@@ -61,6 +65,10 @@ public class MenuServlet extends BaseServlet {
         forward(req, resp, "customer/menu.jsp");
     }
 
+    /**
+     * Nhận các thao tác với món quen (thêm, bỏ hoặc sửa ghi chú), xác định thao tác qua tham số
+     * action rồi chuyển phần xử lý nghiệp vụ cho FavouriteService.
+     */
     @Override
     protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws IOException {
         String back = WebUtil.safeRedirect(WebUtil.getString(req, "returnTo"), "/menu");

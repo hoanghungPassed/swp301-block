@@ -35,6 +35,7 @@ public class HttpPayOsApi implements PayOsApi {
     private final String baseUrl;
     private final HttpClient http;
 
+    /** Chuẩn bị HTTP client với credential và base URL PayOS. */
     public HttpPayOsApi(String clientId, String apiKey, String baseUrl) {
         this.clientId = clientId == null ? "" : clientId.trim();
         this.apiKey = apiKey == null ? "" : apiKey.trim();
@@ -50,6 +51,7 @@ public class HttpPayOsApi implements PayOsApi {
     }
 
     @Override
+    /** Gửi HTTP request có header PayOS, kiểm tra status và parse response JSON. */
     public JsonObject send(String method, String path, String jsonBody) {
         HttpRequest.Builder builder = HttpRequest.newBuilder()
                 .uri(URI.create(baseUrl + path))
@@ -92,6 +94,7 @@ public class HttpPayOsApi implements PayOsApi {
         return envelope;
     }
 
+    /** Parse response body thành JsonObject và báo lỗi khi response không phải JSON hợp lệ. */
     private static JsonObject parse(String body) {
         if (body == null || body.isBlank()) {
             return null;
@@ -104,6 +107,7 @@ public class HttpPayOsApi implements PayOsApi {
     }
 
     /** Cắt ngắn thân lời đáp trước khi ghi log: một trang lỗi HTML có thể dài vài chục nghìn ký tự. */
+    /** Rút gọn response lỗi để log không quá dài hoặc lộ toàn bộ nội dung. */
     private static String tomTat(String body) {
         if (body == null) {
             return "(rong)";

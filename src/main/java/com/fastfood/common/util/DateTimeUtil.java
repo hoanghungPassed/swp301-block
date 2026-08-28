@@ -17,26 +17,32 @@ public final class DateTimeUtil {
     private DateTimeUtil() {
     }
 
+    /** Trả thời gian hiện tại theo clock của ứng dụng. */
     public static LocalDateTime now() {
         return LocalDateTime.now(ZONE).truncatedTo(ChronoUnit.SECONDS);
     }
 
+    /** Định dạng ngày giờ để hiển thị. */
     public static String format(LocalDateTime t) {
         return t == null ? "" : t.format(DISPLAY);
     }
 
+    /** Định dạng riêng phần giờ-phút. */
     public static String formatTime(LocalDateTime t) {
         return t == null ? "" : t.format(TIME);
     }
 
+    /** Định dạng riêng phần ngày. */
     public static String formatDate(LocalDateTime t) {
         return t == null ? "" : t.format(DATE);
     }
 
+    /** Chuyển LocalDateTime sang định dạng input datetime-local. */
     public static String toHtmlInput(LocalDateTime t) {
         return t == null ? "" : t.format(HTML);
     }
 
+    /** Parse dữ liệu từ input datetime-local, trả null khi rỗng hoặc sai định dạng. */
     public static LocalDateTime parseHtmlInput(String value) {
         if (value == null || value.isBlank()) {
             return null;
@@ -48,6 +54,7 @@ public final class DateTimeUtil {
         }
     }
 
+    /** Tính số phút nguyên giữa hai mốc thời gian. */
     public static long minutesBetween(LocalDateTime from, LocalDateTime to) {
         if (from == null || to == null) {
             return 0;
@@ -55,6 +62,7 @@ public final class DateTimeUtil {
         return ChronoUnit.MINUTES.between(from, to);
     }
 
+    /** Chuyển một mốc thời gian thành câu tương đối như còn 15 phút hoặc muộn 10 phút. */
     public static String humanize(LocalDateTime target) {
         if (target == null) {
             return "";

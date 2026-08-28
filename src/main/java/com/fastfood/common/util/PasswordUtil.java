@@ -13,10 +13,12 @@ public final class PasswordUtil {
     private PasswordUtil() {
     }
 
+    /** Sinh salt ngẫu nhiên và hash mật khẩu bằng BCrypt cost 10. */
     public static String hash(String rawPassword) {
         return BCrypt.hashpw(rawPassword, BCrypt.gensalt(COST));
     }
 
+    /** Sinh mật khẩu tạm ngẫu nhiên có cả chữ và số, tránh ký tự dễ nhầm. */
     public static String randomTemporary() {
         final String letters = "abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ";
         final String digits = "23456789";
@@ -37,6 +39,7 @@ public final class PasswordUtil {
         return sb.toString();
     }
 
+    /** So mật khẩu thô với BCrypt hash; dữ liệu hash hỏng được coi là không khớp. */
     public static boolean matches(String rawPassword, String hash) {
         if (rawPassword == null || hash == null || hash.isBlank()) {
             return false;

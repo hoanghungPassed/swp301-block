@@ -22,6 +22,10 @@ public class ProductDetailServlet extends BaseServlet {
     private final ReviewService reviewService = new ReviewService();
     private final FavouriteService favouriteService = new FavouriteService();
 
+    /**
+     * Hiển thị chi tiết món cùng điểm trung bình, danh sách đánh giá, đánh giá của khách hiện tại
+     * và trạng thái món quen để JSP quyết định các nút được phép hiển thị.
+     */
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp)
             throws ServletException, IOException {
@@ -51,6 +55,10 @@ public class ProductDetailServlet extends BaseServlet {
         }
     }
 
+    /**
+     * Nhận thao tác thêm, sửa hoặc xóa đánh giá; lấy userId từ session và giao việc kiểm tra
+     * quyền sở hữu, lịch sử mua hàng và dữ liệu đánh giá cho ReviewService.
+     */
     @Override
     protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws IOException {
         int productId = WebUtil.getInt(req, "productId", 0);

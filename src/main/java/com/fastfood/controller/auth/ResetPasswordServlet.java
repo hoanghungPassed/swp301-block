@@ -17,6 +17,7 @@ public class ResetPasswordServlet extends BaseServlet {
 
     private final PasswordResetService resetService = new PasswordResetService();
 
+    /** Kiểm tra token trên liên kết còn dùng được rồi mới hiển thị form đặt mật khẩu mới. */
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp)
             throws ServletException, IOException {
@@ -33,6 +34,7 @@ public class ResetPasswordServlet extends BaseServlet {
         forward(req, resp, "auth/reset-password.jsp");
     }
 
+    /** Validate token và mật khẩu mới, cập nhật hash rồi vô hiệu hóa các token còn lại. */
     @Override
     protected void doPost(HttpServletRequest req, HttpServletResponse resp)
             throws ServletException, IOException {

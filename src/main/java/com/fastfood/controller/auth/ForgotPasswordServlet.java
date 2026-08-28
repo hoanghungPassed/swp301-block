@@ -22,6 +22,7 @@ public class ForgotPasswordServlet extends BaseServlet {
 
     private final PasswordResetService resetService = new PasswordResetService();
 
+    /** Hiển thị form nhập email yêu cầu đặt lại mật khẩu. */
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp)
             throws ServletException, IOException {
@@ -32,6 +33,10 @@ public class ForgotPasswordServlet extends BaseServlet {
         forward(req, resp, "auth/forgot-password.jsp");
     }
 
+    /**
+     * Tạo và gửi liên kết đặt lại mật khẩu nếu email tồn tại nhưng luôn trả cùng một thông báo
+     * để không làm lộ email nào đã đăng ký.
+     */
     @Override
     protected void doPost(HttpServletRequest req, HttpServletResponse resp)
             throws ServletException, IOException {

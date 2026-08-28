@@ -24,6 +24,7 @@ public class ReviewDAO {
             "JOIN dbo.Users   u ON u.user_id    = r.customer_id " +
             "JOIN dbo.Product p ON p.product_id = r.product_id ";
 
+    /** Chèn đánh giá mới và gán reviewId tự tăng vào entity. */
     public int insert(Connection con, Review review) throws SQLException {
         String sql = "INSERT INTO dbo.Review (product_id, customer_id, rating, comment, created_at) " +
                      "VALUES (?, ?, ?, ?, ?)";
@@ -43,6 +44,7 @@ public class ReviewDAO {
         return review.getReviewId();
     }
 
+    /** Tìm một review theo khóa chính. */
     public Review findById(Connection con, int reviewId) throws SQLException {
         try (PreparedStatement ps = con.prepareStatement(BASE + "WHERE r.review_id = ?")) {
             ps.setInt(1, reviewId);
@@ -51,6 +53,7 @@ public class ReviewDAO {
         }
     }
 
+    /** Lấy các review của sản phẩm, ưu tiên review mới nhất. */
     public List<Review> findByProduct(Connection con, int productId) throws SQLException {
         try (PreparedStatement ps = con.prepareStatement(
                 BASE + "WHERE r.product_id = ? ORDER BY r.created_at DESC, r.review_id DESC")) {
@@ -59,6 +62,7 @@ public class ReviewDAO {
         }
     }
 
+    /** Tìm review của đúng customer cho một sản phẩm. */
     public Review findMine(Connection con, int productId, int customerId) throws SQLException {
         try (PreparedStatement ps = con.prepareStatement(
                 BASE + "WHERE r.product_id = ? AND r.customer_id = ?")) {
@@ -69,6 +73,7 @@ public class ReviewDAO {
         }
     }
 
+    /** Tính COUNT và AVG rating của một sản phẩm. */
     public ReviewSummary summaryOf(Connection con, int productId) throws SQLException {
         ReviewSummary summary = new ReviewSummary();
         try (PreparedStatement ps = con.prepareStatement(
@@ -86,6 +91,7 @@ public class ReviewDAO {
         return summary;
     }
 
+    /** Kiểm tra customer có đơn COMPLETED chứa product hay chưa. */
     public boolean hasCompletedPurchase(Connection con, int customerId, int productId)
             throws SQLException {
         String sql =
@@ -101,6 +107,7 @@ public class ReviewDAO {
         }
     }
 
+    /** Cập nhật review chỉ khi reviewId thuộc đúng customerId. */
     public int update(Connection con, int reviewId, int customerId, int rating, String comment,
                       LocalDateTime now) throws SQLException {
         String sql = "UPDATE dbo.Review SET rating = ?, comment = ?, updated_at = ? " +
@@ -115,6 +122,7 @@ public class ReviewDAO {
         }
     }
 
+    /** Xóa review chỉ khi reviewId thuộc đúng customerId. */
     public int delete(Connection con, int reviewId, int customerId) throws SQLException {
         try (PreparedStatement ps = con.prepareStatement(
                 "DELETE FROM dbo.Review WHERE review_id = ? AND customer_id = ?")) {
@@ -124,6 +132,7 @@ public class ReviewDAO {
         }
     }
 
+    /** Chạy truy vấn và ánh xạ toàn bộ ResultSet thành danh sách Review. */
     private List<Review> collect(PreparedStatement ps) throws SQLException {
         List<Review> list = new ArrayList<>();
         try (ResultSet rs = ps.executeQuery()) {

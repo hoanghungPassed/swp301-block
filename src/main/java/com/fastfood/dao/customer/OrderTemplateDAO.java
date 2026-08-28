@@ -27,6 +27,7 @@ public class OrderTemplateDAO {
             "FROM dbo.OrderTemplateItem i " +
             "JOIN dbo.Product p ON p.product_id = i.product_id ";
 
+    /** Chèn phần đầu mẫu đặt nhanh và gán templateId tự tăng vào entity. */
     public int insert(Connection con, OrderTemplate template) throws SQLException {
         String sql = "INSERT INTO dbo.OrderTemplate (customer_id, name, created_at) VALUES (?, ?, ?)";
         try (PreparedStatement ps = con.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
@@ -43,6 +44,7 @@ public class OrderTemplateDAO {
         return template.getTemplateId();
     }
 
+    /** Tìm một mẫu theo id và nạp kèm danh sách món của mẫu. */
     public OrderTemplate findById(Connection con, int templateId) throws SQLException {
         OrderTemplate template;
         try (PreparedStatement ps = con.prepareStatement(BASE + "WHERE t.template_id = ?")) {
@@ -57,6 +59,7 @@ public class OrderTemplateDAO {
         return template;
     }
 
+    /** Lấy toàn bộ mẫu thuộc customer và nạp các item cho từng mẫu. */
     public List<OrderTemplate> findByCustomer(Connection con, int customerId) throws SQLException {
         List<OrderTemplate> templates;
         try (PreparedStatement ps = con.prepareStatement(
@@ -83,6 +86,7 @@ public class OrderTemplateDAO {
         return templates;
     }
 
+    /** Đếm số mẫu customer đang lưu để Service áp dụng giới hạn tối đa. */
     public int countByCustomer(Connection con, int customerId) throws SQLException {
         try (PreparedStatement ps = con.prepareStatement(
                 "SELECT COUNT(*) FROM dbo.OrderTemplate WHERE customer_id = ?")) {
@@ -93,6 +97,7 @@ public class OrderTemplateDAO {
         }
     }
 
+    /** Đổi tên mẫu chỉ khi templateId thuộc đúng customerId. */
     public int rename(Connection con, int templateId, int customerId, String name,
                       LocalDateTime now) throws SQLException {
         String sql = "UPDATE dbo.OrderTemplate SET name = ?, updated_at = ? " +
@@ -106,6 +111,7 @@ public class OrderTemplateDAO {
         }
     }
 
+    /** Cập nhật thời điểm mẫu được sửa gần nhất. */
     public int touch(Connection con, int templateId, LocalDateTime now) throws SQLException {
         try (PreparedStatement ps = con.prepareStatement(
                 "UPDATE dbo.OrderTemplate SET updated_at = ? WHERE template_id = ?")) {
@@ -115,6 +121,7 @@ public class OrderTemplateDAO {
         }
     }
 
+    /** Xóa mẫu thuộc customer; các item liên quan được xử lý theo ràng buộc database. */
     public int delete(Connection con, int templateId, int customerId) throws SQLException {
         try (PreparedStatement ps = con.prepareStatement(
                 "DELETE FROM dbo.OrderTemplate WHERE template_id = ? AND customer_id = ?")) {
@@ -124,6 +131,7 @@ public class OrderTemplateDAO {
         }
     }
 
+    /** Lấy các món và thông tin product hiện tại trong một mẫu. */
     public List<OrderTemplateItem> findItems(Connection con, int templateId) throws SQLException {
         try (PreparedStatement ps = con.prepareStatement(
                 ITEM_BASE + "WHERE i.template_id = ? ORDER BY i.template_item_id")) {
@@ -132,6 +140,7 @@ public class OrderTemplateDAO {
         }
     }
 
+    /** Thêm món mới hoặc cộng quantity nếu product đã tồn tại trong mẫu. */
     public void addItem(Connection con, int templateId, int productId, int quantity)
             throws SQLException {
         String sql =
@@ -149,6 +158,7 @@ public class OrderTemplateDAO {
         }
     }
 
+    /** Gán lại quantity của một product trong mẫu. */
     public int updateItemQuantity(Connection con, int templateId, int productId, int quantity)
             throws SQLException {
         try (PreparedStatement ps = con.prepareStatement(
@@ -161,6 +171,7 @@ public class OrderTemplateDAO {
         }
     }
 
+    /** Xóa một product khỏi mẫu. */
     public int removeItem(Connection con, int templateId, int productId) throws SQLException {
         try (PreparedStatement ps = con.prepareStatement(
                 "DELETE FROM dbo.OrderTemplateItem WHERE template_id = ? AND product_id = ?")) {
@@ -170,6 +181,7 @@ public class OrderTemplateDAO {
         }
     }
 
+    /** Chạy truy vấn và ánh xạ ResultSet thành danh sách OrderTemplate. */
     private List<OrderTemplate> collect(PreparedStatement ps) throws SQLException {
         List<OrderTemplate> list = new ArrayList<>();
         try (ResultSet rs = ps.executeQuery()) {
@@ -186,6 +198,7 @@ public class OrderTemplateDAO {
         return list;
     }
 
+    /** Chạy truy vấn và ánh xạ ResultSet thành danh sách OrderTemplateItem. */
     private List<OrderTemplateItem> collectItems(PreparedStatement ps) throws SQLException {
         List<OrderTemplateItem> list = new ArrayList<>();
         try (ResultSet rs = ps.executeQuery()) {

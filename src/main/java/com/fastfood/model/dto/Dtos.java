@@ -44,8 +44,10 @@ public final class Dtos {
         public int getPageSize() { return pageSize; }
         public long getTotalItems() { return totalItems; }
 
+        /** Cho JSP hiển thị empty-state khi bộ lọc không có kết quả. */
         public boolean isEmptyPage() { return items == null || items.isEmpty(); }
 
+        /** Tính số trang từ tổng bản ghi và kích thước trang, tối thiểu là một. */
         public int getTotalPages() {
             if (totalItems <= 0) {
                 return 1;
@@ -53,7 +55,9 @@ public final class Dtos {
             return (int) ((totalItems + pageSize - 1) / pageSize);
         }
 
+        /** Dùng để khoá nút Trước ở trang đầu. */
         public boolean isFirst() { return pageNo <= 1; }
+        /** Dùng để khoá nút Sau ở trang cuối. */
         public boolean isLast() { return pageNo >= getTotalPages(); }
 
         /*
@@ -64,20 +68,25 @@ public final class Dtos {
         public int getPrevPage() { return Math.max(1, Math.min(pageNo, getTotalPages()) - 1); }
         public int getNextPage() { return Math.min(getTotalPages(), pageNo + 1); }
 
+        /** Số thứ tự bản ghi đầu tiên đang hiển thị. */
         public long getFirstIndex() {
             return isEmptyPage() ? 0 : (long) (pageNo - 1) * pageSize + 1;
         }
 
+        /** Số thứ tự bản ghi cuối cùng đang hiển thị. */
         public long getLastIndex() {
             return isEmptyPage() ? 0 : getFirstIndex() + items.size() - 1;
         }
 
+        /** Chỉ hiện thanh phân trang khi có trên một trang. */
         public boolean isPaged() { return getTotalPages() > 1; }
 
+        /** Chặn page âm/0 do người dùng sửa query string. */
         public static int safePage(int requested) {
             return Math.max(1, requested);
         }
 
+        /** Chuẩn hoá page size và giới hạn tối đa để tránh truy vấn quá lớn. */
         public static int safeSize(int requested) {
             if (requested <= 0) {
                 return SIZE;
@@ -85,6 +94,7 @@ public final class Dtos {
             return Math.min(requested, MAX_SIZE);
         }
 
+        /** Đổi số trang một-based thành OFFSET zero-based cho câu SQL. */
         public static int offset(int pageNo, int pageSize) {
             return (safePage(pageNo) - 1) * safeSize(pageSize);
         }
@@ -123,6 +133,7 @@ public final class Dtos {
         public List<CartItem> getItems() { return items; }
         public void setItems(List<CartItem> items) { this.items = items; }
 
+        /** Cộng thành tiền của riêng các món hiện vẫn đặt được. */
         public BigDecimal getTotalAmount() {
             return items.stream()
                     .filter(CartItem::isOrderable)
@@ -130,16 +141,20 @@ public final class Dtos {
                     .reduce(BigDecimal.ZERO, BigDecimal::add);
         }
 
+        /** Tổng số lượng món hợp lệ dùng cho badge giỏ hàng. */
         public int getTotalQuantity() {
             return items.stream().filter(CartItem::isOrderable).mapToInt(CartItem::getQuantity).sum();
         }
 
+        /** Cho giao diện biết giỏ chưa có dòng nào. */
         public boolean isEmptyCart() { return items.isEmpty(); }
 
+        /** Phát hiện món đã bị khoá/hết bán sau khi khách thêm vào giỏ. */
         public boolean isHasUnavailable() {
             return items.stream().anyMatch(i -> !i.isOrderable());
         }
 
+        /** Chỉ bật checkout khi giỏ có món và toàn bộ món vẫn hợp lệ. */
         public boolean isCheckoutable() {
             return !isEmptyCart() && !isHasUnavailable();
         }
@@ -152,16 +167,21 @@ public final class Dtos {
 
         public int getAddedCount() { return addedCount; }
 
+        /** Ghi nhận một món trong mẫu đã được thêm lại vào giỏ. */
         public void countAdded() { this.addedCount++; }
 
         public List<String> getSkippedNames() { return skippedNames; }
 
+        /** Ghi lại món trong mẫu bị bỏ qua vì hiện không còn bán. */
         public void skip(String productName) { this.skippedNames.add(productName); }
 
+        /** Cho controller biết có cần báo thêm mẫu thành công hay không. */
         public boolean isAnythingAdded() { return addedCount > 0; }
 
+        /** Cho controller biết có cần cảnh báo danh sách món bị bỏ qua hay không. */
         public boolean isAnythingSkipped() { return !skippedNames.isEmpty(); }
 
+        /** Ghép tên các món không thêm được thành nội dung flash message. */
         public String getSkippedText() {
             return String.join(", ", skippedNames);
         }

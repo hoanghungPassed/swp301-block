@@ -13,6 +13,7 @@ public class NotificationDAO {
     private static final String COLS =
             "notification_id, user_id, order_id, channel, event_type, content, status, sent_at, read_at ";
 
+    /** Chèn thông báo in-app và gán notificationId tự tăng. */
     public int insert(Connection con, Notification n) throws SQLException {
         String sql = "INSERT INTO dbo.Notification (user_id, order_id, channel, event_type, content, " +
                      "status, sent_at) VALUES (?, ?, ?, ?, ?, ?, ?)";
@@ -34,6 +35,7 @@ public class NotificationDAO {
         return n.getNotificationId();
     }
 
+    /** Lấy các thông báo liên quan đến một đơn. */
     public List<Notification> findByOrder(Connection con, int orderId) throws SQLException {
         String sql = "SELECT " + COLS + "FROM dbo.Notification WHERE order_id = ? ORDER BY notification_id";
         try (PreparedStatement ps = con.prepareStatement(sql)) {
@@ -42,6 +44,7 @@ public class NotificationDAO {
         }
     }
 
+    /** Lấy một trang thông báo của user, mới nhất trước. */
     public List<Notification> findByUser(Connection con, int userId, int offset, int limit)
             throws SQLException {
         String sql = "SELECT " + COLS + "FROM dbo.Notification WHERE user_id = ? " +
@@ -54,6 +57,7 @@ public class NotificationDAO {
         }
     }
 
+    /** Đếm toàn bộ thông báo của user để phân trang. */
     public long countByUser(Connection con, int userId) throws SQLException {
         try (PreparedStatement ps = con.prepareStatement(
                 "SELECT COUNT(*) FROM dbo.Notification WHERE user_id = ?")) {
@@ -64,6 +68,7 @@ public class NotificationDAO {
         }
     }
 
+    /** Đếm thông báo chưa có readAt của user. */
     public int countUnread(Connection con, int userId) throws SQLException {
         try (PreparedStatement ps = con.prepareStatement(
                 "SELECT COUNT(*) FROM dbo.Notification WHERE user_id = ? AND read_at IS NULL")) {
@@ -74,6 +79,7 @@ public class NotificationDAO {
         }
     }
 
+    /** Gán readAt cho toàn bộ thông báo chưa đọc của user. */
     public int markAllRead(Connection con, int userId, LocalDateTime now) throws SQLException {
         try (PreparedStatement ps = con.prepareStatement(
                 "UPDATE dbo.Notification SET read_at = ? WHERE user_id = ? AND read_at IS NULL")) {
@@ -83,6 +89,7 @@ public class NotificationDAO {
         }
     }
 
+    /** Gán readAt cho thông báo của đúng user và order đang mở. */
     public int markReadByOrder(Connection con, int userId, int orderId, LocalDateTime now)
             throws SQLException {
         try (PreparedStatement ps = con.prepareStatement(
@@ -95,6 +102,7 @@ public class NotificationDAO {
         }
     }
 
+    /** Chạy truy vấn và ánh xạ danh sách Notification. */
     private List<Notification> collect(PreparedStatement ps) throws SQLException {
         List<Notification> list = new ArrayList<>();
         try (ResultSet rs = ps.executeQuery()) {
@@ -105,6 +113,7 @@ public class NotificationDAO {
         return list;
     }
 
+    /** Ánh xạ một dòng ResultSet thành Notification. */
     private Notification map(ResultSet rs) throws SQLException {
         Notification n = new Notification();
         n.setNotificationId(rs.getInt("notification_id"));

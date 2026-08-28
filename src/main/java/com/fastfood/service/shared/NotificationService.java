@@ -21,6 +21,7 @@ public class NotificationService {
     private final NotificationDAO notificationDAO = new NotificationDAO();
     private final NotificationSender sender = NotificationSenders.fromConfig();
 
+    /** Lưu và gửi thông báo khi đơn online đã thanh toán và được xác nhận. */
     public void notifyOrderConfirmed(Connection con, Order order) throws SQLException {
         if (!order.isOnline()) {
             return;
@@ -35,6 +36,7 @@ public class NotificationService {
         record(con, order, NotificationEvent.ORDER_CONFIRMED, subject, content);
     }
 
+    /** Lưu và gửi mã/thời gian nhận hàng khi đơn đã sẵn sàng tại quầy. */
     public void notifyOrderReady(Connection con, Order order) throws SQLException {
         if (!order.isOnline()) {
             return;
@@ -47,6 +49,7 @@ public class NotificationService {
         record(con, order, NotificationEvent.ORDER_READY, subject, content);
     }
 
+    /** Lưu và gửi thông báo khi đơn chờ thanh toán hết hiệu lực. */
     public void notifyOrderExpired(Connection con, Order order) throws SQLException {
         if (!order.isOnline() || order.getCustomerId() == null) {
             return;
@@ -63,6 +66,7 @@ public class NotificationService {
        — hệ thống không làm được việc đó — mà nói thẳng số tiền và mã đơn để khách cầm đúng
        thông tin đi hỏi, và mời khách liên hệ. Im lặng ở đây là tệ nhất: khách vừa mất suất
        ăn vừa thấy tài khoản bị trừ. */
+    /** Thông báo khoản tiền cần đối soát vì tiền về sau khi đơn không còn hợp lệ. */
     public void notifyPaymentOrphaned(Connection con, Order order) throws SQLException {
         if (!order.isOnline() || order.getCustomerId() == null) {
             return;
@@ -76,10 +80,12 @@ public class NotificationService {
         record(con, order, NotificationEvent.ORDER_EXPIRED, subject, content);
     }
 
+    /** Lấy các thông báo gắn với một đơn. */
     public List<Notification> findByOrder(int orderId) {
         return Tx.read(con -> notificationDAO.findByOrder(con, orderId));
     }
 
+    /** Lấy thông báo của user theo trang, mới nhất trước. */
     public Page<Notification> pageOfUser(int userId, int pageNo) {
         int page = Page.safePage(pageNo);
         int offset = Page.offset(page, Page.SIZE);
@@ -89,20 +95,24 @@ public class NotificationService {
                 notificationDAO.countByUser(con, userId)));
     }
 
+    /** Đếm thông báo chưa đọc để hiển thị badge trên menu. */
     public int unreadCount(int userId) {
         return Tx.read(con -> notificationDAO.countUnread(con, userId));
     }
 
+    /** Đánh dấu tất cả thông báo của user là đã đọc. */
     public int markAllRead(int userId) {
         LocalDateTime now = DateTimeUtil.now();
         return Tx.write(con -> notificationDAO.markAllRead(con, userId, now));
     }
 
+    /** Đánh dấu các thông báo của một đơn là đã đọc khi customer mở chi tiết đơn. */
     public void markReadByOrder(int userId, int orderId) {
         LocalDateTime now = DateTimeUtil.now();
         Tx.writeVoid(con -> notificationDAO.markReadByOrder(con, userId, orderId, now));
     }
 
+    /** Ghi thông báo in-app trong DB và thử gửi thêm qua kênh email đã cấu hình. */
     private void record(Connection con, Order order, NotificationEvent event,
                         String subject, String content) throws SQLException {
         boolean sent = sender.send(order.getCustomerEmail(), subject, content);

@@ -24,6 +24,7 @@ public class FavouriteDAO {
             "JOIN dbo.Product  p ON p.product_id  = f.product_id " +
             "JOIN dbo.Category c ON c.category_id = p.category_id ";
 
+    /** Chèn món quen mới và gán favouriteId do database sinh vào entity. */
     public int insert(Connection con, Favourite fav) throws SQLException {
         String sql = "INSERT INTO dbo.Favourite (customer_id, product_id, note, created_at) " +
                      "VALUES (?, ?, ?, ?)";
@@ -42,6 +43,7 @@ public class FavouriteDAO {
         return fav.getFavouriteId();
     }
 
+    /** Tìm một món quen theo khóa chính. */
     public Favourite findById(Connection con, int favouriteId) throws SQLException {
         try (PreparedStatement ps = con.prepareStatement(BASE + "WHERE f.favourite_id = ?")) {
             ps.setInt(1, favouriteId);
@@ -50,6 +52,7 @@ public class FavouriteDAO {
         }
     }
 
+    /** Lấy danh sách món quen của một customer để hiển thị. */
     public List<Favourite> findByCustomer(Connection con, int customerId) throws SQLException {
         try (PreparedStatement ps = con.prepareStatement(
                 BASE + "WHERE f.customer_id = ? ORDER BY f.created_at DESC, f.favourite_id DESC")) {
@@ -58,6 +61,7 @@ public class FavouriteDAO {
         }
     }
 
+    /** Lấy tập productId customer đã lưu để kiểm tra nhanh trạng thái yêu thích. */
     public Set<Integer> productIdsOf(Connection con, int customerId) throws SQLException {
         Set<Integer> ids = new LinkedHashSet<>();
         try (PreparedStatement ps = con.prepareStatement(
@@ -72,6 +76,7 @@ public class FavouriteDAO {
         return ids;
     }
 
+    /** Sửa ghi chú khi bản ghi đồng thời thuộc đúng customer. */
     public int updateNote(Connection con, int favouriteId, int customerId, String note,
                           LocalDateTime now) throws SQLException {
         String sql = "UPDATE dbo.Favourite SET note = ?, updated_at = ? " +
@@ -85,6 +90,7 @@ public class FavouriteDAO {
         }
     }
 
+    /** Xóa món quen theo id và customerId để bảo vệ quyền sở hữu. */
     public int delete(Connection con, int favouriteId, int customerId) throws SQLException {
         try (PreparedStatement ps = con.prepareStatement(
                 "DELETE FROM dbo.Favourite WHERE favourite_id = ? AND customer_id = ?")) {
@@ -94,6 +100,7 @@ public class FavouriteDAO {
         }
     }
 
+    /** Xóa món quen theo cặp customer-product. */
     public int deleteByProduct(Connection con, int customerId, int productId) throws SQLException {
         try (PreparedStatement ps = con.prepareStatement(
                 "DELETE FROM dbo.Favourite WHERE customer_id = ? AND product_id = ?")) {
@@ -103,6 +110,7 @@ public class FavouriteDAO {
         }
     }
 
+    /** Chạy truy vấn và ánh xạ toàn bộ ResultSet thành danh sách Favourite. */
     private List<Favourite> collect(PreparedStatement ps) throws SQLException {
         List<Favourite> list = new ArrayList<>();
         try (ResultSet rs = ps.executeQuery()) {
