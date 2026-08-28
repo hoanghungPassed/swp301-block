@@ -33,6 +33,7 @@ public final class MenuEntities {
         public int getProductCount() { return productCount; }
         public void setProductCount(int productCount) { this.productCount = productCount; }
 
+        /** Danh mục chỉ xuất hiện trên menu Customer khi đang ACTIVE. */
         public boolean isActive() { return "ACTIVE".equals(status); }
     }
 
@@ -85,6 +86,7 @@ public final class MenuEntities {
         public String getCategoryName() { return categoryName; }
         public void setCategoryName(String categoryName) { this.categoryName = categoryName; }
 
+        /** Sản phẩm đặt được khi vừa ACTIVE vừa được bật available. */
         public boolean isOrderable() { return "ACTIVE".equals(status) && available; }
 
         public BigDecimal getRatingAverage() { return ratingAverage; }
@@ -93,14 +95,17 @@ public final class MenuEntities {
         public int getRatingCount() { return ratingCount; }
         public void setRatingCount(int ratingCount) { this.ratingCount = ratingCount; }
 
+        /** Cho JSP phân biệt chưa có đánh giá với điểm trung bình bằng 0. */
         public boolean isRated() { return ratingCount > 0 && ratingAverage != null; }
 
+        /** Làm tròn điểm trung bình một chữ số để hiển thị nhất quán. */
         public BigDecimal getRatingRounded() {
             return ratingAverage == null
                     ? BigDecimal.ZERO
                     : ratingAverage.setScale(1, RoundingMode.HALF_UP);
         }
 
+        /** Chuyển điểm trung bình thành chuỗi sao cho thẻ sản phẩm. */
         public String getRatingStars() { return StarRating.of(ratingAverage); }
     }
 
@@ -144,8 +149,10 @@ public final class MenuEntities {
         public String getProductName() { return productName; }
         public void setProductName(String productName) { this.productName = productName; }
 
+        /** Cho giao diện gắn nhãn đánh giá đã chỉnh sửa. */
         public boolean isEdited() { return updatedAt != null; }
 
+        /** Chuyển số sao khách chọn thành biểu tượng năm sao. */
         public String getStars() {
             return StarRating.of(rating);
         }
@@ -203,8 +210,10 @@ public final class MenuEntities {
         public String getProductStatus() { return productStatus; }
         public void setProductStatus(String productStatus) { this.productStatus = productStatus; }
 
+        /** Cho giao diện biết ghi chú yêu thích đã được chỉnh sửa. */
         public boolean isEdited() { return updatedAt != null; }
 
+        /** Kiểm tra món yêu thích còn có thể đưa trở lại giỏ hay không. */
         public boolean isOrderable() {
             return "ACTIVE".equals(productStatus) && available;
         }

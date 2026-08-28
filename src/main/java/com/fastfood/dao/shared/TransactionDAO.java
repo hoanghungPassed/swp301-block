@@ -10,6 +10,7 @@ import com.fastfood.dao.JdbcSupport;
 
 public class TransactionDAO {
 
+    /** Chèn callback giao dịch nếu externalId chưa tồn tại, trả false khi callback bị trùng. */
     public boolean insertIfNew(Connection con, Transaction t) throws SQLException {
         String sql = "INSERT INTO dbo.PaymentTransaction (payment_id, gateway, external_transaction_id, " +
                      "status, raw_reference, created_at) VALUES (?, ?, ?, ?, ?, ?)";
@@ -35,6 +36,7 @@ public class TransactionDAO {
         }
     }
 
+    /** Lấy lịch sử callback/giao dịch của một payment. */
     public List<Transaction> findByPayment(Connection con, int paymentId) throws SQLException {
         String sql = "SELECT transaction_id, payment_id, gateway, external_transaction_id, status, " +
                      "raw_reference, created_at FROM dbo.PaymentTransaction " +
@@ -59,6 +61,7 @@ public class TransactionDAO {
         return list;
     }
 
+    /** Tạo entity Transaction chuẩn hóa từ dữ liệu callback của gateway. */
     public Transaction newTransaction(int paymentId, String gateway, String externalId,
                                       String status, String raw, LocalDateTime now) {
         Transaction t = new Transaction();

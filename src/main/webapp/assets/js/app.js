@@ -199,6 +199,7 @@
     var TRACK_STEPS = ['PENDING_PAYMENT', 'CONFIRMED', 'PREPARING', 'READY', 'COMPLETED'];
     var TRACK_RELOAD_ON = ['READY', 'COMPLETED', 'CANCELLED', 'EXPIRED'];
 
+    /* Tô lại thanh tiến độ trên trang chi tiết đơn theo trạng thái máy chủ trả về. */
     function trackUpdateSteps(status) {
         var steps = document.querySelectorAll('.steps .step');
         var idx = TRACK_STEPS.indexOf(status);
@@ -221,6 +222,7 @@
         });
     }
 
+    /* Hỏi API trạng thái đơn định kỳ để Customer thấy tiến độ mới mà không tự F5. */
     function watchOrderStatus() {
         var watch = document.getElementById('order-watch');
         if (!watch) {
@@ -252,6 +254,7 @@
         }, TRACK_INTERVAL_MS);
     }
 
+    /* Khoá nút sau lần submit đầu để tránh tạo đơn/thanh toán hai lần do bấm liên tiếp. */
     function guardDoubleSubmit() {
         document.addEventListener('submit', function (e) {
             var form = e.target;
@@ -290,6 +293,7 @@
         });
     }
 
+    /* Tự gửi form khi Customer đổi bộ lọc, sắp xếp hoặc số lượng giỏ hàng. */
     function bindAutoSubmit() {
         Array.prototype.forEach.call(document.querySelectorAll('[data-autosubmit]'), function (el) {
             el.addEventListener('change', function () {
@@ -309,6 +313,7 @@
 
     var LIVE_SEARCH_DELAY_MS = 260;
 
+    /* Thu thập giá trị form thành URL; từ khoá một ký tự cũng được giữ và gửi lên server. */
     function liveSearchUrl(form) {
         var params = [];
         Array.prototype.forEach.call(form.elements, function (el) {
@@ -326,6 +331,7 @@
         return form.action + (params.length ? '?' + params.join('&') : '');
     }
 
+    /* Debounce ô tìm kiếm rồi chỉ thay vùng kết quả menu, không tải lại toàn trang. */
     function bindLiveSearch() {
         if (!window.fetch || !window.DOMParser || !window.history || !history.replaceState) {
             return;
@@ -342,11 +348,13 @@
             var seq = 0;
             var lastUrl = liveSearchUrl(form);
 
+            /* Kết thúc trạng thái loading của vùng kết quả sau fetch. */
             function done() {
                 region.removeAttribute('data-live-busy');
                 region.removeAttribute('aria-busy');
             }
 
+            /* Gọi URL tìm kiếm mới và bỏ qua response cũ nếu người dùng đã gõ tiếp. */
             function run() {
                 var url = liveSearchUrl(form);
                 if (url === lastUrl) {
@@ -413,6 +421,7 @@
         });
     }
 
+    /* Mở/đóng menu điều hướng trên màn hình nhỏ và đồng bộ aria-expanded. */
     function bindNavToggle() {
         var btn = document.getElementById('nav-toggle');
         var nav = document.getElementById('main-nav');
@@ -421,6 +430,7 @@
         }
         btn.hidden = false;
 
+        /* Áp trạng thái mở cho nút và thanh điều hướng. */
         function setOpen(open) {
             btn.setAttribute('aria-expanded', String(open));
             nav.classList.toggle('open', open);
@@ -456,11 +466,13 @@
         });
     }
 
+    /* Thêm bóng cho header khi người dùng cuộn trang để giữ ranh giới dễ nhìn. */
     function bindHeaderShadow() {
         var header = document.getElementById('app-header');
         if (!header) {
             return;
         }
+        /* Đồng bộ lớp CSS của header với vị trí cuộn hiện tại. */
         function sync() {
             header.classList.toggle('scrolled', window.scrollY > 4);
         }
@@ -468,6 +480,7 @@
         window.addEventListener('scroll', sync, { passive: true });
     }
 
+    /* Thay ảnh món bị lỗi bằng placeholder thay vì để biểu tượng ảnh vỡ. */
     function bindImageFallback() {
         document.addEventListener('error', function (e) {
             var img = e.target;
@@ -482,6 +495,7 @@
         }, true);
     }
 
+    /* Gửi lại đúng form/nút sau khi người dùng đồng ý trong hộp xác nhận. */
     function resubmit(form, submitter) {
         form.dataset.confirmed = 'yes';
         if (form.requestSubmit) {
@@ -493,6 +507,7 @@
         }
     }
 
+    /* Chặn thao tác nguy hiểm để hiện confirm dialog trước khi gửi POST thật. */
     function bindConfirm() {
         var dlg = document.getElementById('confirm-dialog');
         var supported = dlg && typeof dlg.showModal === 'function';
@@ -532,6 +547,7 @@
         }, true);
     }
 
+    /* Xem trước ảnh từ URL ở các form có hỗ trợ preview. */
     function bindUrlPreview() {
         Array.prototype.forEach.call(document.querySelectorAll('[data-preview]'), function (input) {
             var img = document.getElementById(input.dataset.preview);
@@ -545,6 +561,7 @@
                 if (msg) { msg.hidden = false; }
             });
 
+            /* Cập nhật ảnh xem trước theo URL vừa nhập. */
             function refresh() {
                 var url = input.value.trim();
                 if (msg) { msg.hidden = true; }
@@ -563,10 +580,12 @@
         });
     }
 
+    /* Định dạng tổng tiền tạm tính ở trình duyệt theo tiền Việt. */
     function formatDong(amount) {
         return Math.round(amount).toLocaleString('vi-VN') + ' đ';
     }
 
+    /* Cập nhật thành tiền ngay khi Customer gõ số lượng; server vẫn xác nhận giá cuối cùng. */
     function bindCartQuantity() {
         var rows = document.querySelectorAll('[data-cart-line]');
         if (!rows.length) {
@@ -577,6 +596,7 @@
         /* Nhân tạm ở trình duyệt để tiền nhảy ngay khi người dùng đổi số lượng.
            Ô số lượng có data-autosubmit nên máy chủ vẫn lưu và vẽ lại con số
            chính thức ngay sau đó. */
+        /* Tính lại từng dòng và tổng giỏ từ các ô số lượng hiện tại. */
         function refresh() {
             var sum = 0;
             Array.prototype.forEach.call(rows, function (row) {
@@ -605,6 +625,7 @@
 
     var PAY_INTERVAL_MS = 5000;
 
+    /* Poll trạng thái thanh toán online và chuyển về chi tiết đơn khi payment hết PENDING. */
     function watchPaymentStatus() {
         var watch = document.getElementById('payment-watch');
         if (!watch) {
@@ -648,6 +669,7 @@
         }, PAY_INTERVAL_MS);
     }
 
+    /* Gắn nút in hoá đơn với hộp thoại in của trình duyệt. */
     function bindPrint() {
         Array.prototype.forEach.call(document.querySelectorAll('[data-print]'), function (btn) {
             btn.addEventListener('click', function () { window.print(); });
@@ -666,6 +688,7 @@
         'qwerty123', 'abc12345', 'iloveyou', 'matkhau1', 'matkhau123', 'admin123',
         'fastfood', 'fastfood1', '11111111', '00000000', '1qaz2wsx', 'letmein1'];
 
+    /* Tạo regex Unicode nếu trình duyệt hỗ trợ, nếu không dùng mẫu ASCII dự phòng. */
     function unicodeRe(property, fallback) {
         try {
             return new RegExp('\\p{' + property + '}', 'u');
@@ -677,6 +700,7 @@
     var LETTER_RE = unicodeRe('L', /[a-zA-Z]/);
     var DIGIT_RE = unicodeRe('Nd', /[0-9]/);
 
+    /* Đếm byte UTF-8 để giới hạn BCrypt 72 byte giống validation phía server. */
     function byteLength(value) {
         if (window.TextEncoder) {
             return new TextEncoder().encode(value).length;
@@ -684,6 +708,7 @@
         return unescape(encodeURIComponent(value)).length;
     }
 
+    /* Trả kết quả từng điều kiện để danh sách gợi ý mật khẩu đổi màu trực tiếp. */
     function passwordChecks(value) {
         return {
             len: value.length >= PW_MIN_LENGTH,
@@ -692,6 +717,7 @@
         };
     }
 
+    /* Trả thông báo đầu tiên khi mật khẩu yếu, quá dài hoặc quá phổ biến. */
     function passwordError(value) {
         var checks = passwordChecks(value);
         if (!checks.len) {
@@ -715,6 +741,7 @@
         return null;
     }
 
+    /* Kiểm tra một ô theo data-validate: bắt buộc, email, điện thoại, mật khẩu, nhập lại. */
     function fieldError(input) {
         var raw = input.value;
         var value = raw.trim();
@@ -747,6 +774,7 @@
         return null;
     }
 
+    /* Hiển thị/xoá lỗi cạnh ô và cập nhật aria-invalid cho accessibility. */
     function showFieldError(input, error) {
         var field = input.closest('.field');
         if (!field) {
@@ -765,6 +793,7 @@
         }
     }
 
+    /* Đồng bộ danh sách điều kiện mật khẩu khi Customer đang gõ. */
     function refreshPasswordChecks(input) {
         var list = document.querySelector('[data-pw-checks="' + input.id + '"]');
         if (!list) {
@@ -778,12 +807,14 @@
         });
     }
 
+    /* Gắn validation phía trình duyệt cho login/register/profile/reset; server vẫn quyết định cuối. */
     function bindFieldValidation() {
         var inputs = document.querySelectorAll('[data-validate]');
         if (!inputs.length) {
             return;
         }
 
+        /* Chỉ hiện lỗi sau khi ô đã được chạm hoặc khi submit bắt buộc kiểm tra. */
         function revalidate(input, force) {
             if (force || input.dataset.touched === 'yes') {
                 showFieldError(input, fieldError(input));

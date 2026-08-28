@@ -16,6 +16,7 @@ public class PaymentDAO {
             "p.payment_id, p.order_id, p.method, p.amount, p.payment_status, p.attempt_no, " +
             "p.created_at, p.paid_at ";
 
+    /** Chèn một lần thử thanh toán và gán paymentId tự tăng vào entity. */
     public int insert(Connection con, Payment p) throws SQLException {
         String sql = "INSERT INTO dbo.Payment (order_id, method, amount, payment_status, attempt_no, " +
                      "created_at, paid_at) VALUES (?, ?, ?, ?, ?, ?, ?)";
@@ -37,6 +38,7 @@ public class PaymentDAO {
         return p.getPaymentId();
     }
 
+    /** Tính số lần thử tiếp theo của một đơn từ attemptNo lớn nhất hiện có. */
     public int nextAttemptNo(Connection con, int orderId) throws SQLException {
         try (PreparedStatement ps = con.prepareStatement(
                 "SELECT ISNULL(MAX(attempt_no), 0) + 1 FROM dbo.Payment WHERE order_id = ?")) {
@@ -47,6 +49,7 @@ public class PaymentDAO {
         }
     }
 
+    /** Đánh dấu payment PENDING thành PAID đúng một lần. */
     public int markPaid(Connection con, int paymentId, LocalDateTime now) throws SQLException {
         String sql = "UPDATE dbo.Payment SET payment_status = 'PAID', paid_at = ? " +
                      "WHERE payment_id = ? AND payment_status IN ('PENDING', 'UNPAID')";
@@ -57,6 +60,7 @@ public class PaymentDAO {
         }
     }
 
+    /** Chuyển payment còn PENDING sang FAILED. */
     public int markFailed(Connection con, int paymentId) throws SQLException {
         String sql = "UPDATE dbo.Payment SET payment_status = 'FAILED' " +
                      "WHERE payment_id = ? AND payment_status = 'PENDING'";
@@ -70,6 +74,7 @@ public class PaymentDAO {
        nhận cả trạng thái FAILED: tới lúc gọi hàm này thì cổng thanh toán đã xác nhận tiền vào
        tài khoản cửa hàng, và để bản ghi ở FAILED nghĩa là sổ sách nói không thu được trong khi
        sao kê ngân hàng nói có. Vẫn loại trừ PAID để lần gọi lại thứ hai không dời paid_at. */
+    /** Ghi nhận tiền về muộn cho payment đã đóng để phục vụ đối soát. */
     public int markPaidLate(Connection con, int paymentId, LocalDateTime now) throws SQLException {
         String sql = "UPDATE dbo.Payment SET payment_status = 'PAID', paid_at = ? " +
                      "WHERE payment_id = ? AND payment_status <> 'PAID'";
@@ -80,6 +85,7 @@ public class PaymentDAO {
         }
     }
 
+    /** Tìm payment theo khóa chính. */
     public Payment findById(Connection con, int paymentId) throws SQLException {
         try (PreparedStatement ps = con.prepareStatement(
                 "SELECT " + COLS + "FROM dbo.Payment p WHERE p.payment_id = ?")) {
@@ -90,6 +96,7 @@ public class PaymentDAO {
         }
     }
 
+    /** Lấy toàn bộ lần thử thanh toán của một đơn. */
     public List<Payment> findByOrder(Connection con, int orderId) throws SQLException {
         try (PreparedStatement ps = con.prepareStatement(
                 "SELECT " + COLS + "FROM dbo.Payment p WHERE p.order_id = ? ORDER BY p.attempt_no")) {
@@ -104,6 +111,7 @@ public class PaymentDAO {
         }
     }
 
+    /** Tìm payment đã PAID của đơn, nếu có. */
     public Payment findPaidByOrder(Connection con, int orderId) throws SQLException {
         try (PreparedStatement ps = con.prepareStatement(
                 "SELECT " + COLS + "FROM dbo.Payment p WHERE p.order_id = ? AND p.payment_status = 'PAID'")) {
@@ -114,6 +122,7 @@ public class PaymentDAO {
         }
     }
 
+    /** Tìm lần thử thanh toán mới nhất của đơn. */
     public Payment findLatestByOrder(Connection con, int orderId) throws SQLException {
         try (PreparedStatement ps = con.prepareStatement(
                 "SELECT TOP 1 " + COLS + "FROM dbo.Payment p WHERE p.order_id = ? ORDER BY p.attempt_no DESC")) {
@@ -124,6 +133,7 @@ public class PaymentDAO {
         }
     }
 
+    /** Ánh xạ một dòng ResultSet thành Payment. */
     private Payment map(ResultSet rs) throws SQLException {
         Payment p = new Payment();
         p.setPaymentId(rs.getInt("payment_id"));

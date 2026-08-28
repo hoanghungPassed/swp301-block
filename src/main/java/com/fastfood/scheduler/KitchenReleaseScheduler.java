@@ -12,6 +12,7 @@ public class KitchenReleaseScheduler implements Runnable {
     private final ScheduleService scheduleService = new ScheduleService();
 
     @Override
+    /** Được timer gọi định kỳ để đưa các đơn đến giờ chuẩn bị vào hàng chờ bếp. */
     public void run() {
         try {
             int released = scheduleService.releaseDueOrders();

@@ -8,6 +8,7 @@ import java.util.List;
 
 public class CategoryDAO {
 
+    /** Lấy danh mục ACTIVE theo displayOrder để dựng bộ lọc menu Customer. */
     public List<Category> findActive(Connection con) throws SQLException {
         String sql = "SELECT category_id, name, status, display_order FROM dbo.Category " +
                      "WHERE status = 'ACTIVE' ORDER BY display_order, name";
@@ -102,6 +103,7 @@ public class CategoryDAO {
         }
     }
 
+    /** Chạy truy vấn và ánh xạ danh sách Category. */
     private List<Category> query(Connection con, String sql) throws SQLException {
         List<Category> list = new ArrayList<>();
         try (PreparedStatement ps = con.prepareStatement(sql); ResultSet rs = ps.executeQuery()) {
@@ -112,6 +114,7 @@ public class CategoryDAO {
         return list;
     }
 
+    /** Ánh xạ một dòng ResultSet thành Category. */
     private Category map(ResultSet rs) throws SQLException {
         Category c = new Category();
         c.setCategoryId(rs.getInt("category_id"));

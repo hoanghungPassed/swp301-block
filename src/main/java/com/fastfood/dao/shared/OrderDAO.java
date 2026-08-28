@@ -25,6 +25,7 @@ public class OrderDAO {
             "LEFT JOIN dbo.Users cu ON cu.user_id = o.customer_id " +
             "LEFT JOIN dbo.Users hu ON hu.user_id = o.handoff_by_user_id ";
 
+    /** Chèn Orders mới và gán orderId identity vào entity. */
     public int insert(Connection con, Order o) throws SQLException {
         String sql = "INSERT INTO dbo.Orders (customer_id, created_by_user_id, order_source, total_amount, " +
                      "order_status, idempotency_key, pickup_time, kitchen_release_at, released_to_kds_at, " +
@@ -51,6 +52,7 @@ public class OrderDAO {
         return o.getOrderId();
     }
 
+    /** Lưu tổng tiền do server tính từ các OrderItem. */
     public void updateTotal(Connection con, int orderId, BigDecimal total) throws SQLException {
         try (PreparedStatement ps = con.prepareStatement(
                 "UPDATE dbo.Orders SET total_amount = ? WHERE order_id = ?")) {
@@ -60,6 +62,7 @@ public class OrderDAO {
         }
     }
 
+    /** Chuyển đơn online từ PENDING_PAYMENT sang CONFIRMED và lưu mã/thời gian xuống bếp. */
     public int confirmOnlineAfterPaid(Connection con, int orderId, String pickupCode,
                                       LocalDateTime kitchenReleaseAt) throws SQLException {
         String sql = "UPDATE dbo.Orders SET order_status = 'CONFIRMED', pickup_code = ?, kitchen_release_at = ? " +
@@ -72,6 +75,7 @@ public class OrderDAO {
         }
     }
 
+    /** Đánh dấu đơn CONFIRMED đã được đưa vào hàng chờ bếp đúng một lần. */
     public int markReleasedToKds(Connection con, int orderId, LocalDateTime now) throws SQLException {
         String sql = "UPDATE dbo.Orders SET released_to_kds_at = ? " +
                      "WHERE order_id = ? AND released_to_kds_at IS NULL AND order_status = 'CONFIRMED'";
@@ -82,6 +86,7 @@ public class OrderDAO {
         }
     }
 
+    /** Đổi đơn CONFIRMED sang PREPARING khi món đầu tiên được bếp nhận làm. */
     public int markPreparing(Connection con, int orderId) throws SQLException {
         String sql = "UPDATE dbo.Orders SET order_status = 'PREPARING' " +
                      "WHERE order_id = ? AND order_status = 'CONFIRMED'";
@@ -91,6 +96,7 @@ public class OrderDAO {
         }
     }
 
+    /** Đánh dấu toàn đơn READY và lưu thời điểm sẵn sàng khi mọi món đã hoàn thành. */
     public int markReady(Connection con, int orderId, LocalDateTime now) throws SQLException {
         String sql = "UPDATE dbo.Orders SET order_status = 'READY', ready_at = ? " +
                      "WHERE order_id = ? AND order_status IN ('CONFIRMED', 'PREPARING')";
@@ -101,6 +107,7 @@ public class OrderDAO {
         }
     }
 
+    /** Hoàn tất đơn sau khi quầy xác minh mã nhận hàng của Customer. */
     public int markCompleted(Connection con, int orderId, int handoffByUserId, LocalDateTime now) throws SQLException {
         String sql = "UPDATE dbo.Orders SET order_status = 'COMPLETED', picked_up_at = ?, " +
                      "completed_at = ?, handoff_by_user_id = ? WHERE order_id = ? AND order_status = 'READY'";
@@ -127,6 +134,7 @@ public class OrderDAO {
         }
     }
 
+    /** Chuyển đơn PENDING_PAYMENT quá hạn hoặc khách bỏ sang EXPIRED. */
     public int markExpired(Connection con, int orderId, LocalDateTime now) throws SQLException {
         String sql = "UPDATE dbo.Orders SET order_status = 'EXPIRED', expired_at = ? " +
                      "WHERE order_id = ? AND order_status = 'PENDING_PAYMENT'";
@@ -137,6 +145,7 @@ public class OrderDAO {
         }
     }
 
+    /** Khóa dòng đơn trong transaction để tránh callback thanh toán và hủy đơn chạy đồng thời. */
     public void lockForUpdate(Connection con, int orderId) throws SQLException {
         try (PreparedStatement ps = con.prepareStatement(
                 "SELECT order_id FROM dbo.Orders WITH (UPDLOCK, ROWLOCK) WHERE order_id = ?")) {
@@ -147,6 +156,7 @@ public class OrderDAO {
         }
     }
 
+    /** Tìm đơn theo khóa chính. */
     public Order findById(Connection con, int orderId) throws SQLException {
         try (PreparedStatement ps = con.prepareStatement(BASE + "WHERE o.order_id = ?")) {
             ps.setInt(1, orderId);
@@ -156,6 +166,7 @@ public class OrderDAO {
         }
     }
 
+    /** Tìm đúng đơn READY từ mã Customer đưa tại quầy để tránh giao nhầm. */
     public Order findByPickupCode(Connection con, String pickupCode) throws SQLException {
         try (PreparedStatement ps = con.prepareStatement(BASE + "WHERE o.pickup_code = ?")) {
             ps.setString(1, pickupCode);
@@ -165,6 +176,7 @@ public class OrderDAO {
         }
     }
 
+    /** Tìm đơn đã tạo bằng idempotency key để chống double-submit checkout. */
     public Order findByIdempotencyKey(Connection con, String key) throws SQLException {
         try (PreparedStatement ps = con.prepareStatement(BASE + "WHERE o.idempotency_key = ?")) {
             ps.setString(1, key);
@@ -174,6 +186,7 @@ public class OrderDAO {
         }
     }
 
+    /** Lấy một trang lịch sử đơn chỉ thuộc customer và bộ lọc được truyền vào. */
     public List<Order> findByCustomer(Connection con, int customerId, String status,
                                       LocalDateTime from, LocalDateTime to,
                                       int offset, int limit) throws SQLException {
@@ -189,6 +202,7 @@ public class OrderDAO {
         }
     }
 
+    /** Đếm lịch sử đơn của customer theo cùng bộ lọc để phân trang. */
     public long countByCustomer(Connection con, int customerId, String status,
                                 LocalDateTime from, LocalDateTime to) throws SQLException {
         List<Object> params = new ArrayList<>();
@@ -202,6 +216,7 @@ public class OrderDAO {
         }
     }
 
+    /** Dựng WHERE bắt buộc customerId và thêm status/khoảng ngày bằng bind parameter. */
     private String customerWhere(int customerId, String status,
                                  LocalDateTime from, LocalDateTime to, List<Object> params) {
         StringBuilder sql = new StringBuilder("WHERE o.customer_id = ? ");
@@ -221,6 +236,7 @@ public class OrderDAO {
         return sql.toString();
     }
 
+    /** Bind tuần tự danh sách parameter cho câu truy vấn lịch sử Customer. */
     private int bindAll(PreparedStatement ps, List<Object> params) throws SQLException {
         for (int i = 0; i < params.size(); i++) {
             ps.setObject(i + 1, params.get(i));
@@ -228,6 +244,7 @@ public class OrderDAO {
         return params.size() + 1;
     }
 
+    /** Tìm đơn PENDING_PAYMENT gần nhất để chặn một customer giữ nhiều đơn chưa trả. */
     public Order findPendingByCustomer(Connection con, int customerId) throws SQLException {
         try (PreparedStatement ps = con.prepareStatement(BASE +
                 "WHERE o.customer_id = ? AND o.order_status = 'PENDING_PAYMENT' " +
@@ -239,6 +256,7 @@ public class OrderDAO {
         }
     }
 
+    /** Lấy các đơn chưa kết thúc của customer theo giờ nhận. */
     public List<Order> findActiveByCustomer(Connection con, int customerId) throws SQLException {
         try (PreparedStatement ps = con.prepareStatement(BASE +
                 "WHERE o.customer_id = ? AND o.order_status IN " +
@@ -335,6 +353,7 @@ public class OrderDAO {
         return params.size() + 1;
     }
 
+    /** Tìm đơn CONFIRMED đã tới kitchenReleaseAt nhưng chưa đưa xuống bếp. */
     public List<Order> findDueForRelease(Connection con, LocalDateTime now) throws SQLException {
         String sql = "SELECT " + COLS + ", NULL AS customer_name, NULL AS customer_email, " +
                      "NULL AS handoff_by_name FROM dbo.Orders o " +
@@ -347,6 +366,7 @@ public class OrderDAO {
         }
     }
 
+    /** Tìm đơn PENDING_PAYMENT được tạo trước deadline để scheduler cho hết hiệu lực. */
     public List<Order> findExpiredCandidates(Connection con, LocalDateTime deadline) throws SQLException {
         try (PreparedStatement ps = con.prepareStatement(
                 BASE + "WHERE o.order_status = 'PENDING_PAYMENT' AND o.created_at <= ?")) {
@@ -385,6 +405,7 @@ public class OrderDAO {
         }
     }
 
+    /** Chạy truy vấn và ánh xạ toàn bộ ResultSet thành danh sách Order. */
     private List<Order> collect(PreparedStatement ps) throws SQLException {
         List<Order> list = new ArrayList<>();
         try (ResultSet rs = ps.executeQuery()) {
@@ -395,6 +416,7 @@ public class OrderDAO {
         return list;
     }
 
+    /** Ánh xạ một dòng ResultSet thành Order và tính cờ trạng thái thời gian. */
     private Order map(ResultSet rs) throws SQLException {
         Order o = new Order();
         o.setOrderId(rs.getInt("order_id"));

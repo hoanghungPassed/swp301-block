@@ -16,6 +16,7 @@ public class UserDAO {
             "       r.name AS role_name " +
             "FROM dbo.Users u JOIN dbo.Role r ON r.role_id = u.role_id ";
 
+    /** Tìm user và role theo email đã chuẩn hóa. */
     public User findByEmail(Connection con, String email) throws SQLException {
         try (PreparedStatement ps = con.prepareStatement(BASE + "WHERE u.email = ?")) {
             ps.setString(1, email);
@@ -25,6 +26,7 @@ public class UserDAO {
         }
     }
 
+    /** Tìm user và role theo khóa chính. */
     public User findById(Connection con, int userId) throws SQLException {
         try (PreparedStatement ps = con.prepareStatement(BASE + "WHERE u.user_id = ?")) {
             ps.setInt(1, userId);
@@ -34,6 +36,7 @@ public class UserDAO {
         }
     }
 
+    /** Kiểm tra email đã tồn tại để chặn đăng ký trùng. */
     public boolean emailExists(Connection con, String email) throws SQLException {
         try (PreparedStatement ps = con.prepareStatement("SELECT 1 FROM dbo.Users WHERE email = ?")) {
             ps.setString(1, email);
@@ -107,6 +110,7 @@ public class UserDAO {
         return search(con, roleName, null);
     }
 
+    /** Chèn tài khoản mới và gán userId tự tăng vào entity. */
     public int insert(Connection con, User u) throws SQLException {
         String sql = "INSERT INTO dbo.Users " +
                      "(full_name, email, phone, password_hash, role_id, status, email_verified, created_at) " +
@@ -130,6 +134,7 @@ public class UserDAO {
         return u.getUserId();
     }
 
+    /** Cập nhật họ tên, số điện thoại và thời điểm sửa hồ sơ. */
     public void updateProfile(Connection con, User u) throws SQLException {
         String sql = "UPDATE dbo.Users SET full_name = ?, phone = ?, updated_at = ? WHERE user_id = ?";
         try (PreparedStatement ps = con.prepareStatement(sql)) {
@@ -141,6 +146,7 @@ public class UserDAO {
         }
     }
 
+    /** Lưu BCrypt hash mới và trạng thái bắt buộc đổi mật khẩu. */
     public void updatePassword(Connection con, int userId, String passwordHash,
                                boolean mustChange) throws SQLException {
         try (PreparedStatement ps = con.prepareStatement(
@@ -152,6 +158,7 @@ public class UserDAO {
         }
     }
 
+    /** Đánh dấu email đã xác thực nếu tài khoản chưa được xác thực trước đó. */
     public boolean markEmailVerified(Connection con, int userId, LocalDateTime at) throws SQLException {
         try (PreparedStatement ps = con.prepareStatement(
                 "UPDATE dbo.Users SET email_verified = 1, updated_at = ? " +
@@ -180,6 +187,7 @@ public class UserDAO {
         }
     }
 
+    /** Ánh xạ một dòng ResultSet thành User kèm roleName. */
     private User map(ResultSet rs) throws SQLException {
         User u = new User();
         u.setUserId(rs.getInt("user_id"));

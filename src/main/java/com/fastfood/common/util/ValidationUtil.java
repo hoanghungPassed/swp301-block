@@ -14,6 +14,7 @@ public final class ValidationUtil {
     private ValidationUtil() {
     }
 
+    /** Bắt buộc chuỗi có nội dung và trả giá trị đã trim. */
     public static String requireText(String value, String fieldName) {
         if (value == null || value.trim().isEmpty()) {
             throw new ValidationException("Vui lòng nhập " + fieldName + ".");
@@ -21,6 +22,7 @@ public final class ValidationUtil {
         return value.trim();
     }
 
+    /** Bắt buộc email đúng định dạng và chuẩn hóa về chữ thường. */
     public static String requireEmail(String value) {
         String email = requireText(value, "email");
         if (!EMAIL.matcher(email).matches()) {
@@ -29,6 +31,7 @@ public final class ValidationUtil {
         return email.toLowerCase();
     }
 
+    /** Cho phép bỏ trống số điện thoại; nếu có phải bắt đầu bằng 0 và dài 10-11 số. */
     public static String optionalPhone(String value) {
         if (value == null || value.trim().isEmpty()) {
             return null;
@@ -49,6 +52,7 @@ public final class ValidationUtil {
             "qwerty123", "abc12345", "iloveyou", "matkhau1", "matkhau123", "admin123",
             "fastfood", "fastfood1", "11111111", "00000000", "1qaz2wsx", "letmein1");
 
+    /** Kiểm tra độ dài BCrypt, chữ-số, khoảng trắng và danh sách mật khẩu phổ biến. */
     public static void requirePasswordStrength(String password) {
         if (password == null || password.isEmpty()) {
             throw new ValidationException("Vui lòng nhập mật khẩu.");
@@ -82,6 +86,7 @@ public final class ValidationUtil {
         }
     }
 
+    /** Bắt buộc giá trị số nguyên lớn hơn 0. */
     public static int requirePositive(int value, String fieldName) {
         if (value <= 0) {
             throw new ValidationException(fieldName + " phải lớn hơn 0.");

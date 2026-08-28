@@ -28,6 +28,7 @@ public class OrderCoreService {
     private final AuditService auditService = new AuditService();
     private final NotificationService notificationService = new NotificationService();
 
+    /** Tải đầy đủ đơn theo id trong một read transaction. */
     public Order findById(int orderId) {
         Order order = Tx.read(con -> loadFull(con, orderId));
         if (order == null) {
@@ -36,14 +37,17 @@ public class OrderCoreService {
         return order;
     }
 
+    /** Tải Orders và nạp kèm OrderItem cùng Payment mới nhất. */
     public Order loadFull(Connection con, int orderId) throws SQLException {
         return fill(con, orderDAO.findById(con, orderId));
     }
 
+    /** Tải đầy đủ đơn theo idempotency key của checkout. */
     public Order loadFullByKey(Connection con, String idempotencyKey) throws SQLException {
         return fill(con, orderDAO.findByIdempotencyKey(con, idempotencyKey));
     }
 
+    /** Bổ sung danh sách món và payment mới nhất vào Order đã truy vấn. */
     private Order fill(Connection con, Order order) throws SQLException {
         if (order == null) {
             return null;
@@ -53,6 +57,10 @@ public class OrderCoreService {
         return order;
     }
 
+    /**
+     * Sau khi tiền về, sinh pickup code, tính thời điểm xuống bếp, chuyển đơn sang CONFIRMED và
+     * tạo thông báo xác nhận; trả false nếu trạng thái đã bị thay đổi đồng thời.
+     */
     public boolean confirmOnlineAfterPaid(Connection con, Order order, LocalDateTime now) throws SQLException {
         LocalDateTime releaseAt = order.getPickupTime().minusMinutes(AppConfig.kitchenPrepLeadMinutes());
 
@@ -87,10 +95,12 @@ public class OrderCoreService {
         return true;
     }
 
+    /** Khóa dòng Orders trước khi thực hiện chuyển trạng thái nhạy cảm. */
     public void lockOrder(Connection con, int orderId) throws SQLException {
         orderDAO.lockForUpdate(con, orderId);
     }
 
+    /** Tính lại trạng thái cấp đơn từ trạng thái các món và phát thông báo READY khi phù hợp. */
     public boolean recalculateStatus(Connection con, int orderId, LocalDateTime now) throws SQLException {
         orderDAO.lockForUpdate(con, orderId);
 

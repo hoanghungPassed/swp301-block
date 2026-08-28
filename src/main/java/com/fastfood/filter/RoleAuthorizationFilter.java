@@ -12,6 +12,7 @@ import java.io.IOException;
 public class RoleAuthorizationFilter implements Filter {
 
     @Override
+    /** Xác định role theo URL, buộc đăng nhập và chặn Customer truy cập màn staff/admin. */
     public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain)
             throws IOException, ServletException {
         HttpServletRequest req = (HttpServletRequest) request;
@@ -37,6 +38,7 @@ public class RoleAuthorizationFilter implements Filter {
         chain.doFilter(request, response);
     }
 
+    /** Trả JSON cho API hoặc chuyển sang trang lỗi phù hợp cho request giao diện. */
     private void deny(HttpServletRequest req, HttpServletResponse resp, boolean isApi, int status)
             throws IOException, ServletException {
         if (isApi) {
@@ -53,6 +55,7 @@ public class RoleAuthorizationFilter implements Filter {
         req.getRequestDispatcher("/WEB-INF/views/error/403.jsp").forward(req, resp);
     }
 
+    /** Ánh xạ tiền tố URL /admin, /staff, /kitchen sang role bắt buộc; URL Customer trả null. */
     public static RoleName requiredRole(String path) {
         if (path != null && path.startsWith("/staff/")) {
             return RoleName.CASHIER;

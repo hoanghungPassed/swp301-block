@@ -29,6 +29,7 @@ public class RoleDAO {
         }
     }
 
+    /** Tìm role theo tên, dùng để gán CUSTOMER khi đăng ký. */
     public Role findByName(Connection con, String name) throws SQLException {
         String sql = "SELECT role_id, name, description FROM dbo.Role WHERE name = ?";
         try (PreparedStatement ps = con.prepareStatement(sql)) {
@@ -39,6 +40,7 @@ public class RoleDAO {
         }
     }
 
+    /** Ánh xạ một dòng ResultSet thành Role. */
     private Role map(ResultSet rs) throws SQLException {
         Role r = new Role();
         r.setRoleId(rs.getInt("role_id"));

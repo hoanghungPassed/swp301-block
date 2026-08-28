@@ -16,6 +16,7 @@ public class PasswordResetTokenDAO {
             "SELECT token_id, user_id, token_hash, expires_at, used_at, requested_ip, created_at " +
             "FROM dbo.PasswordResetToken ";
 
+    /** Lưu hash token đặt lại mật khẩu và trả tokenId tự tăng. */
     public long insert(Connection con, PasswordResetToken token) throws SQLException {
         String sql = "INSERT INTO dbo.PasswordResetToken " +
                      "(user_id, token_hash, expires_at, requested_ip, created_at) VALUES (?, ?, ?, ?, ?)";
@@ -35,6 +36,7 @@ public class PasswordResetTokenDAO {
         return token.getTokenId();
     }
 
+    /** Tìm token reset bằng hash nhận từ liên kết. */
     public PasswordResetToken findByHash(Connection con, String tokenHash) throws SQLException {
         try (PreparedStatement ps = con.prepareStatement(BASE + "WHERE token_hash = ?")) {
             ps.setString(1, tokenHash);
@@ -44,6 +46,7 @@ public class PasswordResetTokenDAO {
         }
     }
 
+    /** Đánh dấu token reset chưa dùng thành đã dùng theo cách atomic. */
     public boolean markUsed(Connection con, long tokenId, LocalDateTime usedAt) throws SQLException {
         try (PreparedStatement ps = con.prepareStatement(
                 "UPDATE dbo.PasswordResetToken SET used_at = ? WHERE token_id = ? AND used_at IS NULL")) {
@@ -53,6 +56,7 @@ public class PasswordResetTokenDAO {
         }
     }
 
+    /** Vô hiệu hóa toàn bộ token reset chưa dùng của user. */
     public int invalidateAllFor(Connection con, int userId, LocalDateTime at) throws SQLException {
         try (PreparedStatement ps = con.prepareStatement(
                 "UPDATE dbo.PasswordResetToken SET used_at = ? WHERE user_id = ? AND used_at IS NULL")) {
@@ -62,6 +66,7 @@ public class PasswordResetTokenDAO {
         }
     }
 
+    /** Đếm số token reset được yêu cầu gần đây để áp dụng rate limit. */
     public int countRequestsSince(Connection con, int userId, LocalDateTime since) throws SQLException {
         try (PreparedStatement ps = con.prepareStatement(
                 "SELECT COUNT(*) FROM dbo.PasswordResetToken WHERE user_id = ? AND created_at >= ?")) {
@@ -73,6 +78,7 @@ public class PasswordResetTokenDAO {
         }
     }
 
+    /** Ánh xạ một dòng ResultSet thành PasswordResetToken. */
     private PasswordResetToken map(ResultSet rs) throws SQLException {
         PasswordResetToken t = new PasswordResetToken();
         t.setTokenId(rs.getLong("token_id"));

@@ -82,14 +82,17 @@ public class LoginThrottle {
         byKey.values().removeIf(a -> a.isStale(now));
     }
 
+    /** Số lần đăng nhập sai tối đa đọc từ cấu hình, có giá trị mặc định an toàn. */
     private int maxAttempts() {
         return AppConfig.getInt("security.login.maxAttempts", DEFAULT_MAX_ATTEMPTS);
     }
 
+    /** Số phút khoá tạm một IP/email sau khi vượt ngưỡng. */
     private int lockMinutes() {
         return AppConfig.getInt("security.login.lockMinutes", DEFAULT_LOCK_MINUTES);
     }
 
+    /** Khoảng thời gian gom các lần thử sai để tính rate limit. */
     private int windowMinutes() {
         return AppConfig.getInt("security.login.windowMinutes", DEFAULT_WINDOW_MINUTES);
     }

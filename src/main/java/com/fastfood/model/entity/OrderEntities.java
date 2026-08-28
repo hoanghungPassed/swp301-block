@@ -78,10 +78,12 @@ public final class OrderEntities {
         public String getCategoryStatus() { return categoryStatus; }
         public void setCategoryStatus(String categoryStatus) { this.categoryStatus = categoryStatus; }
 
+        /** Tính thành tiền một dòng giỏ bằng đơn giá hiện tại nhân số lượng. */
         public BigDecimal getLineTotal() {
             return unitPrice == null ? BigDecimal.ZERO : unitPrice.multiply(BigDecimal.valueOf(quantity));
         }
 
+        /** Xác nhận cả sản phẩm, danh mục và trạng thái còn cho phép đặt. */
         public boolean isOrderable() {
             return available && "ACTIVE".equals(productStatus) && "ACTIVE".equals(categoryStatus);
         }
@@ -183,12 +185,16 @@ public final class OrderEntities {
         public Payment getLatestPayment() { return latestPayment; }
         public void setLatestPayment(Payment latestPayment) { this.latestPayment = latestPayment; }
 
+        /** Phân biệt đơn khách đặt trước với đơn bán tại quầy. */
         public boolean isOnline() { return OrderSource.ONLINE_PREORDER.name().equals(orderSource); }
 
+        /** Cho giao diện/ nghiệp vụ nhận biết đơn POS. */
         public boolean isPos() { return OrderSource.POS.name().equals(orderSource); }
 
+        /** Đổi trạng thái chuỗi từ DB sang enum để so sánh an toàn. */
         public OrderStatus statusEnum() { return OrderStatus.valueOf(orderStatus); }
 
+        /** Suy ra đơn chưa hẹn bếp, đang chờ giờ vào bếp hay đã được đưa vào KDS. */
         public KdsReleaseState getReleaseState() {
             if (releasedToKdsAt != null) {
                 return KdsReleaseState.RELEASED_TO_KDS;
@@ -199,6 +205,7 @@ public final class OrderEntities {
             return KdsReleaseState.NOT_RELEASED;
         }
 
+        /** Đơn READY bị coi quá hạn khi quá giờ hẹn thêm số phút cấu hình mà khách chưa nhận. */
         public boolean isOverdue() {
             if (!isOnline() || pickupTime == null || !OrderStatus.READY.name().equals(orderStatus)) {
                 return false;
@@ -206,20 +213,24 @@ public final class OrderEntities {
             return DateTimeUtil.now().isAfter(pickupTime.plusMinutes(AppConfig.pickupOverdueMinutes()));
         }
 
+        /** Đánh dấu bếp hoàn thành sau giờ khách hẹn để phục vụ báo cáo. */
         public boolean isLateReady() {
             return isOnline() && readyAt != null && pickupTime != null && readyAt.isAfter(pickupTime);
         }
 
+        /** Xác định đơn vẫn đang thuộc luồng xử lý của bếp. */
         public boolean isActiveForKitchen() {
             return OrderStatus.CONFIRMED.name().equals(orderStatus)
                 || OrderStatus.PREPARING.name().equals(orderStatus);
         }
 
+        /** Kiểm tra payment mới nhất đã PAID để hiển thị trạng thái Customer. */
         public boolean isPaid() {
             return latestPayment != null
                 && PaymentStatus.PAID.name().equals(latestPayment.getPaymentStatus());
         }
 
+        /** Cộng tổng số suất của toàn bộ dòng trong đơn. */
         public int getTotalQuantity() {
             return items.stream().mapToInt(OrderItem::getQuantity).sum();
         }
@@ -308,6 +319,7 @@ public final class OrderEntities {
         public String getOrderStatus() { return orderStatus; }
         public void setOrderStatus(String orderStatus) { this.orderStatus = orderStatus; }
 
+        /** Cho bếp biết item thuộc đơn đã kết thúc và không còn được thao tác. */
         public boolean isOrderClosed() {
             return orderStatus != null
                 && !"CONFIRMED".equals(orderStatus)
@@ -321,23 +333,33 @@ public final class OrderEntities {
         public int getOpenIssueCount() { return openIssueCount; }
         public void setOpenIssueCount(int openIssueCount) { this.openIssueCount = openIssueCount; }
 
+        /** Thành tiền cố định của dòng đơn theo giá snapshot lúc đặt. */
         public BigDecimal getLineTotal() {
             return unitPrice == null ? BigDecimal.ZERO : unitPrice.multiply(BigDecimal.valueOf(quantity));
         }
 
+        /** Đổi trạng thái dòng món từ DB sang enum. */
         public OrderItemStatus statusEnum() { return OrderItemStatus.valueOf(itemStatus); }
 
+        /** Kiểm tra món còn trong hàng chờ bếp. */
         public boolean isWaiting()   { return OrderItemStatus.WAITING.name().equals(itemStatus); }
+        /** Kiểm tra món đang được chế biến. */
         public boolean isPreparing() { return OrderItemStatus.PREPARING.name().equals(itemStatus); }
+        /** Kiểm tra món đã hoàn thành. */
         public boolean isReady()     { return OrderItemStatus.READY.name().equals(itemStatus); }
 
+        /** Một item đã có người nhận làm khi assignedToUserId khác null. */
         public boolean isClaimed() { return assignedToUserId != null; }
 
+        /** Kiểm tra bếp đã bàn giao món ra quầy. */
         public boolean isHandedOver() { return handedOverAt != null; }
+        /** Kiểm tra quầy đã xác nhận nhận món từ bếp. */
         public boolean isReceived()   { return receivedAt != null; }
 
+        /** Món đã xong nhưng chưa ra khỏi bếp thì nằm ở hàng chờ bàn giao. */
         public boolean isAwaitingHandover() { return isReady() && handedOverAt == null; }
 
+        /** Món đã bàn giao nhưng quầy chưa nhận thì nằm ở hàng chờ quầy. */
         public boolean isAwaitingCounter() { return handedOverAt != null && receivedAt == null; }
     }
 
@@ -373,6 +395,7 @@ public final class OrderEntities {
         public String getAuthorName() { return authorName; }
         public void setAuthorName(String authorName) { this.authorName = authorName; }
 
+        /** Cho giao diện biết ghi chú đơn đã được sửa. */
         public boolean isEdited() { return updatedAt != null; }
     }
 
@@ -408,6 +431,7 @@ public final class OrderEntities {
         public String getAuthorName() { return authorName; }
         public void setAuthorName(String authorName) { this.authorName = authorName; }
 
+        /** Cho giao diện biết ghi chú món đã được sửa. */
         public boolean isEdited() { return updatedAt != null; }
     }
 
@@ -441,10 +465,13 @@ public final class OrderEntities {
             this.items = items == null ? new ArrayList<>() : items;
         }
 
+        /** Cho Customer biết mẫu đơn đã từng đổi tên hoặc thay nội dung. */
         public boolean isEdited() { return updatedAt != null; }
 
+        /** Đếm số loại món được lưu trong mẫu. */
         public int getLineCount() { return items.size(); }
 
+        /** Ước tính tổng theo giá hiện tại; khi đặt thật service vẫn kiểm tra lại trong transaction. */
         public BigDecimal getEstimatedTotal() {
             BigDecimal sum = BigDecimal.ZERO;
             for (OrderTemplateItem item : items) {
@@ -453,6 +480,7 @@ public final class OrderEntities {
             return sum;
         }
 
+        /** Cảnh báo mẫu có món đã ngừng bán trước khi khách áp dụng lại. */
         public boolean isAnyUnavailable() {
             for (OrderTemplateItem item : items) {
                 if (!item.isOrderable()) {
@@ -499,10 +527,12 @@ public final class OrderEntities {
         public String getProductStatus() { return productStatus; }
         public void setProductStatus(String productStatus) { this.productStatus = productStatus; }
 
+        /** Món trong mẫu chỉ thêm lại được khi sản phẩm ACTIVE và available. */
         public boolean isOrderable() {
             return "ACTIVE".equals(productStatus) && available;
         }
 
+        /** Tính giá ước lượng của một dòng mẫu đơn. */
         public BigDecimal getLineTotal() {
             return unitPrice == null ? BigDecimal.ZERO : unitPrice.multiply(BigDecimal.valueOf(quantity));
         }
@@ -549,11 +579,16 @@ public final class OrderEntities {
         public String getOrderSource() { return orderSource; }
         public void setOrderSource(String orderSource) { this.orderSource = orderSource; }
 
+        /** Đổi trạng thái payment lưu dạng chuỗi sang enum. */
         public PaymentStatus statusEnum() { return PaymentStatus.valueOf(paymentStatus); }
+        /** Đổi phương thức thanh toán lưu dạng chuỗi sang enum. */
         public PaymentMethod methodEnum() { return PaymentMethod.valueOf(method); }
 
+        /** Payment đã được gateway xác nhận tiền về. */
         public boolean isPaid()     { return PaymentStatus.PAID.name().equals(paymentStatus); }
+        /** Payment đang chờ callback hoặc khách chuyển khoản. */
         public boolean isPending()  { return PaymentStatus.PENDING.name().equals(paymentStatus); }
+        /** Phân biệt payment tiền mặt với payment online. */
         public boolean isCash()     { return PaymentMethod.CASH.name().equals(method); }
     }
 

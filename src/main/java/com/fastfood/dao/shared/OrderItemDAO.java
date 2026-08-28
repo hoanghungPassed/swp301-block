@@ -30,6 +30,7 @@ public class OrderItemDAO {
             ", (SELECT COUNT(*) FROM dbo.KitchenIssue ki " +
             "   WHERE ki.order_item_id = oi.order_item_id AND ki.status = 'OPEN') AS open_issue_count ";
 
+    /** Chèn snapshot món, đơn giá, số lượng và trạng thái đầu tiên của một OrderItem. */
     public void insert(Connection con, OrderItem item) throws SQLException {
         String sql = "INSERT INTO dbo.OrderItem (order_id, product_id, product_name_snapshot, unit_price, " +
                      "quantity, item_status) VALUES (?, ?, ?, ?, ?, ?)";
@@ -49,6 +50,7 @@ public class OrderItemDAO {
         }
     }
 
+    /** Lấy toàn bộ món của một đơn để hiển thị chi tiết và tính trạng thái. */
     public List<OrderItem> findByOrder(Connection con, int orderId) throws SQLException {
         String sql = "SELECT " + COLS + NAME_COLS + OPEN_ISSUE_COL +
                      "FROM dbo.OrderItem oi " + NAME_JOINS +
@@ -370,6 +372,7 @@ public class OrderItemDAO {
         }
     }
 
+    /** Chạy truy vấn và ánh xạ danh sách OrderItem, tùy chọn kèm thông tin Orders. */
     private List<OrderItem> collect(PreparedStatement ps, boolean withOrderInfo) throws SQLException {
         List<OrderItem> list = new ArrayList<>();
         try (ResultSet rs = ps.executeQuery()) {
@@ -380,6 +383,7 @@ public class OrderItemDAO {
         return list;
     }
 
+    /** Ánh xạ một dòng ResultSet thành OrderItem. */
     private OrderItem map(ResultSet rs, boolean withOrderInfo) throws SQLException {
         OrderItem i = new OrderItem();
         i.setOrderItemId(rs.getInt("order_item_id"));
