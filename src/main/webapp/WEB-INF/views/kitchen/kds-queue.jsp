@@ -18,6 +18,7 @@
 
   <%@ include file="/WEB-INF/views/layout/flash.jspf" %>
 
+  <%-- Dashboard Bếp (KDS Queue): 4 thẻ KPI thống kê trạng thái công việc --%>
   <div class="grid grid-4 kds-kpis mb">
     <div class="kpi">
       <div class="label">Tôi đang làm</div>
@@ -186,11 +187,10 @@
   <div class="card pad0 table-wrap mb" id="chuan-bi">
     <div class="card-head row-between">
       <h2>Chuẩn bị sẵn — ${ff:date(prepDate.atStartOfDay())}</h2>
-      <form method="get" action="${ctx}/kitchen/queue" class="inline-form">
+      <div class="inline-form">
         <label class="visually-hidden" for="prepDate">Ngày</label>
         <input type="date" id="prepDate" name="prepDate" value="${prepDate}">
-        <button type="submit" class="btn btn-sm">Xem ngày khác</button>
-      </form>
+      </div>
     </div>
     <table>
       <thead>
@@ -437,4 +437,41 @@
        data-rendered-queue="${queuePage.totalItems}"
        data-queue-page="${queuePage.pageNo}"
        data-queue-size="${queuePage.pageSize}"></div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      document.addEventListener('change', function (e) {
+        if (e.target && e.target.id === 'prepDate') {
+          var selectedDate = e.target.value;
+          if (!selectedDate) return;
+
+          var container = document.getElementById('chuan-bi');
+          if (!container) return;
+
+          container.style.opacity = '0.5';
+          var url = '${ctx}/kitchen/queue?prepDate=' + encodeURIComponent(selectedDate);
+          fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+            .then(function (res) { return res.text(); })
+            .then(function (html) {
+              var parser = new DOMParser();
+              var doc = parser.parseFromString(html, 'text/html');
+              var newPrep = doc.getElementById('chuan-bi');
+              if (newPrep) {
+                container.innerHTML = newPrep.innerHTML;
+              }
+              container.style.opacity = '1';
+
+              var hiddenPrepInputs = document.querySelectorAll('input[name="prepDate"]');
+              for (var i = 0; i < hiddenPrepInputs.length; i++) {
+                hiddenPrepInputs[i].value = selectedDate;
+              }
+            })
+            .catch(function (err) {
+              container.style.opacity = '1';
+              console.error('Lỗi khi tải kế hoạch chuẩn bị:', err);
+            });
+        }
+      });
+    });
+  </script>
 <%@ include file="/WEB-INF/views/layout/page-end.jspf" %>

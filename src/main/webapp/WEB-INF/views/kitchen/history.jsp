@@ -77,8 +77,10 @@
             <td class="small"><c:out value="${n.authorName}"/></td>
             <td class="center">
               <c:if test="${n.authorId eq me.userId}">
-                <a class="btn btn-sm" href="${ctx}/kitchen/history?editNote=${n.kitchenNoteId}<c:if
-                   test="${mineOnly}">&amp;mine=1</c:if>">Sửa</a>
+                <button type="button" class="btn btn-sm" data-note-edit
+                        data-note-id="${n.kitchenNoteId}"
+                        data-note-date="${n.shiftDate}"
+                        data-note-content="${fn:escapeXml(n.content)}">Sửa</button>
                 <form method="post" action="${ctx}/kitchen/history" class="inline-form"
                       data-confirm="Xoá hẳn ghi chú này?">
                   <input type="hidden" name="_csrf" value="${csrfToken}">
@@ -98,33 +100,88 @@
     </table>
   </div>
 
-  <div class="card">
-    <h2>${empty editingNote ? 'Thêm ghi chú bếp' : 'Sửa ghi chú bếp'}</h2>
-    <form method="post" action="${ctx}/kitchen/history"
+  <div class="card" id="note-form-card">
+    <h2 id="note-form-title">${empty editingNote ? 'Thêm ghi chú bếp' : 'Sửa ghi chú bếp'}</h2>
+    <form method="post" action="${ctx}/kitchen/history" id="note-form"
           data-confirm="${empty editingNote ? 'Thêm ghi chú bếp này?' : 'Lưu thay đổi cho ghi chú này?'}">
       <input type="hidden" name="_csrf" value="${csrfToken}">
-      <input type="hidden" name="action" value="${empty editingNote ? 'noteAdd' : 'noteUpdate'}">
+      <input type="hidden" name="action" id="note-action" value="${empty editingNote ? 'noteAdd' : 'noteUpdate'}">
+      <input type="hidden" name="noteId" id="note-id" value="${editingNote.kitchenNoteId}">
+      <input type="hidden" name="shiftDate" id="note-date" value="${empty editingNote ? today : editingNote.shiftDate}">
       <c:if test="${mineOnly}"><input type="hidden" name="mine" value="1"></c:if>
-      <c:choose>
-        <c:when test="${empty editingNote}">
-          <input type="hidden" id="shiftDate" name="shiftDate" value="${today}">
-          <p class="small muted">Ngày ghi chú: ${today}. Hệ thống không cho tạo ghi chú lùi ngày.</p>
-        </c:when>
-        <c:otherwise>
-          <input type="hidden" name="noteId" value="${editingNote.kitchenNoteId}">
-          <p class="small muted">Ngày ghi chú: ${editingNote.shiftDate}</p>
-        </c:otherwise>
-      </c:choose>
+
+      <p class="small muted" id="note-date-text">
+        <c:choose>
+          <c:when test="${empty editingNote}">Ngày ghi chú: ${today}. Hệ thống không cho tạo ghi chú lùi ngày.</c:when>
+          <c:otherwise>Ngày ghi chú: ${editingNote.shiftDate}</c:otherwise>
+        </c:choose>
+      </p>
+
       <div class="field">
         <label for="content">Nội dung ghi chú</label>
         <textarea id="content" name="content" maxlength="1000" required><c:out value="${editingNote.content}"/></textarea>
       </div>
-      <button type="submit" class="btn btn-primary btn-block">
-        ${empty editingNote ? 'Thêm ghi chú' : 'Lưu thay đổi'}
-      </button>
+
+      <div class="row-between">
+        <button type="submit" class="btn btn-primary" id="note-submit-btn">
+          ${empty editingNote ? 'Thêm ghi chú' : 'Lưu thay đổi'}
+        </button>
+        <button type="button" class="btn btn-secondary" id="note-cancel-btn" ${empty editingNote ? 'hidden' : ''}>Huỷ sửa</button>
+      </div>
     </form>
-    <c:if test="${not empty editingNote}">
-      <a class="btn btn-block mt" href="${ctx}/kitchen/history<c:if test="${mineOnly}">?mine=1</c:if>">Huỷ sửa</a>
-    </c:if>
   </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      var card = document.getElementById('note-form-card');
+      var form = document.getElementById('note-form');
+      var title = document.getElementById('note-form-title');
+      var actionInput = document.getElementById('note-action');
+      var noteIdInput = document.getElementById('note-id');
+      var dateInput = document.getElementById('note-date');
+      var dateText = document.getElementById('note-date-text');
+      var contentInput = document.getElementById('content');
+      var submitBtn = document.getElementById('note-submit-btn');
+      var cancelBtn = document.getElementById('note-cancel-btn');
+
+      function resetForm() {
+        if (!form) return;
+        title.textContent = 'Thêm ghi chú bếp';
+        actionInput.value = 'noteAdd';
+        noteIdInput.value = '';
+        dateInput.value = '${today}';
+        dateText.textContent = 'Ngày ghi chú: ${today}. Hệ thống không cho tạo ghi chú lùi ngày.';
+        contentInput.value = '';
+        submitBtn.textContent = 'Thêm ghi chú';
+        if (cancelBtn) cancelBtn.hidden = true;
+      }
+
+      document.addEventListener('click', function (e) {
+        var editBtn = e.target.closest('[data-note-edit]');
+        if (editBtn) {
+          e.preventDefault();
+          var id = editBtn.dataset.noteId;
+          var date = editBtn.dataset.noteDate;
+          var content = editBtn.dataset.noteContent;
+
+          title.textContent = 'Sửa ghi chú bếp';
+          actionInput.value = 'noteUpdate';
+          noteIdInput.value = id;
+          dateInput.value = date;
+          dateText.textContent = 'Ngày ghi chú: ' + date;
+          contentInput.value = content;
+          submitBtn.textContent = 'Lưu thay đổi';
+          if (cancelBtn) cancelBtn.hidden = false;
+
+          card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+          contentInput.focus();
+          return;
+        }
+
+        if (e.target && e.target.id === 'note-cancel-btn') {
+          resetForm();
+        }
+      });
+    });
+  </script>
 <%@ include file="/WEB-INF/views/layout/page-end.jspf" %>

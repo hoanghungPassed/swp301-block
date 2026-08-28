@@ -16,6 +16,11 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * Controller xử lý Quản lý sự cố Bếp:
+ * - Báo sự cố (Hết hàng, lỗi chất lượng, làm lại món, quầy trả lại).
+ * - Sửa mô tả sự cố, thu hồi sự cố báo nhầm, đánh dấu xử lý hoàn tất sự cố (Resolve).
+ */
 @WebServlet("/kitchen/issue")
 public class KitchenIssueServlet extends BaseServlet {
 
