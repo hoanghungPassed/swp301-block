@@ -15,6 +15,7 @@ public class LoginThrottle {
 
     private static final LoginThrottle INSTANCE = new LoginThrottle();
 
+    /** Trả singleton dùng chung để mọi request cùng nhìn thấy bộ đếm đăng nhập sai. */
     public static LoginThrottle getInstance() {
         return INSTANCE;
     }
@@ -24,6 +25,7 @@ public class LoginThrottle {
     LoginThrottle() {
     }
 
+    /** Trả thời gian khóa còn lại của cặp email-IP, hoặc null nếu được phép thử đăng nhập. */
     public Duration lockRemaining(String email, String clientIp) {
         Attempts a = byKey.get(key(email, clientIp));
         if (a == null || a.lockedUntil == null) {
@@ -33,10 +35,12 @@ public class LoginThrottle {
         return now.isBefore(a.lockedUntil) ? Duration.between(now, a.lockedUntil) : null;
     }
 
+    /** Kiểm tra nhanh cặp email-IP có đang bị khóa tạm không. */
     public boolean isLocked(String email, String clientIp) {
         return lockRemaining(email, clientIp) != null;
     }
 
+    /** Tăng số lần sai trong cửa sổ thời gian và khóa tạm khi đạt ngưỡng. */
     public boolean recordFailure(String email, String clientIp) {
         LocalDateTime now = LocalDateTime.now();
         Attempts updated = byKey.compute(key(email, clientIp), (k, current) -> {
@@ -55,6 +59,7 @@ public class LoginThrottle {
         return updated.justLocked;
     }
 
+    /** Xóa bộ đếm thất bại sau khi đăng nhập thành công. */
     public void recordSuccess(String email, String clientIp) {
         byKey.remove(key(email, clientIp));
     }
@@ -63,11 +68,13 @@ public class LoginThrottle {
         byKey.clear();
     }
 
+    /** Chuẩn hóa email và IP thành khóa dùng theo dõi số lần đăng nhập sai. */
     private String key(String email, String clientIp) {
         String normalizedEmail = email == null ? "" : email.trim().toLowerCase();
         return normalizedEmail + "|" + (clientIp == null ? "" : clientIp);
     }
 
+    /** Dọn các bộ đếm cũ đã ra ngoài cửa sổ theo dõi để tránh giữ bộ nhớ vô hạn. */
     private void purgeStale(LocalDateTime now) {
         if (byKey.size() < 1000) {
             return;

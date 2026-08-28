@@ -45,6 +45,10 @@ public class CustomerOrderService {
     private final AuditService auditService = new AuditService();
     private final OrderCoreService orderCore = new OrderCoreService();
 
+    /**
+     * Validate giờ nhận và tạo đơn online; nếu request bị gửi lại với cùng idempotency key thì
+     * trả đúng đơn đã tạo thay vì sinh thêm đơn trùng.
+     */
     public Order createOnlineOrder(int customerId, LocalDateTime pickupTime, String idempotencyKey) {
         LocalDateTime now = DateTimeUtil.now();
         validatePickupTime(pickupTime, now);
@@ -63,6 +67,10 @@ public class CustomerOrderService {
         }
     }
 
+    /**
+     * Trong một transaction, kiểm tra email/giỏ/đơn chờ, tạo Orders và sao chép từng dòng giỏ
+     * sang OrderItem với tên, giá tại thời điểm đặt rồi tính tổng tiền phía server.
+     */
     private Order doCreateOnlineOrder(int customerId, LocalDateTime pickupTime,
                                       String idempotencyKey, LocalDateTime now) {
         return Tx.write(con -> {
@@ -128,6 +136,7 @@ public class CustomerOrderService {
         });
     }
 
+    /** Chặn đặt đơn online nếu tài khoản không tồn tại hoặc email chưa được xác thực. */
     private void requireVerifiedEmail(java.sql.Connection con, int customerId) throws java.sql.SQLException {
         User customer = userDAO.findById(con, customerId);
         if (customer == null) {
@@ -140,6 +149,10 @@ public class CustomerOrderService {
         }
     }
 
+    /**
+     * Kiểm tra giờ nhận: bắt buộc, đủ thời gian chuẩn bị, không quá 7 ngày và nằm trong giờ mở
+     * cửa đã cấu hình.
+     */
     public void validatePickupTime(LocalDateTime pickupTime, LocalDateTime now) {
         if (pickupTime == null) {
             throw new ValidationException("Vui lòng chọn giờ đến lấy hàng.");
@@ -164,6 +177,7 @@ public class CustomerOrderService {
         }
     }
 
+    /** Tính mốc nhận hàng hợp lệ sớm nhất để làm min/suggested value cho form checkout. */
     public LocalDateTime earliestPickupTime() {
         LocalDateTime candidate = DateTimeUtil.now().plusMinutes(AppConfig.pickupMinLeadMinutes());
         int openHour = AppConfig.storeOpenHour();
@@ -195,6 +209,10 @@ public class CustomerOrderService {
      *
      * <p>Giỏ hàng giữ nguyên: món chỉ bị dọn khỏi giỏ lúc đơn được thanh toán xong, nên bỏ đơn
      * xong khách vào giỏ là đặt lại được ngay, không phải chọn lại từ đầu.
+     */
+    /**
+     * Khóa và kiểm tra đơn thuộc customer, chỉ cho bỏ đơn PENDING_PAYMENT chưa nhận tiền rồi
+     * chuyển đơn sang EXPIRED và đóng payment còn chờ.
      */
     public void cancelPendingOrder(int orderId, int customerId) {
         LocalDateTime now = DateTimeUtil.now();
@@ -232,6 +250,7 @@ public class CustomerOrderService {
         });
     }
 
+    /** Tải đầy đủ đơn và chỉ trả về khi customer hiện tại là chủ đơn. */
     public Order findForCustomer(int orderId, int customerId) {
         Order order = Tx.read(con -> orderCore.loadFull(con, orderId));
         if (order == null || order.getCustomerId() == null || order.getCustomerId() != customerId) {
@@ -240,6 +259,7 @@ public class CustomerOrderService {
         return order;
     }
 
+    /** Lọc và phân trang lịch sử đơn của customer theo trạng thái và khoảng ngày. */
     public Page<Order> historyOfCustomer(int customerId, String status,
                                          LocalDate fromDate, LocalDate toDate, int pageNo) {
         String safeStatus = validStatus(status);
@@ -254,6 +274,7 @@ public class CustomerOrderService {
                 orderDAO.countByCustomer(con, customerId, safeStatus, from, to)));
     }
 
+    /** Chỉ giữ giá trị status có trong OrderStatus; giá trị lạ được xem là không lọc. */
     private static String validStatus(String status) {
         if (status == null || status.isBlank()) {
             return null;
@@ -266,6 +287,7 @@ public class CustomerOrderService {
         return null;
     }
 
+    /** Lấy các đơn chưa kết thúc của customer để hiển thị khu vực theo dõi nhanh. */
     public List<Order> activeOrdersOfCustomer(int customerId) {
         return Tx.read(con -> orderDAO.findActiveByCustomer(con, customerId));
     }

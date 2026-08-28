@@ -21,6 +21,10 @@ public class OrderTrackingServlet extends BaseServlet {
     private final CustomerOrderService orderService = new CustomerOrderService();
     private final NotificationService notificationService = new NotificationService();
 
+    /**
+     * Tải đầy đủ một đơn thuộc khách hiện tại, tạo QR từ mã nhận hàng và đánh dấu thông báo của
+     * đơn là đã đọc trước khi hiển thị trang theo dõi.
+     */
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp)
             throws ServletException, IOException {

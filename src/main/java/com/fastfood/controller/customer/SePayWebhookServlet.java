@@ -28,6 +28,10 @@ public class SePayWebhookServlet extends HttpServlet {
 
     private final PaymentService paymentService = new PaymentService();
 
+    /**
+     * Xác thực API key webhook SePay, đọc giao dịch tiền vào, suy ra paymentId và chuyển callback
+     * chuẩn hóa cho PaymentService xử lý idempotent.
+     */
     @Override
     protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws IOException {
         resp.setContentType("application/json;charset=UTF-8");
@@ -89,6 +93,7 @@ public class SePayWebhookServlet extends HttpServlet {
         reply(resp, HttpServletResponse.SC_OK, true);
     }
 
+    /** Tìm paymentId đầu tiên xuất hiện trong mã/nội dung giao dịch SePay. */
     static Integer firstPaymentId(SePayGateway sepay, JsonObject payload) {
         for (String field : new String[]{"content", "code", "description"}) {
             Integer id = sepay.paymentIdFrom(text(payload, field));
@@ -99,10 +104,12 @@ public class SePayWebhookServlet extends HttpServlet {
         return null;
     }
 
+    /** Đọc API key từ header Authorization của request. */
     private static String apiKeyFrom(HttpServletRequest req) {
         return apiKeyFromHeader(req.getHeader("Authorization"));
     }
 
+    /** Chuẩn hóa giá trị header dạng Apikey/Bearer hoặc raw key. */
     static String apiKeyFromHeader(String header) {
         if (header == null) {
             return null;
@@ -115,6 +122,7 @@ public class SePayWebhookServlet extends HttpServlet {
         return value;
     }
 
+    /** Đọc số tiền giao dịch từ các tên field SePay có thể gửi. */
     private static BigDecimal amount(JsonObject payload) {
         try {
             return payload.has("transferAmount") && !payload.get("transferAmount").isJsonNull()
@@ -125,12 +133,14 @@ public class SePayWebhookServlet extends HttpServlet {
         }
     }
 
+    /** Đọc một field JSON thành chuỗi, trả null khi thiếu hoặc null. */
     private static String text(JsonObject payload, String field) {
         return payload.has(field) && !payload.get(field).isJsonNull()
                 ? payload.get(field).getAsString()
                 : null;
     }
 
+    /** Đọc toàn bộ JSON body webhook theo UTF-8. */
     private static String readBody(HttpServletRequest req) throws IOException {
         StringBuilder sb = new StringBuilder();
         try (BufferedReader reader = req.getReader()) {
@@ -143,6 +153,7 @@ public class SePayWebhookServlet extends HttpServlet {
         return sb.toString();
     }
 
+    /** Trả JSON tối giản để SePay biết webhook đã được tiếp nhận hay bị từ chối. */
     private static void reply(HttpServletResponse resp, int status, boolean success)
             throws IOException {
         resp.setStatus(status);

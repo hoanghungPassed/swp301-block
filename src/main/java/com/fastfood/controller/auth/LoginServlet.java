@@ -17,6 +17,7 @@ public class LoginServlet extends BaseServlet {
 
     private final AuthService authService = new AuthService();
 
+    /** Hiển thị form đăng nhập; user đã có session được chuyển về trang phù hợp. */
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp)
             throws ServletException, IOException {
@@ -27,6 +28,7 @@ public class LoginServlet extends BaseServlet {
         forward(req, resp, "auth/login.jsp");
     }
 
+    /** Xác thực email, mật khẩu và IP qua AuthService rồi tạo một session đăng nhập mới. */
     @Override
     protected void doPost(HttpServletRequest req, HttpServletResponse resp)
             throws ServletException, IOException {

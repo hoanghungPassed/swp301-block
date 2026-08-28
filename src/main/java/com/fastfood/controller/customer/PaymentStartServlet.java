@@ -16,6 +16,10 @@ public class PaymentStartServlet extends BaseServlet {
 
     private final PaymentService paymentService = new PaymentService();
 
+    /**
+     * Kiểm tra đơn chờ thanh toán thuộc khách hiện tại, tạo lần thanh toán và chuyển trình duyệt
+     * tới checkout URL do cổng thanh toán cung cấp.
+     */
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws IOException {
         User user = requireUser(req);

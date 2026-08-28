@@ -16,11 +16,13 @@ public class LogoutServlet extends BaseServlet {
 
     private final AuthService authService = new AuthService();
 
+    /** Chuyển yêu cầu GET cũ sang POST logout để thao tác thay đổi session không chạy bằng link. */
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws IOException {
         redirect(req, resp, "/");
     }
 
+    /** Ghi audit đăng xuất, hủy session hiện tại và chuyển về trang đăng nhập. */
     @Override
     protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws IOException {
         User user = WebUtil.currentUser(req);

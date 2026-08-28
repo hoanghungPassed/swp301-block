@@ -10,6 +10,7 @@ import com.fastfood.dao.JdbcSupport;
 
 public class CartDAO {
 
+    /** Trả cartId của user; nếu chưa có giỏ thì tạo mới và lấy khóa tự tăng. */
     public int getOrCreateCartId(Connection con, int userId, LocalDateTime now) throws SQLException {
         Integer existing = findCartId(con, userId);
         if (existing != null) {
@@ -35,6 +36,7 @@ public class CartDAO {
         }
     }
 
+    /** Tìm cartId hiện có theo userId, trả null nếu user chưa có giỏ. */
     private Integer findCartId(Connection con, int userId) throws SQLException {
         try (PreparedStatement ps = con.prepareStatement("SELECT cart_id FROM dbo.Cart WHERE user_id = ?")) {
             ps.setInt(1, userId);
@@ -44,6 +46,7 @@ public class CartDAO {
         }
     }
 
+    /** Lấy các dòng giỏ kèm thông tin product/category cần để hiển thị và kiểm tra đặt hàng. */
     public List<CartItem> findItems(Connection con, int cartId) throws SQLException {
         String sql = "SELECT ci.cart_item_id, ci.cart_id, ci.product_id, ci.quantity, " +
                      "       p.name AS product_name, p.price, p.image_url, p.is_available, " +
@@ -75,6 +78,7 @@ public class CartDAO {
         return list;
     }
 
+    /** Cộng số lượng nếu món đã có trong giỏ, ngược lại chèn một CartItem mới. */
     public void addItem(Connection con, int cartId, int productId, int quantity) throws SQLException {
         String sql = "UPDATE dbo.CartItem SET quantity = quantity + ? WHERE cart_id = ? AND product_id = ?";
         try (PreparedStatement ps = con.prepareStatement(sql)) {
@@ -94,6 +98,7 @@ public class CartDAO {
         }
     }
 
+    /** Cập nhật số lượng khi dòng đồng thời thuộc đúng cartId được truyền vào. */
     public void updateQuantity(Connection con, int cartId, int cartItemId, int quantity) throws SQLException {
         try (PreparedStatement ps = con.prepareStatement(
                 "UPDATE dbo.CartItem SET quantity = ? WHERE cart_item_id = ? AND cart_id = ?")) {
@@ -104,6 +109,7 @@ public class CartDAO {
         }
     }
 
+    /** Xóa một dòng bằng cả cartItemId và cartId để không tác động giỏ khác. */
     public void removeItem(Connection con, int cartId, int cartItemId) throws SQLException {
         try (PreparedStatement ps = con.prepareStatement(
                 "DELETE FROM dbo.CartItem WHERE cart_item_id = ? AND cart_id = ?")) {
@@ -113,6 +119,7 @@ public class CartDAO {
         }
     }
 
+    /** Xóa toàn bộ dòng món trong một giỏ. */
     public void clear(Connection con, int cartId) throws SQLException {
         try (PreparedStatement ps = con.prepareStatement("DELETE FROM dbo.CartItem WHERE cart_id = ?")) {
             ps.setInt(1, cartId);
@@ -120,6 +127,7 @@ public class CartDAO {
         }
     }
 
+    /** Cập nhật thời điểm giỏ được thay đổi gần nhất. */
     public void touch(Connection con, int cartId, LocalDateTime now) throws SQLException {
         try (PreparedStatement ps = con.prepareStatement(
                 "UPDATE dbo.Cart SET updated_at = ? WHERE cart_id = ?")) {
@@ -129,6 +137,7 @@ public class CartDAO {
         }
     }
 
+    /** Đọc số lượng hiện tại của một product trong giỏ, trả 0 nếu chưa có. */
     public int quantityOf(Connection con, int cartId, int productId) throws SQLException {
         try (PreparedStatement ps = con.prepareStatement(
                 "SELECT quantity FROM dbo.CartItem WHERE cart_id = ? AND product_id = ?")) {
@@ -140,6 +149,7 @@ public class CartDAO {
         }
     }
 
+    /** Tính tổng quantity của mọi dòng trong giỏ thuộc user. */
     public int countItems(Connection con, int userId) throws SQLException {
         String sql = "SELECT ISNULL(SUM(ci.quantity), 0) FROM dbo.CartItem ci " +
                      "JOIN dbo.Cart c ON c.cart_id = ci.cart_id WHERE c.user_id = ?";

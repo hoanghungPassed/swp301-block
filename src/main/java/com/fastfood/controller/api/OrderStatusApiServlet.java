@@ -19,6 +19,10 @@ public class OrderStatusApiServlet extends HttpServlet {
 
     private final CustomerOrderService orderService = new CustomerOrderService();
 
+    /**
+     * Trả JSON trạng thái mới nhất của đơn thuộc customer đang đăng nhập để trang thanh toán và
+     * theo dõi đơn cập nhật tự động mà không tải lại toàn bộ trang.
+     */
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws IOException {
         User user = WebUtil.currentUser(req);

@@ -25,10 +25,12 @@ public class FavouriteService {
     private final FavouriteDAO favouriteDAO = new FavouriteDAO();
     private final ProductDAO productDAO = new ProductDAO();
 
+    /** Lấy danh sách món quen thuộc customer để hiển thị trên thực đơn. */
     public List<Favourite> listOf(int customerId) {
         return Tx.read(con -> favouriteDAO.findByCustomer(con, customerId));
     }
 
+    /** Lấy tập productId đã lưu để JSP xác định nút lưu/bỏ món quen. */
     public Set<Integer> favouriteProductIds(Integer customerId) {
         if (customerId == null) {
             return Collections.emptySet();
@@ -36,10 +38,12 @@ public class FavouriteService {
         return Tx.read(con -> favouriteDAO.productIdsOf(con, customerId));
     }
 
+    /** Tìm một món quen và chỉ trả kết quả khi bản ghi thuộc đúng customer. */
     public Favourite findOwn(int favouriteId, int customerId) {
         return Tx.read(con -> requireOwn(con, favouriteId, customerId));
     }
 
+    /** Kiểm tra món tồn tại, chuẩn hóa ghi chú rồi lưu món quen; bản ghi trùng bị từ chối. */
     public Favourite add(int customerId, int productId, String note) {
         String text = optionalNote(note);
         LocalDateTime now = DateTimeUtil.now();
@@ -65,6 +69,7 @@ public class FavouriteService {
         }
     }
 
+    /** Sửa ghi chú của món quen sau khi xác nhận customer là chủ bản ghi. */
     public void updateNote(int favouriteId, int customerId, String note) {
         String text = optionalNote(note);
         LocalDateTime now = DateTimeUtil.now();
@@ -74,6 +79,7 @@ public class FavouriteService {
         });
     }
 
+    /** Xóa món quen theo id sau khi kiểm tra quyền sở hữu. */
     public void remove(int favouriteId, int customerId) {
         Tx.writeVoid(con -> {
             requireOwn(con, favouriteId, customerId);
@@ -81,10 +87,12 @@ public class FavouriteService {
         });
     }
 
+    /** Xóa món quen bằng cặp customerId-productId, thường dùng từ thẻ món trên menu. */
     public void removeByProduct(int customerId, int productId) {
         Tx.writeVoid(con -> favouriteDAO.deleteByProduct(con, customerId, productId));
     }
 
+    /** Tải bản ghi và chặn thao tác nếu món quen không tồn tại hoặc thuộc tài khoản khác. */
     private Favourite requireOwn(Connection con, int favouriteId, int customerId)
             throws SQLException {
         Favourite fav = favouriteDAO.findById(con, favouriteId);
@@ -97,6 +105,7 @@ public class FavouriteService {
         return fav;
     }
 
+    /** Cắt khoảng trắng, đổi ghi chú rỗng thành null và giới hạn tối đa 255 ký tự. */
     private String optionalNote(String note) {
         String text = note == null ? "" : note.trim();
         if (text.isEmpty()) {

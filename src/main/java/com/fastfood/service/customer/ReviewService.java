@@ -23,14 +23,17 @@ public class ReviewService {
     private final ReviewDAO reviewDAO = new ReviewDAO();
     private final ProductDAO productDAO = new ProductDAO();
 
+    /** Lấy toàn bộ đánh giá của một món theo thứ tự mới nhất. */
     public List<Review> reviewsOf(int productId) {
         return Tx.read(con -> reviewDAO.findByProduct(con, productId));
     }
 
+    /** Tính số lượt và điểm trung bình của một món. */
     public ReviewSummary summaryOf(int productId) {
         return Tx.read(con -> reviewDAO.summaryOf(con, productId));
     }
 
+    /** Lấy đánh giá của customer hiện tại cho món, hoặc null nếu chưa đăng nhập/chưa đánh giá. */
     public Review myReview(int productId, Integer customerId) {
         if (customerId == null) {
             return null;
@@ -38,6 +41,7 @@ public class ReviewService {
         return Tx.read(con -> reviewDAO.findMine(con, productId, customerId));
     }
 
+    /** Kiểm tra customer đã có đơn COMPLETED chứa món nên đủ điều kiện đánh giá hay chưa. */
     public boolean canReview(int productId, Integer customerId) {
         if (customerId == null) {
             return false;
@@ -45,6 +49,10 @@ public class ReviewService {
         return Tx.read(con -> reviewDAO.hasCompletedPurchase(con, customerId, productId));
     }
 
+    /**
+     * Validate số sao và nội dung, yêu cầu đã mua món thành công rồi tạo duy nhất một đánh giá
+     * cho cặp customer-product.
+     */
     public Review add(int productId, int customerId, int rating, String comment) {
         int diem = requireRating(rating);
         String text = optionalComment(comment);
@@ -75,6 +83,7 @@ public class ReviewService {
         }
     }
 
+    /** Sửa đánh giá sau khi kiểm tra review thuộc đúng người đang đăng nhập. */
     public void update(int reviewId, int customerId, int rating, String comment) {
         int diem = requireRating(rating);
         String text = optionalComment(comment);
@@ -86,6 +95,7 @@ public class ReviewService {
         });
     }
 
+    /** Xóa đánh giá sau khi kiểm tra review thuộc đúng người đang đăng nhập. */
     public void delete(int reviewId, int customerId) {
         Tx.writeVoid(con -> {
             requireOwn(con, reviewId, customerId);
@@ -93,6 +103,7 @@ public class ReviewService {
         });
     }
 
+    /** Chặn đánh giá nếu customer chưa từng nhận món trong một đơn COMPLETED. */
     private void requirePurchase(Connection con, int customerId, int productId) throws SQLException {
         if (!reviewDAO.hasCompletedPurchase(con, customerId, productId)) {
             throw new BusinessException("Chỉ khách đã nhận món này mới đánh giá được. "
@@ -100,6 +111,7 @@ public class ReviewService {
         }
     }
 
+    /** Tải review và đối chiếu customerId để bảo vệ thao tác sửa/xóa. */
     private Review requireOwn(Connection con, int reviewId, int customerId) throws SQLException {
         Review review = reviewDAO.findById(con, reviewId);
         if (review == null) {
@@ -111,6 +123,7 @@ public class ReviewService {
         return review;
     }
 
+    /** Chỉ chấp nhận điểm đánh giá từ 1 đến 5 sao. */
     private int requireRating(int rating) {
         if (rating < 1 || rating > 5) {
             throw new ValidationException("Vui lòng chọn số sao từ 1 tới 5.");
@@ -118,6 +131,7 @@ public class ReviewService {
         return rating;
     }
 
+    /** Chuẩn hóa nhận xét rỗng thành null và giới hạn tối đa 1000 ký tự. */
     private String optionalComment(String comment) {
         String text = comment == null ? "" : comment.trim();
         if (text.isEmpty()) {

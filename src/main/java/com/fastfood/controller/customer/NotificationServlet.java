@@ -16,6 +16,7 @@ public class NotificationServlet extends BaseServlet {
 
     private final NotificationService notificationService = new NotificationService();
 
+    /** Hiển thị danh sách thông báo có phân trang của người đang đăng nhập. */
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp)
             throws ServletException, IOException {
@@ -25,6 +26,7 @@ public class NotificationServlet extends BaseServlet {
         forward(req, resp, "customer/notifications.jsp");
     }
 
+    /** Đánh dấu toàn bộ thông báo chưa đọc của người đang đăng nhập thành đã đọc. */
     @Override
     protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws IOException {
         User user = requireUser(req);

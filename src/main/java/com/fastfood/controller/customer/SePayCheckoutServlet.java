@@ -20,6 +20,10 @@ public class SePayCheckoutServlet extends BaseServlet {
 
     private final PaymentService paymentService = new PaymentService();
 
+    /**
+     * Kiểm tra Payment thuộc customer và cổng hiện tại là SePay, sau đó dựng thông tin VietQR
+     * cùng thời hạn để hiển thị trang chờ chuyển khoản.
+     */
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp)
             throws ServletException, IOException {
