@@ -40,6 +40,9 @@ public class PosQrServlet extends BaseServlet {
     private final StaffOrderService orderService = new StaffOrderService();
     private final PaymentService paymentService = new PaymentService();
 
+    /**
+     * Kiểm tra đúng đơn QR tại quầy, lấy checkout URL từ gateway và sinh ảnh QR cho khách quét.
+     */
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp)
             throws ServletException, IOException {
@@ -89,6 +92,7 @@ public class PosQrServlet extends BaseServlet {
         forward(req, resp, "staff/pos-qr.jsp");
     }
 
+    /** Thu ngân bấm Xong để xác nhận khoản thu và chỉ lúc đó mới release đơn xuống bếp. */
     @Override
     protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws IOException {
         User cashier = requireUser(req);

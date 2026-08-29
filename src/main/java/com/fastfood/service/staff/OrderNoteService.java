@@ -23,14 +23,17 @@ public class OrderNoteService {
     private final OrderNoteDAO noteDAO = new OrderNoteDAO();
     private final OrderDAO orderDAO = new OrderDAO();
 
+    /** Lấy toàn bộ ghi chú của một đơn, mới nhất trước. */
     public List<OrderNote> notesOf(int orderId) {
         return Tx.read(con -> noteDAO.findByOrder(con, orderId));
     }
 
+    /** Lấy ghi chú theo nhiều đơn một lần để tránh truy vấn lặp khi dựng dashboard. */
     public Map<Integer, List<OrderNote>> notesOfOrders(List<Integer> orderIds) {
         return Tx.read(con -> noteDAO.findByOrders(con, orderIds));
     }
 
+    /** Validate nội dung, kiểm tra order tồn tại rồi tạo ghi chú gắn với người đang đăng nhập. */
     public OrderNote add(int orderId, int authorId, String content) {
         String text = requireText(content);
         LocalDateTime now = DateTimeUtil.now();
@@ -49,6 +52,7 @@ public class OrderNoteService {
         });
     }
 
+    /** Chỉ cho chính tác giả sửa nội dung hợp lệ và lưu thời điểm cập nhật. */
     public void update(int orderNoteId, int authorId, String content) {
         String text = requireText(content);
         LocalDateTime now = DateTimeUtil.now();
@@ -58,6 +62,7 @@ public class OrderNoteService {
         });
     }
 
+    /** Chỉ cho chính tác giả xoá ghi chú; DAO lặp lại authorId trong WHERE để chống race. */
     public void delete(int orderNoteId, int authorId) {
         Tx.writeVoid(con -> {
             requireOwn(con, orderNoteId, authorId);
@@ -65,6 +70,7 @@ public class OrderNoteService {
         });
     }
 
+    /** Kiểm tra ownership của ghi chú trước khi sửa hoặc xoá. */
     private void requireOwn(Connection con, int orderNoteId, int authorId) throws SQLException {
         OrderNote note = noteDAO.findById(con, orderNoteId);
         if (note == null) {
@@ -75,6 +81,7 @@ public class OrderNoteService {
         }
     }
 
+    /** Chuẩn hoá nội dung và giới hạn ghi chú trong 1..500 ký tự. */
     private String requireText(String content) {
         String text = content == null ? "" : content.trim();
         if (text.isEmpty()) {

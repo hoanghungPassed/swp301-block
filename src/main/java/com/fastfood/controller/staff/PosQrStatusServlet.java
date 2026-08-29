@@ -24,6 +24,7 @@ public class PosQrStatusServlet extends HttpServlet {
 
     private final StaffOrderService orderService = new StaffOrderService();
 
+    /** Trả JSON trạng thái order/payment để trang QR polling mà không phải tải lại toàn trang. */
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws IOException {
         int orderId = WebUtil.getInt(req, "orderId", 0);

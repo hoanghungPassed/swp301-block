@@ -174,6 +174,10 @@ public class StaffOrderService {
         });
     }
 
+    /**
+     * Chèn order POS và chụp snapshot tên/giá từng món; đồng thời chặn số lượng sai hoặc món
+     * đã ngừng bán trước khi cập nhật tổng tiền.
+     */
     private Order insertOrderWithItems(Connection con, int cashierId, List<PosLine> lines,
                                        LocalDateTime now, boolean releaseToKitchen) throws SQLException {
         Order order = new Order();
@@ -220,6 +224,7 @@ public class StaffOrderService {
         return order;
     }
 
+    /** Tạo bản ghi Payment đầu tiên của đơn POS và gắn lại vào Order để trả về giao diện. */
     private Payment insertPayment(Connection con, Order order, PaymentMethod method,
                                   PaymentStatus status, LocalDateTime now) throws SQLException {
         Payment payment = new Payment();
@@ -237,6 +242,7 @@ public class StaffOrderService {
         return payment;
     }
 
+    /** Đọc lại sản phẩm từ DB để tính giá hiện tại và đánh dấu dòng giỏ không còn orderable. */
     public List<PosCartLine> describeCart(Map<Integer, Integer> cart) {
         if (cart == null || cart.isEmpty()) {
             return List.of();
@@ -254,15 +260,18 @@ public class StaffOrderService {
         });
     }
 
+    /** Lấy đầy đủ một đơn qua OrderCoreService, gồm items và payment mới nhất. */
     public Order findById(int orderId) {
         return orderCore.findById(orderId);
     }
 
+    /** Lấy danh sách dashboard theo tab POS/SCHEDULED/READY/OVERDUE và mốc quá hạn cấu hình. */
     public List<Order> dashboard(String tab) {
         return Tx.read(con -> orderDAO.findForDashboard(con, tab, DateTimeUtil.now(),
                 AppConfig.pickupOverdueMinutes()));
     }
 
+    /** Tìm lịch sử theo nguồn, trạng thái và khoảng ngày; DAO đếm tổng để dựng phân trang. */
     public Page<Order> search(String source, String status,
                               LocalDateTime from, LocalDateTime to, int pageNo) {
         int page = Page.safePage(pageNo);
@@ -273,6 +282,7 @@ public class StaffOrderService {
                 orderDAO.countSearch(con, source, status, from, to)));
     }
 
+    /** Chuẩn hoá mã nhận hàng, tìm đúng đơn và nạp items/payment phục vụ bước giao khách. */
     public Order findByPickupCode(String code) {
         String normalized = code == null ? "" : code.trim().toUpperCase();
         if (normalized.isEmpty()) {
@@ -292,14 +302,17 @@ public class StaffOrderService {
         return order;
     }
 
+    /** Lấy các món bếp đã bàn giao nhưng quầy chưa xác nhận nhận. */
     public List<OrderItem> awaitingCounter() {
         return Tx.read(orderItemDAO::findAwaitingCounter);
     }
 
+    /** Đếm món đang chờ quầy nhận để hiển thị badge cảnh báo trên dashboard. */
     public int countAwaitingCounter() {
         return Tx.read(orderItemDAO::countAwaitingCounter);
     }
 
+    /** Lấy các đơn READY và nạp items để quầy kiểm tra trước khi giao khách. */
     public List<Order> readyOrdersForCounter() {
         return Tx.read(con -> {
             List<Order> orders = orderDAO.findForDashboard(con, "READY", DateTimeUtil.now(),
@@ -341,6 +354,7 @@ public class StaffOrderService {
         });
     }
 
+    /** Nhận một món tại quầy theo phép cập nhật có điều kiện và ghi audit người thực hiện. */
     public void receiveAtCounter(int orderItemId, int cashierId) {
         LocalDateTime now = DateTimeUtil.now();
         Tx.writeVoid(con -> {
@@ -360,6 +374,10 @@ public class StaffOrderService {
         });
     }
 
+    /**
+     * Bao ngoài giao dịch giao hàng để trường hợp nhập sai pickup code vẫn được ghi audit sau
+     * khi giao dịch nghiệp vụ bị rollback.
+     */
     public Order handoff(int orderId, int cashierId, String presentedCode) {
         LocalDateTime now = DateTimeUtil.now();
         try {
@@ -382,6 +400,10 @@ public class StaffOrderService {
         }
     }
 
+    /**
+     * Chỉ hoàn tất khi đơn READY, mọi món đã nhận tại quầy, payment PAID và mã online khớp;
+     * UPDATE có điều kiện ngăn hai thu ngân cùng giao một đơn.
+     */
     private Order doHandoff(int orderId, int cashierId, String presentedCode, LocalDateTime now) {
         return Tx.write(con -> {
             Order order = orderDAO.findById(con, orderId);

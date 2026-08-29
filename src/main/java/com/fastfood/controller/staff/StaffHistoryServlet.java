@@ -17,6 +17,7 @@ public class StaffHistoryServlet extends BaseServlet {
     private final StaffOrderService orderService = new StaffOrderService();
     private final AuditService auditService = new AuditService();
 
+    /** Tìm lịch sử theo nguồn, trạng thái, khoảng thời gian và phân trang rồi đưa dữ liệu sang JSP. */
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp)
             throws ServletException, IOException {

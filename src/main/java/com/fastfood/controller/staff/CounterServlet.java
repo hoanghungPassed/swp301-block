@@ -21,6 +21,7 @@ public class CounterServlet extends BaseServlet {
     private final StaffOrderService orderService = new StaffOrderService();
     private final CounterRejectService rejectService = new CounterRejectService();
 
+    /** Nạp các hàng chờ nhận, đơn sẵn sàng và sự cố để hiển thị màn hình giao nhận tại quầy. */
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp)
             throws ServletException, IOException {
@@ -40,6 +41,10 @@ public class CounterServlet extends BaseServlet {
         forward(req, resp, "staff/counter.jsp");
     }
 
+    /**
+     * Điều phối nút nhận đơn/nhận món hoặc trả món về bếp; Service chịu trách nhiệm kiểm tra
+     * trạng thái và quyền sở hữu phiếu từ chối.
+     */
     @Override
     protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws IOException {
         User cashier = requireUser(req);
