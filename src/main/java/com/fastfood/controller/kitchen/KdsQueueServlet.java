@@ -18,7 +18,7 @@ import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
 
 /**
- * Controller chính xử lý giao diện Dashboard KDS của Bếp:
+ * Controller chính xử lý giao diện Dashboard KDS của Bếp:  
  * - Điều phối các hành động của Đầu bếp: Nhận đơn (Claim), Làm xong (Ready), Bàn giao (Handover).
  */
 @WebServlet("/kitchen/queue")

@@ -17,9 +17,6 @@ public class KitchenReleaseScheduler implements Runnable {
     // Dịch vụ điều phối nghiệp vụ giải phóng đơn
     private final ScheduleService scheduleService = new ScheduleService();
 
-    /**
-     * Phương thức thực thi tự động theo chu kỳ (mặc định mỗi 30 giây).
-     */
     @Override
     /** Được timer gọi định kỳ để đưa các đơn đến giờ chuẩn bị vào hàng chờ bếp. */
     public void run() {

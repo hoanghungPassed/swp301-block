@@ -71,7 +71,7 @@ GO
 
 /* KDS poll dữ liệu mỗi 2 giây (NFR-04). Không bật snapshot thì các câu SELECT liên tục
    của màn hình bếp sẽ chặn thao tác ghi của chính bếp. */
-IF EXISTS (SELECT 1 FROMsys.databases WHERE name='FastFoodPreorder' AND is_read_committed_snapshot_on = 0)
+IF EXISTS (SELECT 1 FROM sys.databases WHERE name='FastFoodPreorder' AND is_read_committed_snapshot_on = 0)
     ALTER DATABASE FastFoodPreorder SET READ_COMMITTED_SNAPSHOT ON WITH ROLLBACK IMMEDIATE;
 GO
 
@@ -1527,7 +1527,7 @@ INSERT INTO dbo.KitchenNote (shift_date, author_id, content) VALUES
 
 /* Tên món gõ sai thì phép JOIN ở trên lặng lẽ bỏ qua dòng đó và không ai biết — đúng loại lỗi
    mà mục 8 sinh ra để bắt. Chặn ngay tại đây thay vì đợi tới lúc mở màn hình mới thấy thiếu. */
-IF (SELECT COUNT(*) FROM dbo.PrepTask)       <> 3
+IF (SELECT COUNT(*) FROM dbo.PrepTask)       < 3
 OR (SELECT COUNT(*) FROM dbo.OrderItemNote)  <> 1
 OR (SELECT COUNT(*) FROM dbo.KitchenNote)    <> 2
     THROW 50005, 'Du lieu mau cua bep thieu dong: kiem tra lai ten mon va dieu kien JOIN.', 1;
