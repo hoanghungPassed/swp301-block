@@ -31,6 +31,7 @@ public class OrderDashboardServlet extends BaseServlet {
     private final OrderNoteService noteService = new OrderNoteService();
     private final KitchenService kitchenService = new KitchenService();
 
+    /** Nạp bốn nhóm đơn, số lượng cảnh báo, ghi chú và kết quả tra mã nhận hàng cho dashboard. */
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp)
             throws ServletException, IOException {
@@ -72,6 +73,7 @@ public class OrderDashboardServlet extends BaseServlet {
         forward(req, resp, "staff/order-dashboard.jsp");
     }
 
+    /** Tra mã nhận hàng và cảnh báo nếu đơn chưa READY hoặc chưa thanh toán thành công. */
     private void lookupPickupCode(HttpServletRequest req) {
         String code = WebUtil.getString(req, "code");
         req.setAttribute("code", code);
@@ -94,6 +96,7 @@ public class OrderDashboardServlet extends BaseServlet {
         }
     }
 
+    /** Điều phối thêm/sửa/xoá ghi chú; Service sẽ chặn sửa hoặc xoá ghi chú của người khác. */
     @Override
     protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws IOException {
         User user = requireUser(req);

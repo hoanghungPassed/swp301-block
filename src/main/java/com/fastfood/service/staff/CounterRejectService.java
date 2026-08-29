@@ -25,12 +25,14 @@ public class CounterRejectService {
     private final OrderItemDAO orderItemDAO = new OrderItemDAO();
     private final AuditService auditService = new AuditService();
 
+    /** Lấy riêng các sự cố loại COUNTER_REJECT còn mở để hiển thị tại quầy. */
     public List<KitchenIssue> openRejects() {
         return Tx.read(issueDAO::findOpen).stream()
                 .filter(i -> IssueType.COUNTER_REJECT.name().equals(i.getIssueType()))
                 .collect(Collectors.toList());
     }
 
+    /** Tìm phiếu từ chối theo id và báo NotFound thay vì trả null cho tầng Servlet. */
     public KitchenIssue findById(int issueId) {
         KitchenIssue issue = Tx.read(con -> issueDAO.findById(con, issueId));
         if (issue == null) {
@@ -39,6 +41,10 @@ public class CounterRejectService {
         return issue;
     }
 
+    /**
+     * Trả món đã bàn giao nhưng chưa được nhận về bếp, tạo phiếu sự cố và audit trong cùng
+     * transaction để không có trạng thái dở dang.
+     */
     public KitchenIssue reject(int orderItemId, int cashierId, String reason) {
         String text = reason == null ? "" : reason.trim();
         if (text.isEmpty()) {
@@ -78,6 +84,7 @@ public class CounterRejectService {
         });
     }
 
+    /** Sửa lý do chỉ khi phiếu còn OPEN và đúng thu ngân đã tạo phiếu. */
     public void updateReason(int issueId, int cashierId, String reason) {
         String text = reason == null ? "" : reason.trim();
         if (text.isEmpty()) {
@@ -91,6 +98,7 @@ public class CounterRejectService {
         });
     }
 
+    /** Thu hồi phiếu từ chối còn mở của chính người tạo và ghi dấu vết audit. */
     public void cancel(int issueId, int cashierId) {
         LocalDateTime now = DateTimeUtil.now();
         Tx.writeVoid(con -> {
@@ -104,6 +112,7 @@ public class CounterRejectService {
         });
     }
 
+    /** Gom kiểm tra tồn tại, đúng loại, đúng chủ sở hữu và còn OPEN cho thao tác sửa/thu hồi. */
     private KitchenIssue requireOwnOpen(Connection con, int issueId, int cashierId)
             throws SQLException {
         KitchenIssue issue = issueDAO.findById(con, issueId);

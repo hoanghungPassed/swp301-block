@@ -22,6 +22,7 @@ public class OrderNoteDAO {
             "FROM dbo.OrderNote n " +
             "JOIN dbo.Users u ON u.user_id = n.author_id ";
 
+    /** Chèn ghi chú và lấy khóa tự tăng orderNoteId trả lại entity. */
     public int insert(Connection con, OrderNote note) throws SQLException {
         String sql = "INSERT INTO dbo.OrderNote (order_id, author_id, content, created_at) " +
                      "VALUES (?, ?, ?, ?)";
@@ -40,6 +41,7 @@ public class OrderNoteDAO {
         return note.getOrderNoteId();
     }
 
+    /** Tìm một ghi chú cùng tên tác giả để Service kiểm tra quyền sở hữu. */
     public OrderNote findById(Connection con, int orderNoteId) throws SQLException {
         try (PreparedStatement ps = con.prepareStatement(BASE + "WHERE n.order_note_id = ?")) {
             ps.setInt(1, orderNoteId);
@@ -48,6 +50,7 @@ public class OrderNoteDAO {
         }
     }
 
+    /** Lấy ghi chú của một đơn theo thứ tự mới nhất trước. */
     public List<OrderNote> findByOrder(Connection con, int orderId) throws SQLException {
         try (PreparedStatement ps = con.prepareStatement(
                 BASE + "WHERE n.order_id = ? ORDER BY n.created_at DESC, n.order_note_id DESC")) {
@@ -56,6 +59,7 @@ public class OrderNoteDAO {
         }
     }
 
+    /** Lấy ghi chú cho nhiều orderId và gom thành Map để dashboard không phát sinh N+1 query. */
     public Map<Integer, List<OrderNote>> findByOrders(Connection con, List<Integer> orderIds)
             throws SQLException {
         Map<Integer, List<OrderNote>> byOrder = new LinkedHashMap<>();
@@ -78,6 +82,7 @@ public class OrderNoteDAO {
         return byOrder;
     }
 
+    /** UPDATE kèm authorId trong WHERE để người khác không thể sửa dù gửi request thủ công. */
     public int update(Connection con, int orderNoteId, int authorId, String content,
                       LocalDateTime now) throws SQLException {
         String sql = "UPDATE dbo.OrderNote SET content = ?, updated_at = ? " +
@@ -91,6 +96,7 @@ public class OrderNoteDAO {
         }
     }
 
+    /** DELETE kèm authorId trong WHERE để bảo vệ ownership ở cả tầng database. */
     public int delete(Connection con, int orderNoteId, int authorId) throws SQLException {
         try (PreparedStatement ps = con.prepareStatement(
                 "DELETE FROM dbo.OrderNote WHERE order_note_id = ? AND author_id = ?")) {
@@ -100,6 +106,7 @@ public class OrderNoteDAO {
         }
     }
 
+    /** Chạy câu SELECT đã bind và ánh xạ các dòng ResultSet thành OrderNote. */
     private List<OrderNote> collect(PreparedStatement ps) throws SQLException {
         List<OrderNote> list = new ArrayList<>();
         try (ResultSet rs = ps.executeQuery()) {
