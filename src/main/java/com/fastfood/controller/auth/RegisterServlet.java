@@ -17,12 +17,17 @@ public class RegisterServlet extends BaseServlet {
 
     private final AuthService authService = new AuthService();
 
+    /** Hiển thị form đăng ký tài khoản Customer. */
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp)
             throws ServletException, IOException {
         forward(req, resp, "auth/register.jsp");
     }
 
+    /**
+     * Nhận thông tin đăng ký, gọi AuthService tạo tài khoản và thư xác thực, sau đó tạo session
+     * cho customer mới.
+     */
     @Override
     protected void doPost(HttpServletRequest req, HttpServletResponse resp)
             throws ServletException, IOException {

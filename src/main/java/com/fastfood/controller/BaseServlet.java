@@ -20,6 +20,7 @@ public abstract class BaseServlet extends HttpServlet {
 
     private final NotificationService notificationService = new NotificationService();
 
+    /** Gắn dữ liệu dùng chung rồi forward request tới JSP nằm trong WEB-INF/views. */
     protected void forward(HttpServletRequest req, HttpServletResponse resp, String view)
             throws ServletException, IOException {
         WebUtil.consumeFlash(req);
@@ -28,12 +29,14 @@ public abstract class BaseServlet extends HttpServlet {
         req.getRequestDispatcher("/WEB-INF/views/" + view).forward(req, resp);
     }
 
+    /** Gắn URL hiện tại để layout đánh dấu đúng mục menu đang mở. */
     private void attachCurrentPath(HttpServletRequest req) {
         String pathInfo = req.getPathInfo();
         String path = pathInfo == null ? req.getServletPath() : req.getServletPath() + pathInfo;
         req.setAttribute("currentPath", path == null || path.isEmpty() ? "/menu" : path);
     }
 
+    /** Nếu session là CUSTOMER thì đếm thông báo chưa đọc để hiển thị badge. */
     private void attachUnreadNotifications(HttpServletRequest req) {
         User user = WebUtil.currentUser(req);
         if (user == null || !RoleName.CUSTOMER.name().equals(user.getRoleName())) {
@@ -46,11 +49,13 @@ public abstract class BaseServlet extends HttpServlet {
         }
     }
 
+    /** Redirect về một đường dẫn bên trong context hiện tại của ứng dụng. */
     protected void redirect(HttpServletRequest req, HttpServletResponse resp, String path)
             throws IOException {
         resp.sendRedirect(req.getContextPath() + path);
     }
 
+    /** Lấy user từ session và báo 401 nếu request chưa đăng nhập. */
     protected User requireUser(HttpServletRequest req) {
         User user = WebUtil.currentUser(req);
         if (user == null) {
@@ -59,6 +64,7 @@ public abstract class BaseServlet extends HttpServlet {
         return user;
     }
 
+    /** Trả user đã đăng nhập hoặc lưu URL quay lại rồi chuyển khách tới trang login. */
     protected User userOrLogin(HttpServletRequest req, HttpServletResponse resp, String returnTo)
             throws IOException {
         User user = WebUtil.currentUser(req);
@@ -71,6 +77,7 @@ public abstract class BaseServlet extends HttpServlet {
         return null;
     }
 
+    /** Chạy một thao tác, chuyển exception thành flash message rồi redirect theo Post/Redirect/Get. */
     protected void handle(HttpServletRequest req, HttpServletResponse resp,
                           Action action, String successMessage, String redirectPath) throws IOException {
         try {

@@ -14,6 +14,7 @@ public final class CsrfUtil {
     private CsrfUtil() {
     }
 
+    /** Lấy CSRF token từ session hoặc sinh mới khi session chưa có. */
     public static String token(HttpServletRequest req) {
         HttpSession session = req.getSession(true);
         Object existing = session.getAttribute(SESSION_KEY);
@@ -25,12 +26,14 @@ public final class CsrfUtil {
         return fresh;
     }
 
+    /** Thay CSRF token sau khi đổi trạng thái đăng nhập/session. */
     public static String rotate(HttpSession session) {
         String fresh = SecureToken.generate();
         session.setAttribute(SESSION_KEY, fresh);
         return fresh;
     }
 
+    /** So token form/header với token session bằng phép so constant time. */
     public static boolean isValid(HttpServletRequest req) {
         HttpSession session = req.getSession(false);
         if (session == null) {

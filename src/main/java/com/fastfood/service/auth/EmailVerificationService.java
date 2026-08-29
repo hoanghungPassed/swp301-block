@@ -41,6 +41,7 @@ public class EmailVerificationService {
         this.sender = sender;
     }
 
+    /** Vô hiệu hóa token cũ, sinh token xác thực mới, chỉ lưu hash và trả raw token để gửi thư. */
     public String issue(Connection con, User user, String clientIp) throws SQLException {
         LocalDateTime now = DateTimeUtil.now();
 
@@ -60,6 +61,7 @@ public class EmailVerificationService {
         return rawToken;
     }
 
+    /** Giới hạn số lần yêu cầu, phát token mới trong transaction rồi gửi lại email xác thực. */
     public void resend(User user, String baseUrl, String clientIp) {
         if (user.isEmailVerified()) {
             throw new BusinessException("Địa chỉ email của bạn đã được xác thực rồi.");
@@ -80,6 +82,7 @@ public class EmailVerificationService {
         send(user, baseUrl, rawToken);
     }
 
+    /** Ghép raw token vào liên kết /verify-email và gửi nội dung xác thực qua NotificationSender. */
     public void send(User user, String baseUrl, String rawToken) {
         try {
             String link = baseUrl + "/verify-email?token=" + rawToken;
@@ -102,6 +105,10 @@ public class EmailVerificationService {
         INVALID
     }
 
+    /**
+     * Hash token nhận từ URL, kiểm tra tồn tại/chưa dùng/chưa hết hạn rồi đánh dấu email verified
+     * và vô hiệu hóa các token xác thực khác của user.
+     */
     public Result confirm(String rawToken, String clientIp) {
         if (rawToken == null || rawToken.isBlank()) {
             return Result.INVALID;
@@ -135,6 +142,7 @@ public class EmailVerificationService {
         });
     }
 
+    /** Tìm tài khoản sở hữu token để Servlet cập nhật đúng session sau khi xác thực. */
     public User findAccountFor(String rawToken) {
         if (rawToken == null || rawToken.isBlank()) {
             return null;
@@ -146,14 +154,17 @@ public class EmailVerificationService {
         });
     }
 
+    /** Trả thời hạn token xác thực email theo cấu hình, mặc định 24 giờ. */
     public int expiryHours() {
         return AppConfig.getInt("security.verify.expiryHours", DEFAULT_EXPIRY_HOURS);
     }
 
+    /** Trả số lần gửi tối đa trong một cửa sổ giới hạn. */
     private int maxRequests() {
         return AppConfig.getInt("security.verify.maxRequests", DEFAULT_MAX_REQUESTS);
     }
 
+    /** Trả độ dài cửa sổ dùng để đếm số yêu cầu gửi lại. */
     private int requestWindowMinutes() {
         return AppConfig.getInt("security.verify.windowMinutes", DEFAULT_REQUEST_WINDOW_MINUTES);
     }

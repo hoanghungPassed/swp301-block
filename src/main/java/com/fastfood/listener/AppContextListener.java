@@ -19,6 +19,7 @@ public class AppContextListener implements ServletContextListener {
     private ScheduledExecutorService scheduler;
 
     @Override
+    /** Khi webapp khởi động: nạp config, mở DB pool, kiểm tra DB và bật hai scheduler nền. */
     public void contextInitialized(ServletContextEvent sce) {
         sce.getServletContext().setAttribute("assetVersion",
                 Long.toString(System.currentTimeMillis() / 1000L, 36));
@@ -52,6 +53,7 @@ public class AppContextListener implements ServletContextListener {
     }
 
     @Override
+    /** Khi webapp dừng: tắt scheduler và đóng connection pool. */
     public void contextDestroyed(ServletContextEvent sce) {
         if (scheduler != null) {
             scheduler.shutdownNow();

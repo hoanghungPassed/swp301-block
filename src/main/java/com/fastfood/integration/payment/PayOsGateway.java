@@ -80,6 +80,7 @@ public class PayOsGateway implements PaymentGateway {
     private final long orderCodeOffset;
     private final PayOsApi api;
 
+    /** Khởi tạo adapter PayOS từ thông tin trong AppConfig. */
     public PayOsGateway() {
         this(AppConfig.payosClientId(), AppConfig.payosApiKey(), AppConfig.payosChecksumKey(),
              AppConfig.payosReturnUrl(), AppConfig.paymentExpiryMinutes(),
@@ -88,6 +89,7 @@ public class PayOsGateway implements PaymentGateway {
                               AppConfig.payosBaseUrl()));
     }
 
+    /** Constructor cho phép truyền dependency/cấu hình giả khi kiểm thử gateway. */
     public PayOsGateway(String clientId, String apiKey, String checksumKey, String returnUrl,
                         int expiryMinutes, long orderCodeOffset, PayOsApi api) {
         this.clientId = trim(clientId);
@@ -100,6 +102,7 @@ public class PayOsGateway implements PaymentGateway {
     }
 
     @Override
+    /** Trả tên gateway lưu trong Payment và Transaction. */
     public String getName() {
         return "PAYOS";
     }
@@ -249,10 +252,12 @@ public class PayOsGateway implements PaymentGateway {
         return id > 0 && id <= Integer.MAX_VALUE ? (int) id : null;
     }
 
+    /** Kiểm tra đủ ba credential bắt buộc trước khi gọi PayOS. */
     public boolean isConfigured() {
         return !clientId.isEmpty() && !apiKey.isEmpty() && !checksumKey.isEmpty();
     }
 
+    /** Trả clientId hiện dùng, chủ yếu phục vụ kiểm thử cấu hình. */
     public String getClientId() { return clientId; }
 
     /**
@@ -328,6 +333,7 @@ public class PayOsGateway implements PaymentGateway {
         return moTa.length() <= DESCRIPTION_MAX ? moTa : moTa.substring(0, DESCRIPTION_MAX);
     }
 
+    /** Ký chuỗi dữ liệu bằng checksum key và HmacSHA256. */
     private String hmacSHA256(String data) {
         try {
             Mac mac = Mac.getInstance(HMAC_ALGORITHM);
@@ -342,6 +348,7 @@ public class PayOsGateway implements PaymentGateway {
         }
     }
 
+    /** Rút thông báo lỗi dễ đọc từ envelope PayOS. */
     private static String moTaLoi(JsonObject envelope) {
         String desc = text(envelope, "desc");
         String code = text(envelope, "code");
@@ -356,11 +363,13 @@ public class PayOsGateway implements PaymentGateway {
        một gói dữ liệu méo mó phải đi tiếp tới bước kiểm chữ ký rồi chết ở đó, chứ không được
        làm servlet đổ vỡ trước khi kịp trả lời cổng thanh toán. */
 
+    /** Đọc field JSON thành chuỗi nullable. */
     public static String text(JsonObject o, String field) {
         JsonElement v = o == null ? null : o.get(field);
         return v == null || v.isJsonNull() ? null : v.getAsString();
     }
 
+    /** Đọc field JSON dạng số, trả 0 khi thiếu hoặc không hợp lệ. */
     public static long number(JsonObject o, String field) {
         JsonElement v = o == null ? null : o.get(field);
         try {
@@ -370,16 +379,19 @@ public class PayOsGateway implements PaymentGateway {
         }
     }
 
+    /** Đọc object JSON con hoặc null. */
     public static JsonObject object(JsonObject o, String field) {
         JsonElement v = o == null ? null : o.get(field);
         return v != null && v.isJsonObject() ? v.getAsJsonObject() : new JsonObject();
     }
 
+    /** Đọc array JSON con hoặc null. */
     public static JsonArray array(JsonObject o, String field) {
         JsonElement v = o == null ? null : o.get(field);
         return v != null && v.isJsonArray() ? v.getAsJsonArray() : new JsonArray();
     }
 
+    /** Trim chuỗi cấu hình và đổi null thành chuỗi rỗng. */
     private static String trim(String value) {
         return value == null ? "" : value.trim();
     }

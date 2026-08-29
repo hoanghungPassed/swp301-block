@@ -23,6 +23,7 @@ public class OrderDetailServlet extends BaseServlet {
     private final AuditService auditService = new AuditService();
     private final KitchenService kitchenService = new KitchenService();
 
+    /** Nạp chi tiết đơn cùng payment, audit và sự cố bếp; đơn không tồn tại được trả về trang 404. */
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp)
             throws ServletException, IOException {
@@ -40,6 +41,7 @@ public class OrderDetailServlet extends BaseServlet {
         }
     }
 
+    /** Nhận nút giao hàng và chuyển mã khách đưa cho Service xác minh trước khi hoàn tất đơn. */
     @Override
     protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws IOException {
         User staff = requireUser(req);

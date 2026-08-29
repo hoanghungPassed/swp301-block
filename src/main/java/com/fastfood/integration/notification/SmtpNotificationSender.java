@@ -28,6 +28,7 @@ public class SmtpNotificationSender implements NotificationSender {
     private final String fromAddress;
     private final String fromName;
 
+    /** Đọc cấu hình SMTP từ AppConfig và chuẩn bị sender gửi mail thật. */
     public SmtpNotificationSender() {
         this.host = AppConfig.get("notification.mail.host", "smtp.gmail.com").trim();
         this.port = AppConfig.getInt("notification.mail.port", 587);
@@ -38,15 +39,18 @@ public class SmtpNotificationSender implements NotificationSender {
     }
 
     @Override
+    /** Trả tên kênh SMTP để lưu cùng Notification. */
     public String getChannel() {
         return "EMAIL";
     }
 
+    /** Kiểm tra host, port, username và app password đã được cấu hình đủ. */
     public boolean isConfigured() {
         return !host.isEmpty() && !username.isEmpty() && !password.isEmpty();
     }
 
     @Override
+    /** Dựng MimeMessage và gửi qua SMTP; lỗi gửi được log và trả false, không làm rollback nghiệp vụ. */
     public boolean send(String recipient, String subject, String content) {
         if (recipient == null || recipient.isBlank()) {
             LOG.warning("SMTP: khong co dia chi nguoi nhan, bo qua thu: " + subject);
@@ -66,6 +70,7 @@ public class SmtpNotificationSender implements NotificationSender {
         }
     }
 
+    /** Tạo email text UTF-8 với địa chỉ/tên người gửi đã cấu hình. */
     private MimeMessage build(String recipient, String subject, String content)
             throws MessagingException, UnsupportedEncodingException {
         MimeMessage message = new MimeMessage(session());
@@ -76,6 +81,7 @@ public class SmtpNotificationSender implements NotificationSender {
         return message;
     }
 
+    /** Tạo JavaMail Session dùng STARTTLS và authenticator SMTP. */
     private Session session() {
         Properties props = new Properties();
         props.put("mail.smtp.host", host);

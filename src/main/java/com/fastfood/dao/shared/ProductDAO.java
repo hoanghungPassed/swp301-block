@@ -27,11 +27,12 @@ public class ProductDAO {
             "RATING",     "CASE WHEN r.rating_avg IS NULL THEN 1 ELSE 0 END, r.rating_avg DESC, p.product_id",
             "DEFAULT",    "c.display_order, p.name, p.product_id");
 
+    /** Chỉ cho phép mã sort trong whitelist, tránh chèn trực tiếp dữ liệu người dùng vào ORDER BY. */
     public static String menuSortOrDefault(String sort) {
         return sort != null && MENU_ORDER.containsKey(sort) ? sort : "DEFAULT";
     }
 
-    /** Trọn thực đơn theo bộ lọc — dùng cho nơi cần cả danh sách, ví dụ ô chọn món. */
+    /** Lấy toàn bộ món đang phục vụ theo danh mục, tên chứa keyword và thứ tự đã chọn. */
     public List<Product> findMenu(Connection con, Integer categoryId, String keyword, String sort)
             throws SQLException {
         List<Object> params = new ArrayList<>();
@@ -42,6 +43,7 @@ public class ProductDAO {
         return query(con, sql, params, true);
     }
 
+    /** Lấy một trang món đang phục vụ bằng OFFSET/FETCH. */
     public List<Product> findMenu(Connection con, Integer categoryId, String keyword, String sort,
                                   int offset, int limit) throws SQLException {
         List<Object> params = new ArrayList<>();
@@ -55,6 +57,7 @@ public class ProductDAO {
         return query(con, sql, params, true);
     }
 
+    /** Đếm số món khớp bộ lọc để tính tổng số trang. */
     public long countMenu(Connection con, Integer categoryId, String keyword) throws SQLException {
         List<Object> params = new ArrayList<>();
         String sql = "SELECT COUNT(*) " +
@@ -70,6 +73,7 @@ public class ProductDAO {
         }
     }
 
+    /** Dựng điều kiện menu chỉ gồm product/category ACTIVE, available và tham số lọc an toàn. */
     private String menuWhere(Integer categoryId, String keyword, List<Object> params) {
         StringBuilder sql = new StringBuilder(
                 "WHERE p.status = 'ACTIVE' AND p.is_available = 1 AND c.status = 'ACTIVE' ");
@@ -136,6 +140,7 @@ public class ProductDAO {
         return sql.toString();
     }
 
+    /** Tìm thông tin cơ bản của product theo id. */
     public Product findById(Connection con, int productId) throws SQLException {
         String sql = "SELECT " + COLS +
                      "FROM dbo.Product p JOIN dbo.Category c ON c.category_id = p.category_id " +
@@ -148,6 +153,7 @@ public class ProductDAO {
         }
     }
 
+    /** Tải product cùng trạng thái category để quyết định món có được đặt hay không. */
     public Product findForCheckout(Connection con, int productId) throws SQLException {
         String sql = "SELECT " + COLS + ", c.status AS category_status " +
                      "FROM dbo.Product p JOIN dbo.Category c ON c.category_id = p.category_id " +
@@ -224,10 +230,12 @@ public class ProductDAO {
         }
     }
 
+    /** Chạy truy vấn product không cần cột thống kê rating. */
     private List<Product> query(Connection con, String sql, List<Object> params) throws SQLException {
         return query(con, sql, params, false);
     }
 
+    /** Bind parameter, chạy truy vấn và map danh sách product, tùy chọn đọc thêm rating. */
     private List<Product> query(Connection con, String sql, List<Object> params,
                                 boolean coDiemDanhGia) throws SQLException {
         List<Product> list = new ArrayList<>();
@@ -249,6 +257,7 @@ public class ProductDAO {
         return list;
     }
 
+    /** Ánh xạ một dòng ResultSet thành Product. */
     private Product map(ResultSet rs) throws SQLException {
         Product p = new Product();
         p.setProductId(rs.getInt("product_id"));

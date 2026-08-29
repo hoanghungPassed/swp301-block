@@ -13,6 +13,7 @@ public final class QrCodeUtil {
     private QrCodeUtil() {
     }
 
+    /** Mã hóa nội dung thành ảnh QR PNG dạng data URI để JSP hiển thị trực tiếp. */
     public static String toDataUri(String content, int size) {
         if (content == null || content.isBlank()) {
             return null;

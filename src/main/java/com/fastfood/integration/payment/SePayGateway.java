@@ -26,11 +26,13 @@ public class SePayGateway implements PaymentGateway {
 
     private final Pattern referencePattern;
 
+    /** Nạp cấu hình tài khoản nhận tiền và API key SePay từ app.properties. */
     public SePayGateway() {
         this(AppConfig.sepayAccountNumber(), AppConfig.sepayBank(), AppConfig.sepayAccountName(),
              AppConfig.sepayApiKey(), AppConfig.sepayContentPrefix());
     }
 
+    /** Chuẩn hoá cấu hình và tạo mẫu nhận diện nội dung chuyển khoản dạng PREFIX + paymentId. */
     public SePayGateway(String accountNumber, String bank, String accountName,
                         String apiKey, String contentPrefix) {
         this.accountNumber = trim(accountNumber);
@@ -44,17 +46,20 @@ public class SePayGateway implements PaymentGateway {
                 Pattern.CASE_INSENSITIVE);
     }
 
+    /** Trả tên gateway được lưu cùng giao dịch để phân biệt với PayOS. */
     @Override
     public String getName() {
         return "SEPAY";
     }
 
+    /** Tạo URL trang QR nội bộ và nội dung chuyển khoản duy nhất cho payment hiện tại. */
     @Override
     public PaymentInitResult initiate(int paymentId, int orderId, BigDecimal amount, String baseUrl) {
         return new PaymentInitResult(baseUrl + "/payment/sepay?paymentId=" + paymentId,
                                      transferContent(paymentId));
     }
 
+    /** So sánh API key webhook theo kiểu constant-time trước khi tin dữ liệu SePay gửi tới. */
     @Override
     public boolean verifySignature(GatewayCallback callback) {
         if (apiKey.isEmpty()) {
@@ -68,10 +73,12 @@ public class SePayGateway implements PaymentGateway {
                                      apiKey.getBytes(StandardCharsets.UTF_8));
     }
 
+    /** Ghép prefix cấu hình với paymentId để đối soát tiền về đúng bản ghi Payment. */
     public String transferContent(int paymentId) {
         return contentPrefix + paymentId;
     }
 
+    /** Tách paymentId từ nội dung giao dịch ngân hàng; trả null nếu nội dung không đúng mẫu. */
     public Integer paymentIdFrom(String content) {
         if (content == null) {
             return null;
@@ -88,6 +95,7 @@ public class SePayGateway implements PaymentGateway {
         }
     }
 
+    /** Tạo URL ảnh VietQR/SePay chứa tài khoản, số tiền và nội dung chuyển khoản. */
     public String qrImageUrl(BigDecimal amount, String transferContent) {
         return QR_ENDPOINT
                 + "?acc=" + encode(accountNumber)
@@ -96,6 +104,7 @@ public class SePayGateway implements PaymentGateway {
                 + "&des=" + encode(transferContent);
     }
 
+    /** Chỉ cho khởi tạo thanh toán khi có đủ tài khoản, ngân hàng và API key. */
     public boolean isConfigured() {
         return !accountNumber.isEmpty() && !bank.isEmpty() && !apiKey.isEmpty();
     }
@@ -104,6 +113,7 @@ public class SePayGateway implements PaymentGateway {
     public String getBank()          { return bank; }
     public String getAccountName()   { return accountName; }
 
+    /** Mã hoá từng tham số trước khi ghép vào query string của ảnh QR. */
     private static String encode(String value) {
         try {
             return URLEncoder.encode(value, StandardCharsets.UTF_8.name());
@@ -112,6 +122,7 @@ public class SePayGateway implements PaymentGateway {
         }
     }
 
+    /** Đưa cấu hình null về chuỗi rỗng và bỏ khoảng trắng thừa. */
     private static String trim(String value) {
         return value == null ? "" : value.trim();
     }

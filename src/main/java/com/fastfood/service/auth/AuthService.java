@@ -25,6 +25,7 @@ public class AuthService {
     private final PasswordResetService passwordResetService = new PasswordResetService();
     private final EmailVerificationService verificationService = new EmailVerificationService();
 
+    /** Xác thực email/mật khẩu không kèm theo dõi IP; chủ yếu giữ cho các lời gọi cũ tương thích. */
     public User login(String email, String rawPassword) {
         String normalizedEmail = ValidationUtil.requireEmail(email);
         ValidationUtil.requireText(rawPassword, "mật khẩu");
@@ -39,6 +40,10 @@ public class AuthService {
         return user;
     }
 
+    /**
+     * Xác thực email và BCrypt password, áp dụng giới hạn đăng nhập theo email-IP, kiểm tra trạng
+     * thái tài khoản và ghi audit khi thành công/thất bại.
+     */
     public User login(String email, String rawPassword, String clientIp) {
         String normalizedEmail = ValidationUtil.requireEmail(email);
         ValidationUtil.requireText(rawPassword, "mật khẩu");
@@ -65,6 +70,7 @@ public class AuthService {
         return user;
     }
 
+    /** Ghi nhận một lần đăng nhập sai, tăng bộ đếm khóa tạm và lưu audit tương ứng. */
     private void onFailedLogin(String normalizedEmail, String clientIp, User user) {
         Integer actorId = user == null ? null : user.getUserId();
         Object entityId = user == null ? 0 : user.getUserId();
@@ -77,18 +83,25 @@ public class AuthService {
         }
     }
 
+    /** Ghi audit sự kiện user chủ động đăng xuất; Servlet chịu trách nhiệm hủy session. */
     public void logout(int userId, String clientIp) {
         auditService.logRejected(userId, "USER", userId, AuditAction.LOGOUT, null, clientIp);
     }
 
+    /** Làm tròn thời gian khóa còn lại lên phút để tạo thông báo dễ hiểu. */
     private long minutesLeft(Duration remaining) {
         return Math.max(1, (remaining.toSeconds() + 59) / 60);
     }
 
+    /** Đăng ký không gửi email, dùng cho các lời gọi nội bộ hoặc kiểm thử. */
     public User register(String fullName, String email, String phone, String password, String confirmPassword) {
         return register(fullName, email, phone, password, confirmPassword, null, null);
     }
 
+    /**
+     * Validate dữ liệu, chống trùng email, BCrypt password, tạo user role CUSTOMER chưa xác thực
+     * và phát thư xác thực sau khi transaction lưu tài khoản thành công.
+     */
     public User register(String fullName, String email, String phone, String password,
                          String confirmPassword, String baseUrl, String clientIp) {
         String name = ValidationUtil.requireText(fullName, "họ tên");
@@ -136,10 +149,12 @@ public class AuthService {
     private record Registered(User user, String rawToken) {
     }
 
+    /** Tải thông tin tài khoản hiện tại theo id. */
     public User findById(int userId) {
         return Tx.read(con -> userDAO.findById(con, userId));
     }
 
+    /** Validate và cập nhật họ tên, số điện thoại của tài khoản. */
     public void updateProfile(int userId, String fullName, String phone) {
         String name = ValidationUtil.requireText(fullName, "họ tên");
         String normalizedPhone = ValidationUtil.optionalPhone(phone);
@@ -155,6 +170,10 @@ public class AuthService {
         });
     }
 
+    /**
+     * Kiểm tra mật khẩu hiện tại, độ mạnh và xác nhận mật khẩu mới, sau đó lưu BCrypt hash mới
+     * và vô hiệu hóa mọi liên kết đặt lại mật khẩu còn hiệu lực.
+     */
     public void changePassword(int userId, String currentPassword, String newPassword, String confirmPassword) {
         ValidationUtil.requirePasswordStrength(newPassword);
         if (!newPassword.equals(confirmPassword)) {

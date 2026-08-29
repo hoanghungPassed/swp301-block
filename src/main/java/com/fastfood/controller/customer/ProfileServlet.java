@@ -16,6 +16,7 @@ public class ProfileServlet extends BaseServlet {
 
     private final AuthService authService = new AuthService();
 
+    /** Tải lại thông tin tài khoản mới nhất từ database để hiển thị trang hồ sơ. */
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp)
             throws ServletException, IOException {
@@ -24,6 +25,10 @@ public class ProfileServlet extends BaseServlet {
         forward(req, resp, "customer/profile.jsp");
     }
 
+    /**
+     * Cập nhật họ tên/số điện thoại hoặc đổi mật khẩu tùy theo action của form; AuthService chịu
+     * trách nhiệm validate và ghi dữ liệu.
+     */
     @Override
     protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws IOException {
         User user = requireUser(req);

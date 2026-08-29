@@ -22,16 +22,19 @@ public final class WebUtil {
     private WebUtil() {
     }
 
+    /** Lấy User đang đăng nhập từ session mà không tự tạo session mới. */
     public static User currentUser(HttpServletRequest req) {
         HttpSession session = req.getSession(false);
         return session == null ? null : (User) session.getAttribute(SESSION_USER);
     }
 
+    /** Ghi hoặc xóa User hiện tại trong session. */
     public static void putCurrentUser(HttpSession session, User user) {
         user.setPasswordHash(null);
         session.setAttribute(SESSION_USER, user);
     }
 
+    /** Tạo session mới sau login và cho phép quay lại URL đã yêu cầu trước đó. */
     public static String startAuthenticatedSession(HttpServletRequest req, User user, String fallback) {
         return startSession(req, user, fallback, true);
     }
@@ -45,10 +48,12 @@ public final class WebUtil {
       đó chỉ đổi một trang chặn này lấy một trang 403 khác — trong khi việc họ cần làm là xem
       thực đơn.
     */
+    /** Tạo session sau đăng ký nhưng luôn chuyển tới target an toàn đã chỉ định. */
     public static String startRegisteredSession(HttpServletRequest req, User user, String target) {
         return startSession(req, user, target, false);
     }
 
+    /** Hủy session cũ, tạo session mới, lưu user và rotate CSRF để chống session fixation. */
     private static String startSession(HttpServletRequest req, User user, String fallback,
                                        boolean honorSavedTarget) {
         HttpSession old = req.getSession(false);
@@ -64,11 +69,13 @@ public final class WebUtil {
         return honorSavedTarget ? safeRedirect(savedTarget, fallback) : fallback;
     }
 
+    /** Trả userId trong session hoặc 0 nếu chưa đăng nhập. */
     public static int currentUserId(HttpServletRequest req) {
         User u = currentUser(req);
         return u == null ? 0 : u.getUserId();
     }
 
+    /** Đọc parameter số nguyên, dùng defaultValue khi thiếu hoặc sai định dạng. */
     public static int getInt(HttpServletRequest req, String name, int defaultValue) {
         String raw = req.getParameter(name);
         if (raw == null || raw.isBlank()) {
@@ -81,6 +88,7 @@ public final class WebUtil {
         }
     }
 
+    /** Đọc parameter Integer nullable. */
     public static Integer getInteger(HttpServletRequest req, String name) {
         String raw = req.getParameter(name);
         if (raw == null || raw.isBlank()) {
@@ -93,20 +101,24 @@ public final class WebUtil {
         }
     }
 
+    /** Đọc parameter chuỗi và trim; chuỗi thiếu vẫn trả null. */
     public static String getString(HttpServletRequest req, String name) {
         String raw = req.getParameter(name);
         return raw == null ? null : raw.trim();
     }
 
+    /** Đọc parameter boolean theo các giá trị HTML thường dùng. */
     public static boolean getBoolean(HttpServletRequest req, String name) {
         String raw = req.getParameter(name);
         return "true".equalsIgnoreCase(raw) || "1".equals(raw) || "on".equalsIgnoreCase(raw);
     }
 
+    /** Parse parameter datetime-local thành LocalDateTime hoặc null. */
     public static LocalDateTime getDateTime(HttpServletRequest req, String name) {
         return DateTimeUtil.parseHtmlInput(req.getParameter(name));
     }
 
+    /** Parse parameter ngày ISO thành LocalDate hoặc null. */
     public static java.time.LocalDate getDate(HttpServletRequest req, String name) {
         String raw = req.getParameter(name);
         if (raw == null || raw.trim().isEmpty()) {
@@ -119,14 +131,17 @@ public final class WebUtil {
         }
     }
 
+    /** Lưu thông báo thành công một lần trong session để hiện sau redirect. */
     public static void flashSuccess(HttpServletRequest req, String message) {
         req.getSession().setAttribute(FLASH_SUCCESS, message);
     }
 
+    /** Lưu thông báo lỗi một lần trong session để hiện sau redirect. */
     public static void flashError(HttpServletRequest req, String message) {
         req.getSession().setAttribute(FLASH_ERROR, message);
     }
 
+    /** Chuyển flash message từ session sang request rồi xóa khỏi session. */
     public static void consumeFlash(HttpServletRequest req) {
         HttpSession session = req.getSession(false);
         if (session == null) {
@@ -144,6 +159,7 @@ public final class WebUtil {
         }
     }
 
+    /** Chỉ cho redirect nội bộ, loại bỏ URL ngoài hệ thống để chống open redirect. */
     public static String safeRedirect(String target, String fallback) {
         if (target == null || target.isBlank() || !target.startsWith("/")) {
             return fallback;
@@ -164,6 +180,7 @@ public final class WebUtil {
         return target;
     }
 
+    /** Dựng lại query string hiện tại nhưng bỏ các parameter được chỉ định. */
     public static String queryStringWithout(HttpServletRequest req, String... omit) {
         List<String> skip = Arrays.asList(omit);
         StringBuilder sb = new StringBuilder();
@@ -186,6 +203,7 @@ public final class WebUtil {
         return sb.toString();
     }
 
+    /** Ghép đường dẫn với query filter, xử lý đúng trường hợp query rỗng. */
     public static String pathWithFilters(String path, String filterQuery) {
         if (filterQuery == null || filterQuery.isBlank()) {
             return path;
@@ -193,11 +211,13 @@ public final class WebUtil {
         return safeRedirect(path + "?" + filterQuery, path);
     }
 
+    /** Lấy IP client đã chuẩn hóa từ request để audit và rate limit. */
     public static String clientIp(HttpServletRequest req) {
         String remote = req.getRemoteAddr();
         return remote == null || remote.isBlank() ? "unknown" : remote;
     }
 
+    /** Tạo URL gốc scheme-host-port-context dùng trong link email và callback. */
     public static String baseUrl(HttpServletRequest req) {
         String scheme = req.getScheme();
         String host = req.getServerName();

@@ -19,6 +19,7 @@ public class CartService {
     private final CartDAO cartDAO = new CartDAO();
     private final ProductDAO productDAO = new ProductDAO();
 
+    /** Lấy hoặc tạo giỏ của user rồi nạp các dòng món để dựng CartView cho màn hình. */
     public CartView getCart(int userId) {
         return Tx.read(con -> {
             int cartId = cartDAO.getOrCreateCartId(con, userId, DateTimeUtil.now());
@@ -30,10 +31,15 @@ public class CartService {
         });
     }
 
+    /** Đếm tổng số phần trong giỏ để hiển thị con số trên thanh điều hướng. */
     public int countItems(int userId) {
         return Tx.read(con -> cartDAO.countItems(con, userId));
     }
 
+    /**
+     * Kiểm tra số lượng và khả năng phục vụ của món, sau đó cộng món vào giỏ của user trong
+     * một transaction.
+     */
     public void addProduct(int userId, int productId, int quantity) {
         ValidationUtil.requirePositive(quantity, "Số lượng");
         requireSaneQuantity(quantity);
@@ -52,6 +58,7 @@ public class CartService {
         });
     }
 
+    /** Chặn số lượng một món vượt quá giới hạn nghiệp vụ cho phép. */
     private void requireSaneQuantity(int quantity) {
         if (quantity > BusinessRule.MAX_QUANTITY_PER_LINE) {
             throw new BusinessException("Mỗi món chỉ đặt được tối đa "
@@ -60,6 +67,7 @@ public class CartService {
         }
     }
 
+    /** Cập nhật số lượng dòng thuộc giỏ của user; số lượng không dương được hiểu là xóa dòng. */
     public void updateQuantity(int userId, int cartItemId, int quantity) {
         requireSaneQuantity(quantity);
         Tx.writeVoid(con -> {
@@ -73,6 +81,7 @@ public class CartService {
         });
     }
 
+    /** Xóa một dòng món khỏi đúng giỏ thuộc user và cập nhật thời gian sửa giỏ. */
     public void removeItem(int userId, int cartItemId) {
         Tx.writeVoid(con -> {
             int cartId = cartDAO.getOrCreateCartId(con, userId, DateTimeUtil.now());
@@ -81,6 +90,7 @@ public class CartService {
         });
     }
 
+    /** Duyệt giỏ và xóa các món không còn được phép đặt, đồng thời trả số dòng đã xóa. */
     public int removeUnavailable(int userId) {
         return Tx.write(con -> {
             int cartId = cartDAO.getOrCreateCartId(con, userId, DateTimeUtil.now());

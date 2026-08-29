@@ -35,14 +35,20 @@ public class OrderTemplateService {
     private final OrderItemDAO orderItemDAO = new OrderItemDAO();
     private final CartDAO cartDAO = new CartDAO();
 
+    /** Lấy tất cả mẫu đặt nhanh thuộc customer, kèm các món trong từng mẫu. */
     public List<OrderTemplate> listOf(int customerId) {
         return Tx.read(con -> templateDAO.findByCustomer(con, customerId));
     }
 
+    /** Tìm một mẫu và chỉ trả về khi mẫu thuộc đúng customer. */
     public OrderTemplate findOwn(int templateId, int customerId) {
         return Tx.read(con -> requireOwn(con, templateId, customerId));
     }
 
+    /**
+     * Tạo mẫu từ một đơn cũ thuộc customer bằng cách sao chép productId và quantity của từng
+     * OrderItem sang OrderTemplateItem.
+     */
     public OrderTemplate saveFromOrder(int customerId, int orderId, String name) {
         String ten = requireName(name);
         LocalDateTime now = DateTimeUtil.now();
@@ -73,6 +79,7 @@ public class OrderTemplateService {
         }
     }
 
+    /** Tạo mẫu mới bằng cách sao chép toàn bộ món đang có trong giỏ của customer. */
     public OrderTemplate saveFromCart(int customerId, String name) {
         String ten = requireName(name);
         LocalDateTime now = DateTimeUtil.now();
@@ -99,6 +106,7 @@ public class OrderTemplateService {
         }
     }
 
+    /** Đổi tên mẫu sau khi kiểm tra tên hợp lệ, không trùng và mẫu thuộc customer. */
     public void rename(int templateId, int customerId, String name) {
         String ten = requireName(name);
         LocalDateTime now = DateTimeUtil.now();
@@ -112,6 +120,9 @@ public class OrderTemplateService {
         }
     }
 
+    /**
+     * Đổi số lượng một món trong mẫu; số lượng không dương sẽ xóa món và mẫu rỗng cũng bị xóa.
+     */
     public void setQuantity(int templateId, int customerId, int productId, int quantity) {
         if (quantity > 0) {
             requireSaneQuantity(quantity);
@@ -132,6 +143,7 @@ public class OrderTemplateService {
         });
     }
 
+    /** Thêm hoặc cộng một món tồn tại vào mẫu thuộc customer rồi cập nhật thời gian sửa mẫu. */
     public void addItem(int templateId, int customerId, int productId, int quantity) {
         requireSaneQuantity(quantity);
         LocalDateTime now = DateTimeUtil.now();
@@ -146,6 +158,7 @@ public class OrderTemplateService {
         });
     }
 
+    /** Xóa mẫu đặt nhanh sau khi xác nhận quyền sở hữu. */
     public void delete(int templateId, int customerId) {
         Tx.writeVoid(con -> {
             requireOwn(con, templateId, customerId);
@@ -153,6 +166,10 @@ public class OrderTemplateService {
         });
     }
 
+    /**
+     * Nạp các món còn phục vụ trong mẫu vào giỏ, ghi nhận tên các món ngừng bán để màn hình báo
+     * cho khách và từ chối nếu không còn món nào có thể thêm.
+     */
     public TemplateApplyResult applyToCart(int templateId, int customerId) {
         LocalDateTime now = DateTimeUtil.now();
         return Tx.write(con -> {
@@ -179,6 +196,7 @@ public class OrderTemplateService {
         });
     }
 
+    /** Tạo phần đầu của mẫu và nhận templateId do database sinh. */
     private OrderTemplate newTemplate(Connection con, int customerId, String name,
                                       LocalDateTime now) throws SQLException {
         OrderTemplate template = new OrderTemplate();
@@ -189,6 +207,7 @@ public class OrderTemplateService {
         return template;
     }
 
+    /** Chặn lưu mới khi customer đã đạt giới hạn 10 mẫu. */
     private void requireRoom(Connection con, int customerId) throws SQLException {
         if (templateDAO.countByCustomer(con, customerId) >= MAX_TEMPLATES_PER_CUSTOMER) {
             throw new BusinessException("Bạn đã lưu " + MAX_TEMPLATES_PER_CUSTOMER
@@ -196,6 +215,7 @@ public class OrderTemplateService {
         }
     }
 
+    /** Tải mẫu và chặn thao tác nếu mẫu không tồn tại hoặc thuộc tài khoản khác. */
     private OrderTemplate requireOwn(Connection con, int templateId, int customerId)
             throws SQLException {
         OrderTemplate template = templateDAO.findById(con, templateId);
@@ -208,6 +228,7 @@ public class OrderTemplateService {
         return template;
     }
 
+    /** Chuyển lỗi unique từ database thành thông báo tên mẫu bị trùng dễ hiểu. */
     private RuntimeException asFriendly(RuntimeException e, String name) {
         if (!JdbcSupport.isUniqueViolation(e)) {
             return e;
@@ -216,6 +237,7 @@ public class OrderTemplateService {
                 + "\". Hãy đặt tên khác để hai mẫu không lẫn nhau.");
     }
 
+    /** Chuẩn hóa và kiểm tra tên mẫu bắt buộc, tối đa 100 ký tự. */
     private String requireName(String name) {
         String ten = name == null ? "" : name.trim();
         if (ten.isEmpty()) {
@@ -228,6 +250,7 @@ public class OrderTemplateService {
         return ten;
     }
 
+    /** Kiểm tra số lượng món trong mẫu nằm trong giới hạn nghiệp vụ. */
     private void requireSaneQuantity(int quantity) {
         if (quantity <= 0) {
             throw new ValidationException("Số lượng phải lớn hơn 0.");

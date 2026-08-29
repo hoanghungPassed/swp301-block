@@ -13,6 +13,7 @@ public final class PaymentGateways {
     private PaymentGateways() {
     }
 
+    /** Trả singleton gateway theo provider đang cấu hình. */
     public static PaymentGateway fromConfig() {
         PaymentGateway local = instance;
         if (local == null) {
@@ -27,6 +28,7 @@ public final class PaymentGateways {
         return local;
     }
 
+    /** Khởi tạo đúng adapter PAYOS hoặc SEPAY và từ chối provider không hỗ trợ. */
     private static PaymentGateway create(String provider) {
         String name = provider == null ? "" : provider.trim().toUpperCase();
         if ("SEPAY".equals(name)) {
@@ -55,6 +57,7 @@ public final class PaymentGateways {
         return payos;
     }
 
+    /** Xóa singleton gateway để test có thể nạp lại cấu hình. */
     static void reset() {
         instance = null;
     }

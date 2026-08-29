@@ -32,6 +32,7 @@ public class PosServlet extends BaseServlet {
     private final MenuService menuService = new MenuService();
     private final StaffOrderService orderService = new StaffOrderService();
 
+    /** Nạp menu, bộ lọc và giỏ POS trong session để dựng màn hình bán hàng tại quầy. */
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp)
             throws ServletException, IOException {
@@ -59,6 +60,9 @@ public class PosServlet extends BaseServlet {
         forward(req, resp, "staff/pos.jsp");
     }
 
+    /**
+     * Nhận các nút thêm/sửa/xoá giỏ và hai lựa chọn thanh toán; chỉ tạo đơn khi giỏ hợp lệ.
+     */
     @Override
     protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws IOException {
         User cashier = requireUser(req);
@@ -144,17 +148,20 @@ public class PosServlet extends BaseServlet {
         }
     }
 
+    /** Chuyển giỏ dạng productId-quantity trong session thành danh sách đầu vào cho Service. */
     private List<PosLine> toLines(Map<Integer, Integer> cart) {
         List<PosLine> lines = new ArrayList<>();
         cart.forEach((productId, quantity) -> lines.add(new PosLine(productId, quantity)));
         return lines;
     }
 
+    /** Dựng thông báo giới hạn số lượng theo một hằng nghiệp vụ dùng chung toàn hệ thống. */
     private String tooManyMessage() {
         return "Mỗi món chỉ bán được tối đa " + BusinessRule.MAX_QUANTITY_PER_LINE
                 + " phần trên một đơn. Khách mua nhiều hơn thì tách thành đơn thứ hai.";
     }
 
+    /** Lấy giỏ POS của phiên hiện tại; chưa có thì tạo LinkedHashMap để giữ thứ tự món đã thêm. */
     @SuppressWarnings("unchecked")
     private Map<Integer, Integer> cart(HttpServletRequest req) {
         HttpSession session = req.getSession();

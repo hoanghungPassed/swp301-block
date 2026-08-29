@@ -47,6 +47,10 @@ public class PayOsWebhookServlet extends HttpServlet {
 
     private final PaymentService paymentService = new PaymentService();
 
+    /**
+     * Đọc webhook PayOS, xác minh HMAC signature, bỏ qua gói ping đăng ký và chuyển giao dịch
+     * thật sang PaymentService; luôn phản hồi rõ success để PayOS quyết định có gửi lại hay không.
+     */
     @Override
     protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws IOException {
         resp.setContentType("application/json;charset=UTF-8");
@@ -100,12 +104,14 @@ public class PayOsWebhookServlet extends HttpServlet {
         reply(resp, HttpServletResponse.SC_OK, true);
     }
 
+    /** Nhận diện đúng gói ping PayOS gửi khi cấu hình webhook, không ghi nó thành giao dịch thật. */
     private static boolean laGoiThu(JsonObject payload) {
         JsonObject data = PayOsGateway.object(payload, "data");
         return PayOsGateway.number(data, "orderCode") == PING_ORDER_CODE
                 && PING_REFERENCE.equals(PayOsGateway.text(data, "reference"));
     }
 
+    /** Đọc toàn bộ JSON body webhook theo UTF-8. */
     private static String readBody(HttpServletRequest req) throws IOException {
         StringBuilder sb = new StringBuilder();
         try (BufferedReader reader = req.getReader()) {
@@ -118,6 +124,7 @@ public class PayOsWebhookServlet extends HttpServlet {
         return sb.toString();
     }
 
+    /** Trả JSON theo định dạng PayOS cần để xác nhận webhook đã được tiếp nhận. */
     private static void reply(HttpServletResponse resp, int status, boolean success)
             throws IOException {
         resp.setStatus(status);

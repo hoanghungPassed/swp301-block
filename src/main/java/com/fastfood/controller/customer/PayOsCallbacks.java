@@ -121,6 +121,7 @@ final class PayOsCallbacks {
         return PayOsGateway.text(link, "status");
     }
 
+    /** Kiểm tra trạng thái PayOS còn đang xử lý nên chưa được kết luận thành công/thất bại. */
     static boolean conDangCho(String status) {
         return status != null && STATUS_OPEN.contains(status);
     }
@@ -137,6 +138,7 @@ final class PayOsCallbacks {
         return PayOsGateway.text(data, "paymentLinkId") + "-" + PayOsGateway.text(data, "code");
     }
 
+    /** Lấy giao dịch đầu tiên trong dữ liệu tra cứu link thanh toán, nếu có. */
     private static JsonObject giaoDichDauTien(JsonObject link) {
         for (JsonElement e : PayOsGateway.array(link, "transactions")) {
             if (e != null && e.isJsonObject()) {
@@ -146,6 +148,7 @@ final class PayOsCallbacks {
         return null;
     }
 
+    /** Đọc số tiền JSON an toàn thành BigDecimal, trả null khi không hợp lệ. */
     private static BigDecimal tien(JsonObject o, String field) {
         JsonElement v = o == null ? null : o.get(field);
         if (v == null || v.isJsonNull()) {
@@ -158,6 +161,7 @@ final class PayOsCallbacks {
         }
     }
 
+    /** Đọc mã kết quả PayOS và xác định giao dịch có thành công hay không. */
     private static boolean thanhCong(JsonObject o, String field) {
         JsonElement v = o == null ? null : o.get(field);
         if (v == null || v.isJsonNull() || !v.isJsonPrimitive()) {

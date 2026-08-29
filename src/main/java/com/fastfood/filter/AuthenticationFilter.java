@@ -28,6 +28,10 @@ public class AuthenticationFilter implements Filter {
     private final SessionGuard sessionGuard = new SessionGuard();
 
     @Override
+    /**
+     * Cho URL public đi qua, còn URL bảo vệ phải có session hợp lệ; đồng thời ép tài khoản có
+     * mustChangePassword về trang đổi mật khẩu trước khi tiếp tục.
+     */
     public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain)
             throws IOException, ServletException {
         HttpServletRequest req = (HttpServletRequest) request;
@@ -66,12 +70,14 @@ public class AuthenticationFilter implements Filter {
         chain.doFilter(request, response);
     }
 
+    /** Làm mới trạng thái tài khoản cho user đang đăng nhập ngay cả khi họ mở URL public. */
     private void refreshIfLoggedIn(HttpServletRequest req) {
         if (WebUtil.currentUser(req) != null) {
             sessionGuard.refresh(req);
         }
     }
 
+    /** Kiểm tra URL có nằm trong whitelist public hoặc thư mục tài nguyên tĩnh hay không. */
     public static boolean isPublicPath(String path) {
         if (path == null) {
             return false;

@@ -13,6 +13,7 @@ public final class StarRating {
     private StarRating() {
     }
 
+    /** Chuyển điểm nguyên 0..5 thành chuỗi năm sao đặc/rỗng để JSP hiển thị. */
     public static String of(int rating) {
         StringBuilder sb = new StringBuilder(MAX);
         for (int i = 1; i <= MAX; i++) {
@@ -21,6 +22,7 @@ public final class StarRating {
         return sb.toString();
     }
 
+    /** Làm tròn điểm trung bình rồi dùng cùng quy tắc dựng chuỗi sao. */
     public static String of(BigDecimal average) {
         if (average == null) {
             return of(0);

@@ -16,6 +16,7 @@ public class EmailVerificationTokenDAO {
             "SELECT token_id, user_id, token_hash, expires_at, used_at, requested_ip, created_at " +
             "FROM dbo.EmailVerificationToken ";
 
+    /** Lưu hash token xác thực email và trả tokenId tự tăng. */
     public long insert(Connection con, EmailVerificationToken token) throws SQLException {
         String sql = "INSERT INTO dbo.EmailVerificationToken " +
                      "(user_id, token_hash, expires_at, requested_ip, created_at) VALUES (?, ?, ?, ?, ?)";
@@ -35,6 +36,7 @@ public class EmailVerificationTokenDAO {
         return token.getTokenId();
     }
 
+    /** Tìm token xác thực bằng hash nhận từ liên kết. */
     public EmailVerificationToken findByHash(Connection con, String tokenHash) throws SQLException {
         try (PreparedStatement ps = con.prepareStatement(BASE + "WHERE token_hash = ?")) {
             ps.setString(1, tokenHash);
@@ -44,6 +46,7 @@ public class EmailVerificationTokenDAO {
         }
     }
 
+    /** Đánh dấu token chưa dùng thành đã dùng theo cách atomic. */
     public boolean markUsed(Connection con, long tokenId, LocalDateTime usedAt) throws SQLException {
         try (PreparedStatement ps = con.prepareStatement(
                 "UPDATE dbo.EmailVerificationToken SET used_at = ? WHERE token_id = ? AND used_at IS NULL")) {
@@ -53,6 +56,7 @@ public class EmailVerificationTokenDAO {
         }
     }
 
+    /** Vô hiệu hóa toàn bộ token xác thực chưa dùng của user. */
     public int invalidateAllFor(Connection con, int userId, LocalDateTime at) throws SQLException {
         try (PreparedStatement ps = con.prepareStatement(
                 "UPDATE dbo.EmailVerificationToken SET used_at = ? WHERE user_id = ? AND used_at IS NULL")) {
@@ -62,6 +66,7 @@ public class EmailVerificationTokenDAO {
         }
     }
 
+    /** Đếm số token được yêu cầu gần đây để rate limit gửi lại email. */
     public int countRequestsSince(Connection con, int userId, LocalDateTime since) throws SQLException {
         try (PreparedStatement ps = con.prepareStatement(
                 "SELECT COUNT(*) FROM dbo.EmailVerificationToken WHERE user_id = ? AND created_at >= ?")) {
@@ -73,6 +78,7 @@ public class EmailVerificationTokenDAO {
         }
     }
 
+    /** Ánh xạ một dòng ResultSet thành EmailVerificationToken. */
     private EmailVerificationToken map(ResultSet rs) throws SQLException {
         EmailVerificationToken t = new EmailVerificationToken();
         t.setTokenId(rs.getLong("token_id"));

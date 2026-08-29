@@ -15,10 +15,12 @@ public class MenuService {
     private final ProductDAO productDAO = new ProductDAO();
     private final CategoryDAO categoryDAO = new CategoryDAO();
 
+    /** Lấy toàn bộ món đang phục vụ theo danh mục và từ khóa với cách sắp xếp mặc định. */
     public List<Product> browse(Integer categoryId, String keyword) {
         return browse(categoryId, keyword, null);
     }
 
+    /** Lấy toàn bộ món đang phục vụ theo bộ lọc và cách sắp xếp đã chọn. */
     public List<Product> browse(Integer categoryId, String keyword, String sort) {
         return Tx.read(con -> productDAO.findMenu(con, categoryId, keyword, sort));
     }
@@ -36,14 +38,17 @@ public class MenuService {
         });
     }
 
+    /** Chỉ cho phép các mã sort trong whitelist, giá trị lạ được đổi thành DEFAULT. */
     public String sortOrDefault(String sort) {
         return ProductDAO.menuSortOrDefault(sort);
     }
 
+    /** Lấy các danh mục ACTIVE để dựng bộ lọc menu. */
     public List<Category> activeCategories() {
         return Tx.read(categoryDAO::findActive);
     }
 
+    /** Tải chi tiết món theo id và báo không tìm thấy nếu product không tồn tại. */
     public Product detail(int productId) {
         Product p = Tx.read(con -> productDAO.findById(con, productId));
         if (p == null) {

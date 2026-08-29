@@ -21,6 +21,7 @@ public class KitchenReleaseScheduler implements Runnable {
      * Phương thức thực thi tự động theo chu kỳ (mặc định mỗi 30 giây).
      */
     @Override
+    /** Được timer gọi định kỳ để đưa các đơn đến giờ chuẩn bị vào hàng chờ bếp. */
     public void run() {
         try {
             // Thực hiện giải phóng các đơn hàng đã đến hạn vào bếp

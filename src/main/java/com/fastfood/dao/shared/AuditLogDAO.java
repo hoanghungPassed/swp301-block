@@ -10,6 +10,7 @@ import com.fastfood.dao.JdbcSupport;
 
 public class AuditLogDAO {
 
+    /** Chèn một dấu vết thao tác vào AuditLog bằng connection của transaction hiện tại. */
     public void insert(Connection con, AuditLog log) throws SQLException {
         String sql = "INSERT INTO dbo.AuditLog (actor_id, entity_type, entity_id, action, old_value, " +
                      "new_value, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)";
@@ -25,6 +26,7 @@ public class AuditLogDAO {
         }
     }
 
+    /** Đọc lịch sử mới nhất trước của đúng một thực thể. */
     public List<AuditLog> findByEntity(Connection con, String entityType, String entityId) throws SQLException {
         String sql = base() + "WHERE a.entity_type = ? AND a.entity_id = ? ORDER BY a.created_at DESC";
         try (PreparedStatement ps = con.prepareStatement(sql)) {
@@ -34,6 +36,7 @@ public class AuditLogDAO {
         }
     }
 
+    /** Thực thi truy vấn audit có điều kiện và phân trang ở SQL Server. */
     public List<AuditLog> search(Connection con, String entityType, String action,
                                  LocalDateTime from, LocalDateTime to,
                                  int offset, int limit) throws SQLException {
@@ -49,6 +52,7 @@ public class AuditLogDAO {
         }
     }
 
+    /** Đếm cùng bộ lọc với search để dựng số trang chính xác. */
     public long countSearch(Connection con, String entityType, String action,
                             LocalDateTime from, LocalDateTime to) throws SQLException {
         List<Object> params = new ArrayList<>();
@@ -61,6 +65,7 @@ public class AuditLogDAO {
         }
     }
 
+    /** Ghép mệnh đề WHERE động đồng thời gom tham số để vẫn dùng PreparedStatement an toàn. */
     private String where(String entityType, String action,
                          LocalDateTime from, LocalDateTime to, List<Object> params) {
         StringBuilder sql = new StringBuilder("WHERE 1 = 1 ");
@@ -83,6 +88,7 @@ public class AuditLogDAO {
         return sql.toString();
     }
 
+    /** Gắn lần lượt tham số của bộ lọc và trả vị trí tiếp theo cho offset/limit. */
     private int bind(PreparedStatement ps, List<Object> params) throws SQLException {
         for (int i = 0; i < params.size(); i++) {
             ps.setObject(i + 1, params.get(i));
@@ -90,6 +96,7 @@ public class AuditLogDAO {
         return params.size() + 1;
     }
 
+    /** Lấy các action khác nhau đang có trong DB. */
     public List<String> distinctActions(Connection con) throws SQLException {
         List<String> list = new ArrayList<>();
         try (PreparedStatement ps = con.prepareStatement(
@@ -102,12 +109,14 @@ public class AuditLogDAO {
         return list;
     }
 
+    /** Câu SELECT nền nối Users để hiển thị tên người thao tác. */
     private String base() {
         return "SELECT a.audit_id, a.actor_id, a.entity_type, a.entity_id, a.action, a.old_value, " +
                "       a.new_value, a.created_at, u.full_name AS actor_name " +
                "FROM dbo.AuditLog a LEFT JOIN dbo.Users u ON u.user_id = a.actor_id ";
     }
 
+    /** Chạy query và ánh xạ từng dòng ResultSet thành AuditLog. */
     private List<AuditLog> collect(PreparedStatement ps) throws SQLException {
         List<AuditLog> list = new ArrayList<>();
         try (ResultSet rs = ps.executeQuery()) {

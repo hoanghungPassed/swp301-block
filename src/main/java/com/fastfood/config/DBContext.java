@@ -21,6 +21,7 @@ public final class DBContext {
     private DBContext() {
     }
 
+    /** Đọc db.properties và khởi tạo HikariCP connection pool đúng một lần. */
     public static synchronized void init() {
         if (dataSource != null) {
             return;
@@ -42,6 +43,7 @@ public final class DBContext {
         LOG.info("DBContext: da khoi tao connection pool toi " + p.getProperty("db.url"));
     }
 
+    /** Đóng connection pool khi ứng dụng/Tomcat dừng. */
     public static synchronized void shutdown() {
         if (dataSource != null) {
             dataSource.close();
@@ -50,6 +52,7 @@ public final class DBContext {
         }
     }
 
+    /** Mượn một JDBC Connection từ pool, tự khởi tạo pool nếu cần. */
     public static Connection getConnection() throws SQLException {
         if (dataSource == null) {
             init();
@@ -57,6 +60,7 @@ public final class DBContext {
         return dataSource.getConnection();
     }
 
+    /** Kiểm tra nhanh ứng dụng có kết nối hợp lệ tới SQL Server hay không. */
     public static boolean testConnection() {
         try (Connection con = getConnection()) {
             return con.isValid(3);
@@ -66,6 +70,7 @@ public final class DBContext {
         }
     }
 
+    /** Đọc cấu hình database UTF-8 từ classpath db.properties. */
     private static Properties load() {
         Properties p = new Properties();
         try (InputStream in = DBContext.class.getClassLoader().getResourceAsStream("db.properties")) {

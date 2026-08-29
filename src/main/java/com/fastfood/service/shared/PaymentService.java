@@ -62,6 +62,10 @@ public class PaymentService {
         this.gateway = gateway;
     }
 
+    /**
+     * Kiểm tra đơn chờ thanh toán thuộc customer, tạo Payment/attempt mới rồi gọi gateway bên
+     * ngoài transaction để nhận checkout URL.
+     */
     public String startOnlinePayment(int orderId, int customerId, String baseUrl) {
         LocalDateTime now = DateTimeUtil.now();
 
@@ -113,6 +117,10 @@ public class PaymentService {
                 .getRedirectUrl();
     }
 
+    /**
+     * Xác minh callback, lưu Transaction chống trùng, đối chiếu đúng số tiền, cập nhật Payment
+     * và xác nhận Order; tiền về cho đơn hết hiệu lực được chuyển sang trạng thái đối soát.
+     */
     public CallbackResult handleCallback(GatewayCallback callback) {
         /* Bỏ qua bước kiểm chữ ký khi dữ liệu do chính hệ thống đi hỏi cổng mà có — xem
            GatewayCallback.isTrusted(). Không phải một lối tắt cho tiện: cổng như PayOS không
@@ -209,6 +217,7 @@ public class PaymentService {
        sao kê. Hệ thống không có đường hoàn tiền tự động, nên việc còn lại là để dấu vết thật rõ
        — một dòng nhật ký tra được bằng PAYMENT_ORPHANED, một tin cho khách, và một cảnh báo mức
        SEVERE trong log máy chủ để người trực đối soát nhìn thấy ngay trong ngày. */
+    /** Ghi audit và đánh dấu khoản tiền cần đối soát khi đơn không còn có thể nhận thanh toán. */
     private CallbackResult orphan(Connection con, Order order, Payment payment, String lyDo)
             throws SQLException {
         int orderId = order == null ? 0 : order.getOrderId();
@@ -223,6 +232,7 @@ public class PaymentService {
         return CallbackResult.ORDER_GONE;
     }
 
+    /** Chuyển kết quả callback và so tiền thành trạng thái lưu trong Transaction. */
     private static String transactionStatus(boolean success, boolean amountMatches) {
         if (!success) {
             return "FAILED";
@@ -230,6 +240,7 @@ public class PaymentService {
         return amountMatches ? "SUCCESS" : "MISMATCH";
     }
 
+    /** Tra orderId liên kết với payment, trả 0 khi không tìm thấy. */
     public int orderIdOfPayment(int paymentId) {
         return Tx.read(con -> {
             Payment p = paymentDAO.findById(con, paymentId);
@@ -237,14 +248,17 @@ public class PaymentService {
         });
     }
 
+    /** Lấy lịch sử các lần thử thanh toán của một đơn. */
     public List<Payment> findByOrder(int orderId) {
         return Tx.read(con -> paymentDAO.findByOrder(con, orderId));
     }
 
+    /** Lấy các callback/giao dịch đã ghi nhận cho một payment. */
     public List<Transaction> findTransactions(int paymentId) {
         return Tx.read(con -> transactionDAO.findByPayment(con, paymentId));
     }
 
+    /** Tìm payment và chỉ trả về khi đơn liên quan thuộc đúng customer. */
     public Payment findForCustomer(int paymentId, int customerId) {
         return Tx.read(con -> {
             Payment payment = paymentDAO.findById(con, paymentId);
@@ -281,6 +295,7 @@ public class PaymentService {
         });
     }
 
+    /** Trả adapter cổng thanh toán đang được cấu hình để Servlet xử lý callback phù hợp. */
     public PaymentGateway getGateway() {
         return gateway;
     }

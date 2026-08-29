@@ -19,6 +19,7 @@ public class AuditService {
 
     private final AuditLogDAO auditLogDAO = new AuditLogDAO();
 
+    /** Ghi ai đã thay đổi đối tượng nào, giá trị trước/sau, trong cùng transaction nghiệp vụ. */
     public void log(Connection con, Integer actorId, String entityType, Object entityId,
                     String action, String oldValue, String newValue) throws SQLException {
         AuditLog log = new AuditLog();
@@ -32,11 +33,13 @@ public class AuditService {
         auditLogDAO.insert(con, log);
     }
 
+    /** Ghi thay đổi tự động như hết hạn thanh toán khi không có người dùng trực tiếp thao tác. */
     public void logSystem(Connection con, String entityType, Object entityId,
                           String action, String newValue) throws SQLException {
         log(con, null, entityType, entityId, action, null, newValue);
     }
 
+    /** Cố lưu riêng một thao tác bị từ chối nhưng không để lỗi audit làm hỏng phản hồi chính. */
     public void logRejected(Integer actorId, String entityType, Object entityId,
                             String action, String oldValue, String newValue) {
         try {
@@ -46,10 +49,12 @@ public class AuditService {
         }
     }
 
+    /** Lấy lịch sử biến động của một đơn, payment, review hoặc đối tượng cụ thể. */
     public List<AuditLog> findByEntity(String entityType, Object entityId) {
         return Tx.read(con -> auditLogDAO.findByEntity(con, entityType, String.valueOf(entityId)));
     }
 
+    /** Tìm và phân trang nhật ký theo loại đối tượng, hành động và khoảng thời gian. */
     public Page<AuditLog> search(String entityType, String action, LocalDateTime from,
                                  LocalDateTime to, int pageNo) {
         int page = Page.safePage(pageNo);
@@ -60,10 +65,12 @@ public class AuditService {
                 auditLogDAO.countSearch(con, entityType, action, from, to)));
     }
 
+    /** Lấy nhanh các thay đổi mới nhất của một loại đối tượng. */
     public List<AuditLog> recent(String entityType, int limit) {
         return Tx.read(con -> auditLogDAO.search(con, entityType, null, null, null, 0, limit));
     }
 
+    /** Cấp danh sách loại hành động cho bộ lọc nhật ký. */
     public List<String> distinctActions() {
         return Tx.read(auditLogDAO::distinctActions);
     }

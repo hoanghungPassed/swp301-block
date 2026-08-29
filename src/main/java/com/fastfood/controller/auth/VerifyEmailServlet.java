@@ -18,6 +18,7 @@ public class VerifyEmailServlet extends BaseServlet {
 
     private final EmailVerificationService verificationService = new EmailVerificationService();
 
+    /** Xác nhận token trong liên kết email và làm mới trạng thái xác thực trong session hiện tại. */
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp)
             throws ServletException, IOException {
@@ -39,6 +40,7 @@ public class VerifyEmailServlet extends BaseServlet {
         redirect(req, resp, WebUtil.currentUser(req) == null ? "/login" : "/menu");
     }
 
+    /** Chỉ cập nhật user trong session nếu token vừa xác nhận thuộc đúng tài khoản đang mở. */
     private void refreshSessionIfSamePerson(HttpServletRequest req, String token) {
         User inSession = WebUtil.currentUser(req);
         if (inSession == null) {
@@ -55,6 +57,7 @@ public class VerifyEmailServlet extends BaseServlet {
     }
 
     @Override
+    /** Gửi lại thư xác thực cho chính tài khoản đang đăng nhập khi token cũ mất hoặc hết hạn. */
     protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws IOException {
         User user = requireUser(req);
         String back = WebUtil.safeRedirect(WebUtil.getString(req, "returnTo"), "/menu");

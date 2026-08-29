@@ -4,6 +4,9 @@
   <%-- Gửi hay sửa đánh giá xong thì quay lại đúng trang đánh giá đang xem. --%>
   <c:set var="revQuery" value="${ff:pageQuery(pageContext.request, 'editReview')}" />
   <c:set var="revBack"  value="/product/detail${empty revQuery ? '' : '?'.concat(revQuery)}" />
+  <c:url var="revEditUrl" value="${revBack}">
+    <c:param name="editReview" value="true" />
+  </c:url>
   <c:set var="revReturn"><input type="hidden" name="returnTo" value="<c:out value="${revBack}"/>#danh-gia"></c:set>
   <p class="small mb"><a href="${ctx}/menu">← Quay lại thực đơn</a></p>
 
@@ -103,31 +106,6 @@
 
     <c:choose>
       <c:when test="${not empty myReview}">
-        <div class="alert flush mb">
-          <div class="row-between middle">
-            <div>
-              <span class="stars" aria-hidden="true">${myReview.stars}</span>
-              <strong>Đánh giá của bạn</strong>
-              <c:if test="${myReview.edited}"><span class="small muted"> · đã sửa</span></c:if>
-              <c:if test="${not empty myReview.comment}">
-                <div class="small"><c:out value="${myReview.comment}"/></div>
-              </c:if>
-            </div>
-            <div class="actions">
-              <a class="btn btn-sm" href="${ctx}/product/detail?id=${product.productId}&editReview=true">Sửa</a>
-              <form method="post" action="${ctx}/product/detail" class="inline-form"
-                    data-confirm="Xoá đánh giá của bạn cho món này?">
-                <input type="hidden" name="_csrf" value="${csrfToken}">
-                <input type="hidden" name="action" value="reviewDelete">
-                ${revReturn}
-                <input type="hidden" name="reviewId" value="${myReview.reviewId}">
-                <input type="hidden" name="productId" value="${product.productId}">
-                <button type="submit" class="btn btn-sm btn-danger">Xoá</button>
-              </form>
-            </div>
-          </div>
-        </div>
-
         <c:if test="${editingReview}">
           <form method="post" action="${ctx}/product/detail" class="stack mb"
                 data-confirm="Lưu thay đổi cho đánh giá của bạn?">
@@ -150,7 +128,7 @@
             </div>
             <div class="row-tight">
               <button type="submit" class="btn btn-primary">Lưu</button>
-              <a class="btn" href="${ctx}/product/detail?id=${product.productId}">Thôi</a>
+              <a class="btn" href="${ctx}${revBack}#danh-gia">Thôi</a>
             </div>
           </form>
         </c:if>
@@ -202,16 +180,36 @@
       </c:when>
       <c:otherwise>
         <c:forEach var="r" items="${reviewPage.items}">
+          <c:set var="mine" value="${not empty myReview and r.reviewId eq myReview.reviewId}" />
           <div class="review">
             <div class="row-between">
               <div>
                 <span class="stars" aria-hidden="true">${r.stars}</span>
                 <span class="visually-hidden">${r.rating} trên 5 sao</span>
-                <strong><c:out value="${r.customerName}"/></strong>
+                <strong>
+                  <c:choose>
+                    <c:when test="${mine}">Đánh giá của bạn</c:when>
+                    <c:otherwise><c:out value="${r.customerName}"/></c:otherwise>
+                  </c:choose>
+                </strong>
               </div>
-              <span class="small muted">
-                ${ff:dateTime(r.createdAt)}<c:if test="${r.edited}"> · đã sửa</c:if>
-              </span>
+              <div class="actions">
+                <span class="small muted">
+                  ${ff:dateTime(r.createdAt)}<c:if test="${r.edited}"> · đã sửa</c:if>
+                </span>
+                <c:if test="${mine}">
+                  <a class="btn btn-sm" href="<c:out value="${revEditUrl}"/>#danh-gia">Sửa</a>
+                  <form method="post" action="${ctx}/product/detail" class="inline-form"
+                        data-confirm="Xoá đánh giá của bạn cho món này?">
+                    <input type="hidden" name="_csrf" value="${csrfToken}">
+                    <input type="hidden" name="action" value="reviewDelete">
+                    ${revReturn}
+                    <input type="hidden" name="reviewId" value="${r.reviewId}">
+                    <input type="hidden" name="productId" value="${product.productId}">
+                    <button type="submit" class="btn btn-sm btn-danger">Xoá</button>
+                  </form>
+                </c:if>
+              </div>
             </div>
             <c:if test="${not empty r.comment}">
               <p class="small"><c:out value="${r.comment}"/></p>

@@ -25,6 +25,7 @@ public class ScheduleService {
     private final AuditService auditService = new AuditService();
     private final NotificationService notificationService = new NotificationService();
 
+    /** Tìm đơn đã đến kitchenReleaseAt, đánh dấu xuống bếp và ghi audit trong transaction. */
     /**
      * Tự động quét và giải phóng các đơn hàng đã đến hạn xuống bộ phận Bếp (F11. Scheduled Kitchen Release).
      * @return Số lượng đơn hàng được đẩy xuống bếp thành công.
@@ -64,6 +65,7 @@ public class ScheduleService {
         return released;
     }
 
+    /** Chuyển đơn online chờ thanh toán quá thời hạn sang EXPIRED và gửi thông báo. */
     public int expireStalePayments() {
         LocalDateTime now = DateTimeUtil.now();
         LocalDateTime deadline = now.minusMinutes(AppConfig.paymentExpiryMinutes());
@@ -107,6 +109,7 @@ public class ScheduleService {
      * khách bỏ đi giữa chừng để lại một đơn treo mãi trong danh sách bán tại quầy, mà bếp thì
      * không bao giờ thấy.
      */
+    /** Đóng các đơn tại quầy tạo QR nhưng không được thanh toán trong thời hạn giữ đơn. */
     public int expireAbandonedCounterOrders() {
         LocalDateTime now = DateTimeUtil.now();
         LocalDateTime deadline = now.minusMinutes(AppConfig.paymentExpiryMinutes());

@@ -15,6 +15,10 @@ public class SessionGuard {
 
     private final AuthService authService = new AuthService();
 
+    /**
+     * Định kỳ tải lại user từ database; tài khoản bị khóa/không tồn tại sẽ bị hủy session, còn
+     * tài khoản hợp lệ được cập nhật thông tin mới vào session.
+     */
     public User refresh(HttpServletRequest req) {
         HttpSession session = req.getSession(false);
         if (session == null) {
@@ -38,6 +42,7 @@ public class SessionGuard {
         return fresh;
     }
 
+    /** Kiểm tra đã đến thời điểm cần đối chiếu lại trạng thái tài khoản hay chưa. */
     private boolean isDue(HttpServletRequest req, HttpSession session) {
         if (!"GET".equals(req.getMethod()) && !"HEAD".equals(req.getMethod())) {
             return true;

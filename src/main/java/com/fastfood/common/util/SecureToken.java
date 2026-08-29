@@ -16,12 +16,14 @@ public final class SecureToken {
     private SecureToken() {
     }
 
+    /** Sinh raw token ngẫu nhiên đủ mạnh để đặt trong liên kết email. */
     public static String generate() {
         byte[] bytes = new byte[BYTES];
         RANDOM.nextBytes(bytes);
         return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
     }
 
+    /** Hash token bằng SHA-256 trước khi lưu database để không lưu raw token. */
     public static String hash(String token) {
         try {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
@@ -31,6 +33,7 @@ public final class SecureToken {
         }
     }
 
+    /** So sánh hai chuỗi theo constant time để hạn chế timing attack. */
     public static boolean matches(String expected, String actual) {
         if (expected == null || actual == null) {
             return false;
