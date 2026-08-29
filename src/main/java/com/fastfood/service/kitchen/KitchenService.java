@@ -431,12 +431,28 @@ public class KitchenService {
     public void resolveIssue(int issueId, int userId) {
         LocalDateTime now = DateTimeUtil.now();
         Tx.writeVoid(con -> {
+            KitchenIssue issue = issueDAO.findById(con, issueId);
+            if (issue == null) {
+                throw new NotFoundException("Không tìm thấy sự cố.");
+            }
             int changed = issueDAO.resolve(con, issueId, now);
             if (changed == 0) {
                 throw new BusinessException("Sự cố này đã được xử lý.");
             }
             auditService.log(con, userId, "KITCHEN_ISSUE", issueId,
                     AuditAction.ISSUE_RESOLVED, "OPEN", "RESOLVED");
+
+            // Nếu sự cố là Hết nguyên liệu (OUT_OF_STOCK), sau khi xử lý xong (Resolve)
+            // kiểm tra nếu không còn sự cố OUT_OF_STOCK nào khác đang mở cho món này thì tự động mở bán lại trên Menu.
+            if (IssueType.OUT_OF_STOCK.name().equals(issue.getIssueType())) {
+                OrderItem item = orderItemDAO.findById(con, issue.getOrderItemId());
+                if (item != null
+                        && issueDAO.countOpenOutOfStockForProduct(con, item.getProductId()) == 0) {
+                    productDAO.toggleAvailability(con, item.getProductId(), true);
+                    auditService.log(con, userId, "PRODUCT", item.getProductId(),
+                            AuditAction.PRODUCT_CHANGED, "OUT_OF_STOCK", "AVAILABLE");
+                }
+            }
         });
     }
 

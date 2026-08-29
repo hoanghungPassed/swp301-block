@@ -12,6 +12,7 @@ import com.fastfood.model.entity.OrderEntities.Order;
 import com.fastfood.service.Tx;
 
 import java.sql.Connection;
+import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -105,16 +106,35 @@ public class NotificationService {
 
     private void record(Connection con, Order order, NotificationEvent event,
                         String subject, String content) throws SQLException {
-        boolean sent = sender.send(order.getCustomerEmail(), subject, content);
-
         Notification n = new Notification();
         n.setUserId(order.getCustomerId());
         n.setOrderId(order.getOrderId());
         n.setChannel(sender.getChannel());
         n.setEventType(event.name());
         n.setContent(content);
-        n.setStatus(sent ? "SENT" : "FAILED");
-        n.setSentAt(sent ? DateTimeUtil.now() : null);
+        n.setStatus("PENDING");
+        n.setSentAt(null);
         notificationDAO.insert(con, n);
+
+        // Gửi email ngầm bất đồng bộ (Asynchronous) để không làm chậm luồng HTTP Request của Bếp
+        String recipient = order.getCustomerEmail();
+        int notificationId = n.getNotificationId();
+        if (recipient != null && !recipient.isBlank()) {
+            java.util.concurrent.CompletableFuture.runAsync(() -> {
+                try {
+                    boolean sent = sender.send(recipient, subject, content);
+                    Tx.writeVoid(c -> {
+                        try (PreparedStatement ps = c.prepareStatement(
+                                "UPDATE dbo.Notification SET status = ?, sent_at = ? WHERE notification_id = ?")) {
+                            ps.setString(1, sent ? "SENT" : "FAILED");
+                            com.fastfood.dao.JdbcSupport.setDateTime(ps, 2, sent ? DateTimeUtil.now() : null);
+                            ps.setInt(3, notificationId);
+                            ps.executeUpdate();
+                        }
+                    });
+                } catch (Exception ignored) {
+                }
+            });
+        }
     }
 }

@@ -71,7 +71,7 @@ GO
 
 /* KDS poll dữ liệu mỗi 2 giây (NFR-04). Không bật snapshot thì các câu SELECT liên tục
    của màn hình bếp sẽ chặn thao tác ghi của chính bếp. */
-IF EXISTS (SELECT 1 FROM sys.databases WHERE name='FastFoodPreorder' AND is_read_committed_snapshot_on = 0)
+IF EXISTS (SELECT 1 FROMsys.databases WHERE name='FastFoodPreorder' AND is_read_committed_snapshot_on = 0)
     ALTER DATABASE FastFoodPreorder SET READ_COMMITTED_SNAPSHOT ON WITH ROLLBACK IMMEDIATE;
 GO
 
